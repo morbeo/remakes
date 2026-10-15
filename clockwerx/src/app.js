@@ -1260,7 +1260,7 @@ const LEGEND = [
   ["Your clock hand", "Gold for player 1, black for player 2.", { map:["S"], player:true }],
   ["Goal dot", "Grab it to finish the level. It sparkles at the start.", { map:["S.G"] , focus:[1,0] }],
   ["Bonus dot", "Swing or flip onto it: 1,000, then 2,000, up to 5,000 each.", { map:["S.+"], focus:[1,0] }],
-  ["Enemy clock hands", "Blue, green or red, each on a fixed path. Touching one destroys you.", { map:["S.o"], enemies:[{x:1,y:0,q:2,dir:1,color:"blue"}], focus:[.5,0] }],
+  ["Enemy clock hands", "Blue, green or red, each on a fixed path. Crossing one destroys you; meeting tip to tip at the same dot is safe.", { map:["S.o"], enemies:[{x:1,y:0,q:2,dir:1,color:"blue"}], focus:[.5,0] }],
   ["Spike", "Stationary spikes destroy your hand; enemies pass them safely.", { map:["S.o"], objects:[{t:"spike",at:[.5,0]}], focus:[.5,0] }],
   ["Moving spike", "Orbits a dot on a clock-hand path, at the middle of the hand.", { map:["S.o"], enemies:[{x:1,y:0,q:2,dir:1,kind:"spike"}], focus:[.75,0] }],
   ["Wall", "Bounces clock hands. Hyperdotting or riding into one destroys you.", { map:["S|o"], focus:[.5,0] }],

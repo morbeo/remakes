@@ -485,14 +485,26 @@ function touches(L, w){
     });
   });
 }
+/** Two hands whose tips meet at the same dot from different sides do not collide:
+    near a shared dot only the inner parts of the bodies count. */
+const MEET_R = .3;
+function handsCollide(L, w, a, b){
+  const ta = handSeg(a, 1, 1), tb = handSeg(b, 1, 1);
+  let end = .97;
+  if (Math.hypot(a.x - b.x, a.y - b.y) > .5 && Math.hypot(ta[0] - tb[0], ta[1] - tb[1]) < 2 * MEET_R){
+    const d = findGrab(L, w, (ta[0] + tb[0]) / 2, (ta[1] + tb[1]) / 2);
+    if (d && Math.hypot(ta[0] - d.x, ta[1] - d.y) < MEET_R && Math.hypot(tb[0] - d.x, tb[1] - d.y) < MEET_R) end = 1 - MEET_R - .05;
+  }
+  return segDist(handSeg(a, .1, end), handSeg(b, .1, end)) < .045;
+}
 function hazards(L, w){
   for (const p of w.players){
     if (p.dead || p.done) continue;
     const od = onDot(L, p), shield = od && od.type === "shield";
-    const body = handSeg(p, .1, .97), full = handSeg(p, 0, 1);
+    const full = handSeg(p, 0, 1);
     for (const e of w.enemies){
       if (e.dead) continue;
-      if (e.kind === "hand"){ if (!shield && segDist(body, handSeg(e, .1, .97)) < .045){ kill(w, p, "An enemy hand caught yours."); break; } }
+      if (e.kind === "hand"){ if (!shield && handsCollide(L, w, p, e)){ kill(w, p, "An enemy hand caught yours."); break; } }
       else { const sp = spikePoint(e); if (ptSeg(sp[0], sp[1], full) < .08){ kill(w, p, "A moving spike hit your hand."); break; } }
     }
     if (p.dead) continue;
