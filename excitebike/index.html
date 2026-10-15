@@ -1,5 +1,7 @@
 <title>Heatline MX</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#e8f1ef">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Racing+Sans+One&display=swap">
@@ -13,7 +15,7 @@
   color-scheme: light;
 }
 html,body{background:var(--paper);color:var(--ink)}
-body{font-family:var(--ui);font-size:17px}
+body{font-family:var(--ui);font-size:17px;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .wrap{max-width:1100px;margin:0 auto;padding-block:18px 28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:14px}
 header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 20px}
 h1{font-family:var(--display);font-weight:400;font-size:clamp(30px,5vw,46px);line-height:1;margin:0;letter-spacing:.01em;text-wrap:balance}
@@ -31,7 +33,7 @@ button{font-family:var(--ui);font-weight:700;font-size:16px;letter-spacing:.06em
 button:hover{background:#fff1e8}
 button:focus-visible{outline:3px solid var(--signal);outline-offset:2px}
 button.primary{background:var(--signal);border-color:var(--signal);color:#fff}
-.stage{position:relative;border:3px solid var(--ink);border-radius:6px;overflow:hidden;background:#bfe1ee;max-width:100%}
+.stage{position:relative;border:3px solid var(--ink);border-radius:6px;overflow:hidden;background:#bfe1ee;max-width:100%;margin-inline:auto;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 canvas{display:block;width:100%;touch-action:none}
 .pad{display:flex;justify-content:space-between;align-items:center;gap:12px;user-select:none;-webkit-user-select:none}
 .pad .dir{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(2,52px);gap:6px}
@@ -47,7 +49,26 @@ canvas{display:block;width:100%;touch-action:none}
 .pad button.on{transform:translateY(2px);filter:brightness(.88)}
 .keys{display:flex;flex-wrap:wrap;gap:6px 20px;color:var(--muted);font-size:16px;margin:0;padding:0;list-style:none}
 kbd{font-family:var(--ui);font-weight:700;background:var(--panel);border:1px solid var(--line);border-bottom-width:2px;border-radius:3px;padding:0 6px;color:var(--ink)}
-@media (hover:hover) and (pointer:fine){.pad{display:none}}
+.pad .dir .p{grid-column:1;grid-row:1;font-size:15px}
+.rotate{display:none;margin:0;color:var(--muted);font-size:16px}
+@media (hover:hover) and (pointer:fine){html:not(.touch) .pad{display:none}}
+@media (pointer:coarse){.keys{display:none}}
+@media (pointer:coarse) and (orientation:portrait){.rotate{display:block}}
+/* Phone landscape: track fills the screen height, controls float over its lower corners */
+@media (pointer:coarse) and (orientation:landscape){
+  .wrap{max-width:none;padding-block:6px;gap:6px}
+  header>div:first-child,.rotate,#bestChip{display:none}
+  header{justify-content:center}
+  .trackbar{flex-wrap:nowrap;justify-content:center}
+  .chip,.trackbar button,.seedform input,.seedform label{font-size:14px}
+  .trackbar button{padding:4px 10px}
+  .stage{width:min(100%,calc((100vh - 60px) * 2.4));width:min(100%,calc((100dvh - 60px) * 2.4))}
+  .pad{position:fixed;left:0;right:0;bottom:0;z-index:5;pointer-events:none;align-items:flex-end;padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));padding-bottom:max(12px,env(safe-area-inset-bottom,0px))}
+  .pad .dir,.pad .act{pointer-events:auto}
+  .pad button{background:rgba(255,255,255,.55);border-color:rgba(29,40,48,.7);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+  .pad .gas{background:rgba(29,40,48,.62);color:#fff}
+  .pad .turbo{background:rgba(255,90,31,.72);color:#fff}
+}
 @media (max-width:420px){.pad .dir{grid-template-columns:repeat(3,46px);grid-template-rows:repeat(2,46px)}.pad .act button{width:68px;height:68px}}
 @media (prefers-reduced-motion:reduce){.pad button.on{transform:none}}
 </style>
@@ -61,20 +82,23 @@ kbd{font-family:var(--ui);font-weight:700;background:var(--panel);border:1px sol
     <div class="trackbar">
       <form class="seedform" id="seedForm" autocomplete="off">
         <label for="seedInput">Track</label>
-        <input id="seedInput" name="seed" type="text" inputmode="numeric" maxlength="24" placeholder="seed" title="Any number or word" spellcheck="false">
+        <input id="seedInput" name="seed" type="text" maxlength="24" placeholder="seed" title="Any number or word" spellcheck="false">
         <button type="submit">Load</button>
       </form>
       <span class="chip" id="bestChip">Best —</span>
       <button id="restartBtn" type="button">Restart</button>
       <button id="newBtn" class="primary" type="button">New track</button>
       <button id="soundBtn" type="button" aria-pressed="true">Sound on</button>
+      <button id="fsBtn" type="button" hidden>Full screen</button>
     </div>
   </header>
 
   <div class="stage"><canvas id="c" aria-label="Motocross race track"></canvas></div>
+  <p class="rotate">Turn your phone sideways for a bigger track.</p>
 
   <div class="pad" aria-label="Touch controls">
     <div class="dir">
+      <button class="p" data-k="pause" type="button" aria-label="Pause">II</button>
       <button class="u" data-k="up" type="button" aria-label="Lane up">▲</button>
       <button class="l" data-k="left" type="button" aria-label="Lean back">◀</button>
       <button class="d" data-k="down" type="button" aria-label="Lane down">▼</button>
@@ -91,7 +115,7 @@ kbd{font-family:var(--ui);font-weight:700;background:var(--panel);border:1px sol
     <li><kbd>X</kbd> / <kbd>K</kbd> turbo (heats the engine)</li>
     <li><kbd>↑</kbd><kbd>↓</kbd> change lane</li>
     <li><kbd>←</kbd><kbd>→</kbd> lean back / forward in the air</li>
-    <li><kbd>R</kbd> restart · <kbd>N</kbd> new track · <kbd>M</kbd> sound</li>
+    <li><kbd>P</kbd> pause · <kbd>R</kbd> restart · <kbd>N</kbd> new track · <kbd>M</kbd> sound</li>
   </ul>
 </main>
 
@@ -203,7 +227,7 @@ function crash(r) {
   if (r.state === 'crash') return;
   r.state = 'crash'; r.t = 1.7; r.flop = 0;
   r.bx = r.x; r.by = r.y + 26; r.rvx = r.vx * .85 + 40; r.rvy = 200 + Math.min(200, Math.abs(r.vy) * .3); r.spin = 0;
-  if (!r.cpu) { stats.crash++; shake = 12; pop('WIPEOUT', '#e0402a'); }
+  if (!r.cpu) { stats.crash++; shake = 12; pop('WIPEOUT', '#e0402a'); buzz(70); }
 }
 function respawn(r) {
   r.state = 'ride'; r.air = false; r.y = heightAt(r.x); r.vx = 0; r.vy = 0; r.flop = 0;
@@ -259,7 +283,7 @@ function stepRider(r, dt, inp) {
     else if (inp.gas) r.temp += (r.temp < 38 ? 5 : -3) * dt;
     else r.temp -= 16 * dt;
     r.temp = clamp(r.temp, 0, 100);
-    if (r.temp >= 100 && r.state === 'ride') { r.state = 'heat'; r.t = 2.6; stats.heat++; shake = 6; pop('OVERHEAT', '#e0402a'); }
+    if (r.temp >= 100 && r.state === 'ride') { r.state = 'heat'; r.t = 2.6; stats.heat++; shake = 6; pop('OVERHEAT', '#e0402a'); buzz([40, 50, 40]); }
   }
   const prevS = onG ? slopeAt(r.x) : 0;
   r.x += r.vx * dt;
@@ -310,7 +334,9 @@ function emit(x, y, z, vx, vy, life, col, size) { if (parts.length > 280) parts.
 function pop(text, col) { const [sx, sy] = proj(P1.x, P1.y, P1.z); pops.push({text, col, x:sx, y:sy - 70, t:1.1}); }
 
 // ---------- state ----------
-let state = 'title', stateT = 0, camX = 0, time = 0, raceT = 0, finishT = 0, best = null, newBest = false, cheer = 0, shake = 0, doneT = 0;
+let state = 'title', stateT = 0, camX = 0, time = 0, raceT = 0, finishT = 0, best = null, newBest = false, cheer = 0, shake = 0, doneT = 0, paused = false;
+const buzz = p => { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} };
+function togglePause() { if (state === 'race' || state === 'count') paused = !paused; }
 let P1, cpus = [], stats = {clean:0, crash:0, heat:0, take:0}, seed = 7;
 const proj = (x, h, z) => [x - camX + z * DX, BASE - z * DZ - h];
 
@@ -327,7 +353,7 @@ function resetRace(go) {
   P1 = mkRider({x:250, lane:1, col:PAL_P});
   cpus = []; const R = mulberry(seed + 5);
   for (let i = 0; i < 5; i++) cpus.push(mkRider({cpu:true, x:560 + i * 520 + R() * 200, lane:R() * 4 | 0, col:PAL_C[i], vg:255 + R() * 70, ai:2 + R() * 4}));
-  parts = []; pops = []; stats = {clean:0, crash:0, heat:0, take:0};
+  parts = []; pops = []; stats = {clean:0, crash:0, heat:0, take:0}; paused = false;
   raceT = 0; best = loadBest(seed); newBest = false;
   state = go ? 'count' : 'title'; stateT = go ? 2.4 : 0;
   camX = P1.x - 300; updateChips();
@@ -340,6 +366,8 @@ const KEYMAP = {KeyZ:'gas', KeyJ:'gas', Space:'gas', KeyX:'turbo', KeyK:'turbo',
   ArrowUp:'up', KeyW:'up', ArrowDown:'down', KeyS:'down', ArrowLeft:'left', KeyA:'left', ArrowRight:'right', KeyD:'right'};
 function press(k) {
   initAudio();
+  if (k === 'pause') { togglePause(); return; }
+  if (paused) paused = false;
   if (!held[k]) { if (k === 'up') laneTap = 1; if (k === 'down') laneTap = -1; if (k === 'gas' || k === 'turbo') gasEdge = true; }
   held[k] = true;
 }
@@ -351,17 +379,56 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') { initAudio(); resetRace(true); }
   if (e.code === 'KeyN') newTrack();
   if (e.code === 'KeyM') toggleSound();
+  if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
 });
 addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) release(k); });
-addEventListener('blur', () => { for (const k in held) held[k] = false; laneTap = 0; });
-document.querySelectorAll('.pad button').forEach(b => {
-  const k = b.dataset.k;
-  b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture?.(e.pointerId); b.classList.add('on'); press(k); });
-  const up = () => { b.classList.remove('on'); release(k); };
-  b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('lostpointercapture', up);
-  b.addEventListener('contextmenu', e => e.preventDefault());
+// Touch pad: each finger is tracked separately and can slide between buttons (gas ↔ turbo, lean back ↔ forward).
+const touchCount = {}, fingers = new Map();
+function setFinger(id, el) {
+  const prev = fingers.get(id), k = el ? el.dataset.k : null;
+  if (prev && prev.k === k) return;
+  if (prev && prev.k) { prev.el.classList.remove('on'); if (--touchCount[prev.k] <= 0) { touchCount[prev.k] = 0; release(prev.k); } }
+  if (k) { el.classList.add('on'); touchCount[k] = (touchCount[k] || 0) + 1; if (touchCount[k] === 1) press(k); buzz(8); }
+  fingers.set(id, {k, el});
+}
+const padHit = e => { const el = document.elementFromPoint(e.clientX, e.clientY); return el && el.closest ? el.closest('.pad button[data-k]') : null; };
+document.querySelectorAll('.pad .dir, .pad .act').forEach(zone => {
+  zone.addEventListener('pointerdown', e => { e.preventDefault(); try { zone.setPointerCapture(e.pointerId); } catch (_) {} setFinger(e.pointerId, padHit(e)); });
+  zone.addEventListener('pointermove', e => { if (fingers.has(e.pointerId)) setFinger(e.pointerId, padHit(e)); });
+  const end = e => { if (fingers.has(e.pointerId)) { setFinger(e.pointerId, null); fingers.delete(e.pointerId); } };
+  zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end); zone.addEventListener('lostpointercapture', end);
+  zone.addEventListener('contextmenu', e => e.preventDefault());
 });
-cv.addEventListener('pointerdown', () => { initAudio(); if (state === 'title' || (state === 'done' && doneT > 1)) { resetRace(true); } });
+function releaseAll() {
+  for (const id of [...fingers.keys()]) { setFinger(id, null); fingers.delete(id); }
+  for (const k in held) held[k] = false; laneTap = 0;
+}
+addEventListener('blur', releaseAll);
+document.addEventListener('visibilitychange', () => { if (document.hidden) { if (state === 'race' || state === 'count') paused = true; releaseAll(); } });
+addEventListener('pointerdown', e => { if (e.pointerType === 'touch') document.documentElement.classList.add('touch'); }, {capture:true, passive:true});
+addEventListener('touchend', initAudio, {passive:true});
+document.querySelector('.stage').addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('pointerdown', () => {
+  initAudio();
+  if (paused) { paused = false; return; }
+  if (state === 'title' || (state === 'done' && doneT > 1)) resetRace(true);
+});
+// Full screen (Android/desktop; iPhone Safari has no page fullscreen, so the button stays hidden there)
+const fsBtn = document.getElementById('fsBtn'), docEl = document.documentElement;
+const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+if ((docEl.requestFullscreen || docEl.webkitRequestFullscreen) && (document.fullscreenEnabled || document.webkitFullscreenEnabled) && matchMedia('(pointer:coarse)').matches) fsBtn.hidden = false;
+fsBtn.addEventListener('click', async e => {
+  initAudio(); e.currentTarget.blur();
+  try {
+    if (fsEl()) await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else {
+      await (docEl.requestFullscreen || docEl.webkitRequestFullscreen).call(docEl, {navigationUI:'hide'});
+      try { await screen.orientation.lock('landscape'); } catch (_) {}
+    }
+  } catch (_) {}
+});
+const fsSync = () => { fsBtn.textContent = fsEl() ? 'Exit full screen' : 'Full screen'; };
+document.addEventListener('fullscreenchange', fsSync); document.addEventListener('webkitfullscreenchange', fsSync);
 function newTrack() { seed = 1 + Math.floor(Math.random() * 9999); resetRace(false); }
 // Seeds: digits load as that number; any other text is hashed to a stable number.
 function parseSeed(v) {
@@ -405,7 +472,7 @@ function toggleSound() {
 function audioTick() {
   if (!ac) return;
   const t = ac.currentTime, p = P1;
-  const on = !muted && state !== 'title' && p.state !== 'crash';
+  const on = !muted && !paused && state !== 'title' && p.state !== 'crash';
   const f = p.state === 'heat' ? 28 : 36 + p.vx * .2 + (p.turbo ? 16 : 0) + (p.air ? 22 : 0);
   osc1.frequency.setTargetAtTime(f, t, .06); osc2.frequency.setTargetAtTime(f * .503, t, .06);
   filt.frequency.setTargetAtTime(420 + p.vx * 2.2, t, .1);
@@ -784,6 +851,13 @@ function drawHUD() {
 const touch = matchMedia('(pointer:coarse)').matches;
 function drawOverlay() {
   ctx.textAlign = 'center';
+  if (paused) {
+    panel(W / 2 - 180, 130, 360, 110);
+    ctx.font = DFONT(44); ctx.fillStyle = '#1d2830'; ctx.fillText('PAUSED', W / 2, 186);
+    ctx.font = FONT(800, 18); ctx.fillStyle = '#55666d';
+    ctx.fillText(touch ? 'TAP THE TRACK OR GAS TO RESUME' : 'PRESS Z OR P TO RESUME', W / 2, 220);
+    ctx.textAlign = 'left'; return;
+  }
   if (state === 'title') {
     panel(W / 2 - 270, 100, 540, 176);
     ctx.font = DFONT(54); ctx.fillStyle = '#1d2830'; ctx.fillText('HEATLINE', W / 2 - 52, 162); ctx.fillStyle = '#ff5a1f'; ctx.fillText('MX', W / 2 + 150, 162);
@@ -824,7 +898,8 @@ function draw() {
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(1 / 30, (now - last) / 1000); last = now;
-  update(dt); draw();
+  if (paused) audioTick(); else update(dt);
+  draw();
   requestAnimationFrame(frame);
 }
 resetRace(false);
