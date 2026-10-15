@@ -5,4 +5,5 @@ Browser remakes of old games. Each game lives in its own folder as a self-contai
 | Game | Folder |
 | --- | --- |
 | Elasto Mania | [elasto-mania/](elasto-mania/) |
+| ClockWerx | [clockwerx/](clockwerx/) |
 | Excitebike | [excitebike/](excitebike/) |

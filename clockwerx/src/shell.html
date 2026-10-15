@@ -1,0 +1,383 @@
+<title>ClockWerx</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: brass name plate with menu bar · status area · enamel dial playfield with minute-track bezel · control pads.
+   Full-screen panels (title, options, top scores, help) sit over the game. One deliberate light "watch dial" look. */
+:root{
+  --page:#eceee8;        /* page ground: pale enamel */
+  --plate:#fbfbf7;       /* panels */
+  --ink:#1d2836;         /* blued-steel ink */
+  --muted:#5a6472;
+  --rule:#cfd4cc;
+  --brass:#b98a2c;
+  --brass-ink:#6b4d12;
+  --brass-soft:#f1e6c8;
+  --danger:#b0321f;
+  --display:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+.sr-only{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+html,body{height:100%}
+body{margin:0;background:var(--page);color:var(--ink);font-family:var(--body);-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;cursor:pointer}
+input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+kbd{font-family:var(--mono);font-size:.72rem;border:1px solid var(--rule);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:var(--plate);color:var(--ink);white-space:nowrap}
+.btn{border:1px solid var(--rule);background:var(--plate);border-radius:8px;padding:7px 12px;font-size:.88rem}
+.btn:hover:not(:disabled){border-color:var(--brass)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.primary{background:var(--brass);border-color:var(--brass-ink);color:#fffaf0;font-weight:600}
+.btn.small{padding:4px 9px;font-size:.8rem}
+
+.app{height:100%;max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:6px;
+  padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.plate{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding:6px 12px;background:var(--plate);border:1px solid var(--rule);border-radius:10px;position:relative;z-index:4}
+.brand{font-family:var(--display);font-style:italic;font-weight:700;font-size:1.45rem;color:var(--brass-ink);line-height:1}
+.brand span{color:var(--brass)}
+.menubar{display:flex;gap:2px;flex-wrap:wrap}
+.menu{position:relative}
+.menu > button{border:0;background:transparent;padding:6px 10px;border-radius:6px;font-size:.88rem}
+.menu > button[aria-expanded="true"],.menu > button:hover{background:var(--brass-soft)}
+.drop{position:absolute;left:0;top:calc(100% + 4px);min-width:250px;background:var(--plate);border:1px solid var(--rule);border-radius:10px;
+  box-shadow:0 12px 30px rgba(29,40,54,.16);padding:6px;display:flex;flex-direction:column;z-index:20}
+.drop button,.drop .lab{display:flex;justify-content:space-between;gap:16px;align-items:center;text-align:left;border:0;background:transparent;padding:7px 10px;border-radius:6px;font-size:.88rem}
+.drop button:hover:not(:disabled){background:var(--brass-soft)}
+.drop button:disabled{opacity:.45;cursor:default}
+.drop .lab{color:var(--muted);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;padding-bottom:2px}
+.drop hr{border:0;border-top:1px solid var(--rule);margin:4px 2px}
+.drop .chk::before{content:"";display:inline-block;width:1em}
+.drop .chk[aria-checked="true"]::before{content:"✓"}
+.drop .sub{padding-left:22px}
+.quick{margin-left:auto;display:flex;gap:6px}
+
+.hud{display:flex;flex-wrap:wrap;gap:4px 22px;align-items:baseline;padding:0 4px}
+.hud .lvl{font-family:var(--display);font-size:1.12rem;font-weight:600;min-width:0;flex:1 1 14em}
+.hud .lvl small{font-family:var(--mono);font-size:.8rem;color:var(--muted);font-weight:400;margin-right:6px}
+.stat{display:flex;flex-direction:column;gap:0}
+.stat small{font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.stat b{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:1rem;font-weight:600}
+.stat b.low{color:var(--danger)}
+.stat.p2 b{color:#2b2b2b}
+.note{padding:0 4px;font-family:var(--display);font-style:italic;color:var(--muted);font-size:.95rem}
+.status{padding:0 4px;font-size:.86rem;min-height:1.3em;color:var(--brass-ink);font-weight:600}
+.status .tip{color:var(--muted);font-weight:400}
+
+.stage{flex:1;min-height:180px;position:relative;display:grid;place-items:center}
+canvas{display:block;touch-action:none}
+.pads{display:flex;flex-direction:column;gap:6px}
+.pad{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.pad button{user-select:none;-webkit-user-select:none;touch-action:none;border:1px solid var(--rule);background:var(--plate);border-radius:10px;
+  padding:9px 6px;display:flex;flex-direction:column;align-items:center;gap:3px;font-weight:600}
+.pad button span{font-size:.7rem;font-weight:400;color:var(--muted)}
+.pad button.on{background:var(--brass-soft);border-color:var(--brass)}
+.pad.p2 button{background:#f1f1ef;border-color:#bfc3c7}
+.pad.p2 button.on{background:#dcdcdc;border-color:#555}
+
+.card{position:absolute;z-index:3;background:var(--plate);border:1px solid var(--rule);border-radius:12px;padding:18px 20px;
+  width:min(380px,100%);max-height:100%;overflow:auto;box-shadow:0 10px 30px rgba(29,40,54,.14);display:flex;flex-direction:column;gap:10px}
+.card h3{margin:0;font-family:var(--display);font-size:1.5rem;font-weight:600}
+.card dl{display:grid;grid-template-columns:1fr auto;gap:4px 12px;margin:0;font-size:.9rem}
+.card dt{color:var(--muted)}
+.card dd{margin:0;font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.card dd.total{font-weight:700;color:var(--brass-ink)}
+.card .row{display:flex;gap:8px;flex-wrap:wrap}
+.card p{margin:0;color:var(--muted);font-size:.9rem}
+
+/* Full-screen panels */
+.screen{position:fixed;inset:0;z-index:10;overflow:auto;background:var(--page);
+  padding-top:max(16px,env(safe-area-inset-top,0px));padding-bottom:max(16px,env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.screen .inner{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.screen h1{margin:4px 0 0;font-family:var(--display);font-style:italic;font-size:clamp(2.2rem,7vw,3.4rem);color:var(--brass-ink);line-height:1}
+.screen h1 span{color:var(--brass)}
+.screen h2{margin:0;font-family:var(--display);font-size:1.4rem;font-weight:600}
+.screen section{background:var(--plate);border:1px solid var(--rule);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.screen h4{margin:0;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.lede{margin:0;max-width:62ch;color:var(--muted);line-height:1.5}
+.small{font-size:.82rem;color:var(--muted);margin:0}
+.toprow{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap}
+
+/* Title */
+#scrTitle .inner{align-items:center;text-align:center;justify-content:center;min-height:100%}
+#titleCv{max-width:100%}
+.blink{animation:blink 1.6s ease-in-out infinite;color:var(--brass-ink);font-weight:600}
+@keyframes blink{50%{opacity:.35}}
+
+/* Options */
+.optgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:16px;align-items:start}
+@media (max-width:760px){.optgrid{grid-template-columns:1fr}}
+.field{display:grid;grid-template-columns:7.5em 1fr;gap:6px 12px;align-items:center}
+.field > label,.field > span.k{font-size:.85rem;color:var(--muted)}
+.field input[type=text]{border:1px solid var(--rule);border-radius:8px;padding:6px 9px;background:#fff;min-width:0;width:100%}
+.seg{display:flex;flex-wrap:wrap;border:1px solid var(--rule);border-radius:8px;overflow:hidden;width:fit-content;max-width:100%}
+.seg button{border:0;background:transparent;padding:6px 12px;font-size:.86rem}
+.seg button+button{border-left:1px solid var(--rule)}
+.seg button[aria-pressed="true"]{background:var(--brass);color:#fffaf0;font-weight:600}
+.stepper{display:flex;align-items:center;gap:8px}
+.stepper b{font-family:var(--mono);min-width:6.5em;text-align:center}
+.rating{font-size:.85rem;color:var(--muted)}
+.rating b{color:var(--brass-ink)}
+.levelbox{max-height:min(56vh,520px);overflow:auto;border:1px solid var(--rule);border-radius:10px;background:#fff}
+.stagehead{position:sticky;top:0;background:var(--brass-soft);font-family:var(--display);font-weight:700;letter-spacing:.08em;font-size:.86rem;padding:5px 10px;border-bottom:1px solid var(--rule);z-index:1}
+.lvl{display:grid;grid-template-columns:2.4em 1fr auto;gap:8px;align-items:baseline;width:100%;text-align:left;border:0;border-bottom:1px solid #eef0ec;background:transparent;padding:6px 10px}
+.lvl .n{font-family:var(--mono);color:var(--muted);font-size:.8rem}
+.lvl .nm{font-family:var(--display);font-size:.98rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lvl .sc{font-family:var(--mono);font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.lvl.done .sc{color:var(--brass-ink)}
+.lvl.sel{background:var(--brass-soft);box-shadow:inset 3px 0 0 var(--brass)}
+.lvl:disabled{opacity:.4;cursor:default}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+/* Scores, help */
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button[aria-selected="true"]{background:var(--brass);color:#fffaf0;border-color:var(--brass-ink)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{text-align:left;padding:6px 10px;border-bottom:1px solid #e6e9e3}
+th{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.num{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.cols2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.legend{display:grid;grid-template-columns:64px 1fr;gap:8px 12px;align-items:center;font-size:.9rem}
+.legend canvas{width:64px;height:64px;border-radius:8px;background:#06070a}
+.legend b{font-weight:600}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:.88rem;align-items:baseline}
+.prose p{margin:0 0 8px;line-height:1.55;max-width:70ch}
+.credits{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;font-size:.9rem}
+.credits dt{color:var(--muted)}
+.credits dd{margin:0}
+
+.dialog{position:fixed;inset:0;z-index:30;background:rgba(29,40,54,.28);display:grid;place-items:center;padding:16px}
+.dialog .box{background:var(--plate);border:1px solid var(--rule);border-radius:12px;padding:18px 20px;width:min(420px,100%);display:flex;flex-direction:column;gap:12px;box-shadow:0 14px 40px rgba(29,40,54,.2)}
+.dialog h3{margin:0;font-family:var(--display);font-size:1.35rem}
+.dialog p{margin:0;color:var(--muted);line-height:1.45}
+.dialog input{border:1px solid var(--rule);border-radius:8px;padding:8px 10px;background:#fff}
+.err{color:var(--danger);font-size:.85rem;min-height:1.2em}
+@media (max-width:560px){.brand{font-size:1.2rem}.stat b{font-size:.9rem}.pad button{padding:8px 4px}.quick .btn{padding:6px 9px}}
+@media (prefers-reduced-motion:reduce){.blink{animation:none}}
+</style>
+
+<div class="app" id="app">
+  <header class="plate">
+    <div class="brand">Clock<span>W</span>erx</div>
+    <nav class="menubar" id="menubar" aria-label="Menu bar">
+      <div class="menu"><button aria-haspopup="true" aria-expanded="false">File</button>
+        <div class="drop" role="menu" hidden>
+          <button role="menuitem" data-cmd="new">New Game <kbd>Ctrl N</kbd></button>
+          <button role="menuitem" data-cmd="end">End Game <kbd>Ctrl E</kbd></button>
+          <button role="menuitem" data-cmd="abort">Abort Game <kbd>Ctrl A</kbd></button>
+          <button role="menuitem" data-cmd="open">Open Levels File… <kbd>Ctrl F</kbd></button>
+          <hr>
+          <button role="menuitem" data-cmd="pause">Pause <kbd>Ctrl P</kbd></button>
+          <button role="menuitem" data-cmd="restart">Restart Level <kbd>Ctrl R</kbd></button>
+          <button role="menuitem" data-cmd="skip">Skip This Level <kbd>Ctrl K</kbd></button>
+          <hr>
+          <button role="menuitem" data-cmd="quit">Quit <kbd>Ctrl Q</kbd></button>
+        </div>
+      </div>
+      <div class="menu"><button aria-haspopup="true" aria-expanded="false">Options</button>
+        <div class="drop" role="menu" hidden>
+          <button role="menuitemcheckbox" class="chk" data-cmd="sound" aria-checked="true"><span>Sound Effects</span><kbd>Ctrl S</kbd></button>
+          <div class="lab">Background Music</div>
+          <button role="menuitemradio" class="chk sub" data-cmd="music:none" aria-checked="false">None</button>
+          <button role="menuitemradio" class="chk sub" data-cmd="music:once" aria-checked="false">Play Once</button>
+          <button role="menuitemradio" class="chk sub" data-cmd="music:pause" aria-checked="false">Play Pause</button>
+          <button role="menuitemradio" class="chk sub" data-cmd="music:loop" aria-checked="true">Play Loop</button>
+          <hr>
+          <button role="menuitemcheckbox" class="chk" data-cmd="indicator" aria-checked="true"><span>Swing Indicator</span><kbd>Ctrl I</kbd></button>
+        </div>
+      </div>
+      <div class="menu"><button aria-haspopup="true" aria-expanded="false">Top Scores</button>
+        <div class="drop" role="menu" hidden>
+          <button role="menuitem" data-cmd="scores">Top Scores <kbd>Ctrl T</kbd></button>
+        </div>
+      </div>
+      <div class="menu"><button aria-haspopup="true" aria-expanded="false">Help</button>
+        <div class="drop" role="menu" hidden>
+          <button role="menuitem" data-cmd="help">ClockWerx Help <kbd>F1</kbd></button>
+          <button role="menuitem" data-cmd="about">About ClockWerx</button>
+        </div>
+      </div>
+    </nav>
+    <div class="quick">
+      <button class="btn small" id="qPause" data-cmd="pause">Pause</button>
+      <button class="btn small" data-cmd="restart">Restart</button>
+    </div>
+  </header>
+
+  <div class="hud sr-only" id="hud">
+    <div class="lvl" id="hLevel"><small>01</small>Seat Board</div>
+    <div class="stat"><small>Time</small><b id="hTime">0:00</b></div>
+    <div class="stat"><small id="hS1l">This level</small><b id="hScore1">0</b></div>
+    <div class="stat"><small id="hT1l">Total</small><b id="hTotal1">0</b></div>
+    <div class="stat p2" id="hP2a" hidden><small id="hS2l">P2 level</small><b id="hScore2">0</b></div>
+    <div class="stat p2" id="hP2b" hidden><small id="hT2l">P2 total</small><b id="hTotal2">0</b></div>
+  </div>
+  <div class="note" id="note"></div>
+  <div class="status" id="status"></div>
+
+  <main class="stage" id="stage">
+    <canvas id="cv" aria-label="ClockWerx playfield"></canvas>
+    <div class="card" id="card" hidden></div>
+  </main>
+
+  <div class="pads">
+    <nav class="pad p1" aria-label="Player 1 controls">
+      <button data-hold="bounce" data-p="0">Bounce<span><kbd>Z</kbd> <kbd>/</kbd></span></button>
+      <button data-hold="flip" data-p="0">Flip<span><kbd>Shift</kbd></span></button>
+      <button data-hold="swing" data-p="0">Swing<span><kbd>X</kbd> <kbd>.</kbd></span></button>
+      <button data-hold="reverse" data-p="0">Reverse<span><kbd>Space</kbd></span></button>
+    </nav>
+    <nav class="pad p2" id="pad2" aria-label="Player 2 controls" hidden>
+      <button data-hold="bounce" data-p="1">P2 Bounce<span><kbd>3</kbd> <kbd>5</kbd> <kbd>→</kbd></span></button>
+      <button data-hold="flip" data-p="1">P2 Flip<span><kbd>1</kbd> <kbd>4</kbd> <kbd>+</kbd> <kbd>←</kbd></span></button>
+      <button data-hold="swing" data-p="1">P2 Swing<span><kbd>2</kbd> <kbd>6</kbd> <kbd>↓</kbd></span></button>
+      <button data-hold="reverse" data-p="1">P2 Reverse<span><kbd>Enter</kbd> <kbd>0</kbd> <kbd>↑</kbd></span></button>
+    </nav>
+  </div>
+</div>
+
+<!-- Title screen -->
+<div class="screen" id="scrTitle" hidden>
+  <div class="inner">
+    <h1>Clock<span>W</span>erx</h1>
+    <canvas id="titleCv" width="520" height="300" aria-hidden="true"></canvas>
+    <p class="lede">Swing, flip and bounce a brass clock hand through 100 levels of clockwork. A dependency-free remake of the 1995 Callisto puzzle game.</p>
+    <p class="blink">Click or press any key</p>
+  </div>
+</div>
+
+<!-- Options screen -->
+<div class="screen" id="scrOptions" hidden>
+  <div class="inner">
+    <div class="toprow">
+      <div><h1>Clock<span>W</span>erx</h1><p class="small" id="setName">Built-in levels</p></div>
+      <div class="bar">
+        <button class="btn" data-cmd="open">Open levels file…</button>
+        <button class="btn" id="bBuiltin" hidden>Use built-in levels</button>
+        <button class="btn" data-cmd="scores">Top scores</button>
+        <button class="btn" data-cmd="help">Help</button>
+      </div>
+    </div>
+    <div class="optgrid">
+      <section>
+        <h4>Options</h4>
+        <div class="field">
+          <label for="oName1">Player 1</label><input type="text" id="oName1" maxlength="20" autocomplete="off">
+          <span class="k"></span><div class="rating" id="oRating1"></div>
+          <span class="k">Control</span>
+          <div class="seg" id="oControl"><button data-v="keyboard">Keyboard</button><button data-v="mouse">Mouse</button></div>
+          <span class="k">Game type</span>
+          <div class="seg" id="oType"><button data-v="1">Single Player</button><button data-v="2">Two Player</button></div>
+          <label for="oName2" class="p2only">Player 2</label><input type="text" id="oName2" class="p2only" maxlength="20" autocomplete="off">
+          <span class="k">Time</span>
+          <div class="stepper"><button class="btn small" id="oTimeDn" aria-label="Less time">▼</button><b id="oTime">No limit</b><button class="btn small" id="oTimeUp" aria-label="More time">▲</button></div>
+          <span class="k">Difficulty</span>
+          <div class="seg" id="oDiff"><button data-v="C">Child</button><button data-v="E">Easy</button><button data-v="M">Medium</button><button data-v="H">Hard</button></div>
+          <label for="oMusic">Music</label>
+          <select id="oMusic"><option value="none">None</option><option value="once">Play Once</option><option value="pause">Play Pause</option><option value="loop">Play Loop</option></select>
+          <span class="k">Sound</span>
+          <label><input type="checkbox" id="oSound"> Sound effects</label>
+          <span class="k">Indicator</span>
+          <label><input type="checkbox" id="oInd"> Swing indicator</label>
+        </div>
+        <p class="small" id="oDiffNote"></p>
+      </section>
+      <section>
+        <div class="toprow"><h4>Level · Best score</h4><span class="small" id="oSkips"></span></div>
+        <div class="levelbox" id="oLevels"></div>
+        <div class="bar">
+          <button class="btn primary" id="bPlay">Play</button>
+          <button class="btn" id="bSkip">Skip Level</button>
+          <span class="small" id="oIdle"></span>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- Top scores -->
+<div class="screen" id="scrScores" hidden>
+  <div class="inner">
+    <div class="toprow"><h2>Top Scores</h2><button class="btn" data-close>Done</button></div>
+    <div class="tabs" role="tablist">
+      <button class="btn" role="tab" id="tabLevel" aria-selected="true">Top Level Scores</button>
+      <button class="btn" role="tab" id="tabTotal" aria-selected="false">Top Scores</button>
+    </div>
+    <section id="paneLevel">
+      <div class="bar"><label for="sLevel" class="small">Level</label><select id="sLevel"></select></div>
+      <div class="cols2"><div class="tablewrap"><h4>Single player</h4><table id="tL1"></table></div><div class="tablewrap"><h4>Two player</h4><table id="tL2"></table></div></div>
+    </section>
+    <section id="paneTotal" hidden>
+      <div class="cols2"><div class="tablewrap"><h4>Single player · sum of each player's best level scores</h4><table id="tT1"></table></div><div class="tablewrap"><h4>Two player · best game totals</h4><table id="tT2"></table></div></div>
+    </section>
+  </div>
+</div>
+
+<!-- Help -->
+<div class="screen" id="scrHelp" hidden>
+  <div class="inner">
+    <div class="toprow"><h2>ClockWerx Help</h2><button class="btn" data-close>Done</button></div>
+    <div class="cols2">
+      <section class="prose">
+        <h4>How to play</h4>
+        <p>Your gold clock hand spins around a dot. Grab the next dot just as the tip passes it, and work your way to the sparkling goal dot. Nothing moves until you press a game key, so study the level first.</p>
+        <p><b>Swing</b> grabs the dot and spins the other way. <b>Flip</b> grabs it and keeps the same spin. <b>Bounce</b> reverses off the dot without moving. <b>Reverse</b> turns around anywhere. Hold the key before the tip reaches the dot; keep holding to repeat.</p>
+        <p>With mouse control, click a neighbouring dot while your hand is within a quarter turn of it to swing, double-click to flip, and click your own dot to reverse.</p>
+        <p>Hit anything dangerous or run out of time and the level restarts, from your way station if you grabbed one.</p>
+      </section>
+      <section>
+        <h4>Keys</h4>
+        <div class="keys">
+          <div>Swing</div><div><kbd>X</kbd> <kbd>.</kbd> · Player 2: <kbd>2</kbd> <kbd>6</kbd> or <kbd>↓</kbd></div>
+          <div>Bounce</div><div><kbd>Z</kbd> <kbd>/</kbd> · Player 2: <kbd>3</kbd> <kbd>5</kbd> or <kbd>→</kbd></div>
+          <div>Flip</div><div><kbd>Shift</kbd> (or swing + bounce) · Player 2: <kbd>1</kbd> <kbd>4</kbd> <kbd>+</kbd> or <kbd>←</kbd></div>
+          <div>Reverse</div><div><kbd>Space</kbd> · Player 2: <kbd>Enter</kbd> <kbd>0</kbd> or <kbd>↑</kbd></div>
+          <div>Menu</div><div><kbd>Ctrl</kbd> with N E A F P R K Q S I T, <kbd>F1</kbd> help. <kbd>P</kbd> <kbd>R</kbd> <kbd>K</kbd> <kbd>I</kbd> and <kbd>Esc</kbd> work alone too, since browsers keep some Ctrl keys.</div>
+        </div>
+        <h4>Scoring</h4>
+        <p class="small">Each level pays a completion bonus by difficulty, points for every second left, and bonus dots worth 1,000, 2,000 and so on up to 5,000 each. Restarting resets the bonus count. In two-player games the first player to the goal gets the full completion bonus, the second half.</p>
+      </section>
+    </div>
+    <section>
+      <h4>Enemies, obstacles and tools</h4>
+      <div class="legend" id="legend"></div>
+    </section>
+  </div>
+</div>
+
+<!-- About -->
+<div class="screen" id="scrAbout" hidden>
+  <div class="inner">
+    <div class="toprow"><h2>About ClockWerx</h2><button class="btn" data-close>Done</button></div>
+    <section class="prose">
+      <p>A fan remake for the browser: one file, no libraries, every graphic drawn in code and every sound synthesised. Levels are original; each one is checked by a solver on all four difficulties before it ships.</p>
+    </section>
+    <section>
+      <h4>The 1995 original</h4>
+      <dl class="credits">
+        <dt>Original design and Mac programming</dt><dd>Seth Lipkin, Darrell Myers, Robert Harris, Mike Barta (Callisto Corporation)</dd>
+        <dt>Original artwork</dt><dd>Darrell Myers, Ann Harris</dd>
+        <dt>Windows conversion</dt><dd>Tom Davidson, Xin Liu (MicroBurst)</dd>
+        <dt>Music</dt><dd>Peter Drescher (Halestorm)</dd>
+        <dt>Publisher</dt><dd>Spectrum HoloByte, with an endorsement from Alexey Pajitnov</dd>
+      </dl>
+    </section>
+  </div>
+</div>
+
+<!-- Dialog (quit, session time, clock question) -->
+<div class="dialog" id="dialog" hidden><div class="box" id="dialogBox"></div></div>
+<input type="file" id="fileLevels" accept=".json,application/json" hidden>
+
+<script>
+"use strict";
+/*SIM-START*/
+/*SIM*/
+/*SIM-END*/
+const BUILTIN_LEVELS = /*LEVELS*/;
+/*APP*/
+</script>
