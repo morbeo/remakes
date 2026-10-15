@@ -1,0 +1,1024 @@
+<title>Spring Rider</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: full-bleed canvas world, floating HUD chips, one centered menu card. Single light theme by choice. */
+:root {
+  --sky: #d6ecf6;
+  --paper: #fffdf8;
+  --ink: #22313a;
+  --muted: #5d6f78;
+  --apple: #d8342b;
+  --grass: #4f9e35;
+  --line: #d9e2e6;
+  --display: "Bungee", "Impact", "Arial Black", sans-serif;
+  --ui: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { background: var(--sky); color: var(--ink); font-family: var(--ui); overflow: hidden; user-select: none; -webkit-user-select: none; touch-action: none; }
+#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+.hud { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; pointer-events: none; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { background: var(--paper); border: 2px solid var(--ink); border-radius: 6px; padding: 4px 10px; font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; box-shadow: 3px 3px 0 var(--ink); }
+.chip .k { color: var(--muted); font-weight: 600; margin-right: 6px; text-transform: uppercase; letter-spacing: .06em; font-size: 12px; }
+.chip.time { font-family: var(--display); font-weight: 400; font-size: 18px; letter-spacing: .02em; }
+.btns { display: flex; gap: 8px; pointer-events: auto; }
+button { font-family: var(--ui); font-weight: 700; font-size: 15px; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 6px; padding: 5px 12px; cursor: pointer; box-shadow: 3px 3px 0 var(--ink); }
+button:hover { background: #fff3d6; }
+button:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+button:focus-visible { outline: 3px solid var(--apple); outline-offset: 2px; }
+.overlay { position: fixed; inset: 0; display: grid; place-items: center; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px; background: rgba(214,236,246,.25); }
+.card { background: var(--paper); border: 3px solid var(--ink); border-radius: 10px; box-shadow: 6px 6px 0 var(--ink); padding: 20px 22px; width: min(560px, 100%); max-height: calc(100% - 8px); overflow: auto; display: grid; gap: 14px; }
+h1 { font-family: var(--display); font-weight: 400; font-size: clamp(30px, 7vw, 46px); line-height: 1; margin: 0; color: var(--apple); text-shadow: 3px 3px 0 var(--ink); text-wrap: balance; }
+.sub { margin: 0; color: var(--muted); font-size: 16px; }
+h2 { font-family: var(--display); font-weight: 400; font-size: 26px; margin: 0; text-wrap: balance; }
+.levels { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.lv { text-align: left; display: grid; gap: 2px; padding: 8px 10px; }
+.lv .n { font-size: 12px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+.lv .t { font-size: 17px; }
+.lv .b { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lv.done .b { color: var(--grass); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.keys { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 15px; margin: 0; }
+.keys dt { font-weight: 700; }
+.keys dd { margin: 0; color: var(--muted); }
+kbd { font-family: var(--ui); font-weight: 700; border: 1.5px solid var(--ink); border-bottom-width: 3px; border-radius: 4px; padding: 0 5px; background: #fff; font-size: 13px; }
+.bind { display: grid; grid-template-columns: 1fr auto auto; gap: 6px 10px; align-items: center; font-size: 16px; }
+.bind h3 { grid-column: 1 / -1; margin: 6px 0 0; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.bind .kb { min-width: 92px; padding: 3px 8px; font-size: 14px; box-shadow: 2px 2px 0 var(--ink); }
+.bind .kb.empty { color: var(--muted); font-weight: 500; }
+.bind .kb.wait { background: #ffe08a; }
+.big { font-family: var(--display); font-weight: 400; font-size: 34px; font-variant-numeric: tabular-nums; }
+.touch { position: fixed; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); display: none; justify-content: space-between; pointer-events: none; }
+.touch .grp { display: flex; gap: 10px; pointer-events: auto; }
+.touch button { width: 62px; height: 62px; font-size: 22px; padding: 0; opacity: .85; touch-action: none; }
+button.primary { background: var(--apple); color: #fff; }
+button.primary:hover { background: #c22a22; }
+.edbar { position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 6px; justify-items: start; pointer-events: none; }
+.edrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; pointer-events: auto; }
+.edrow button, .edrow select { padding: 4px 10px; font-size: 14px; }
+.edrow .tool[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.edrow input[type=text], .edrow select { font-family: var(--ui); font-weight: 600; font-size: 15px; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 6px; padding: 4px 8px; box-shadow: 3px 3px 0 var(--ink); }
+.edrow input[type=text] { width: 12em; max-width: 100%; }
+.edrow label { background: var(--paper); border: 2px solid var(--ink); border-radius: 6px; padding: 3px 8px; font-weight: 700; display: flex; gap: 4px; align-items: center; }
+.edhint { background: var(--paper); border: 2px solid var(--ink); border-radius: 6px; padding: 4px 10px; margin: 0; font-size: 14px; max-width: 100%; pointer-events: auto; }
+.edhint.warn { color: var(--apple); font-weight: 700; }
+textarea { width: 100%; box-sizing: border-box; min-height: 84px; font: 12px/1.35 ui-monospace, Menlo, Consolas, monospace; color: var(--ink); background: #fff; border: 2px solid var(--ink); border-radius: 6px; padding: 6px; word-break: break-all; resize: vertical; }
+.status { margin: 0; font-size: 14px; color: var(--muted); min-height: 1.2em; }
+.status.bad { color: var(--apple); font-weight: 700; }
+.gal { display: grid; gap: 8px; }
+.gi { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; border: 2px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.gi .t { font-weight: 700; font-size: 17px; overflow-wrap: anywhere; }
+.gi .m { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.gi .acts { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.gi .acts button { padding: 3px 10px; font-size: 14px; }
+body.editing .hud, body.editing .touch { display: none !important; }
+@media (pointer: coarse) { .touch { display: flex; } .desk { display: none; } }
+@media (prefers-reduced-motion: reduce) { button:active { transform: none; } }
+</style>
+
+<canvas id="game"></canvas>
+
+<div class="hud">
+  <div class="chips">
+    <div class="chip time" id="hudTime">00:00:00</div>
+    <div class="chip"><span class="k">Apples</span><span id="hudApples">0/0</span></div>
+    <div class="chip" id="hudLevel">Level</div>
+  </div>
+  <div class="btns">
+    <button id="bSound" title="Sound (M)">Sound on</button>
+    <button id="bRestart" title="Restart (Enter)">Restart</button>
+    <button id="bMenu" title="Menu (Esc)">Menu</button>
+  </div>
+</div>
+
+<div class="overlay" id="menu">
+  <div class="card">
+    <div>
+      <h1>Spring Rider</h1>
+      <p class="sub">A browser tribute to Elasto Mania. Eat every apple, then touch the flower. Don't land on your head.</p>
+    </div>
+    <div class="levels" id="levelList"></div>
+    <div class="row">
+      <button id="bRandom">Random track</button>
+      <span class="sub" id="seedInfo">Fresh layout every time</span>
+    </div>
+    <div class="row">
+      <button id="bEditor">Level editor</button>
+      <button id="bGallery">Level gallery</button>
+      <button id="bImport">Import level code</button>
+    </div>
+    <dl class="keys desk" id="keyLegend"></dl>
+    <div class="row desk"><button id="bKeys">Change keys</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="endCard" hidden>
+  <div class="card">
+    <h2 id="endTitle">Finished</h2>
+    <div class="big" id="endTime">00:00:00</div>
+    <p class="sub" id="endNote"></p>
+    <div class="row">
+      <button id="bNext">Next level</button>
+      <button id="bRetry">Retry</button>
+      <button id="bEndMenu">Menu</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="keysCard" hidden>
+  <div class="card">
+    <h2>Controls</h2>
+    <p class="sub">Click a key slot, then press the new key. Backspace clears the slot, Esc cancels.</p>
+    <div class="bind" id="bindList"></div>
+    <div class="row">
+      <button id="bKeysDone">Done</button>
+      <button id="bKeysReset">Reset to defaults</button>
+    </div>
+  </div>
+</div>
+
+<div class="edbar" id="edBar" hidden>
+  <div class="edrow">
+    <input type="text" id="edName" maxlength="40" aria-label="Level name">
+    <button class="tool" data-tool="move" title="Move (1)">Move</button>
+    <button class="tool" data-tool="ground" title="Ground (2)">Ground</button>
+    <button class="tool" data-tool="block" title="Block (3)">Block</button>
+    <button class="tool" data-tool="apple" title="Apple (4)">Apple</button>
+    <button class="tool" data-tool="killer" title="Killer (5)">Killer</button>
+    <button class="tool" data-tool="flower" title="Flower (6)">Flower</button>
+    <button class="tool" data-tool="start" title="Start (7)">Start</button>
+  </div>
+  <div class="edrow">
+    <label><input type="checkbox" id="edSnap" checked> Snap</label>
+    <button id="edZoomOut" title="Zoom out">−</button><button id="edZoomIn" title="Zoom in">+</button>
+    <button id="edUndo" title="Undo (Ctrl+Z)">Undo</button>
+    <button id="edDelete" title="Delete selected (Del)">Delete</button>
+    <select id="edFrom" aria-label="Start from"></select>
+    <button id="edTest" class="primary" title="Test ride (T)">Test ride</button>
+    <button id="edShare">Share</button>
+    <button id="edExit">Exit</button>
+  </div>
+  <p class="edhint" id="edHint"></p>
+</div>
+
+<div class="overlay" id="shareCard" hidden>
+  <div class="card">
+    <h2>Share level</h2>
+    <p class="sub">Send the code or the link. Anyone with the game can paste the code under Import level code, and the link opens the level directly.</p>
+    <textarea id="shCode" readonly aria-label="Level code"></textarea>
+    <div class="row"><button id="shCopyCode">Copy code</button><button id="shCopyLink">Copy link</button></div>
+    <p class="status" id="shLinkInfo"></p>
+    <div class="row"><button id="shPublish" class="primary">Publish to gallery</button><button id="shClose">Close</button></div>
+    <p class="status" id="shStatus"></p>
+  </div>
+</div>
+
+<div class="overlay" id="importCard" hidden>
+  <div class="card">
+    <h2>Import level</h2>
+    <p class="sub">Paste a level code or a share link.</p>
+    <textarea id="imCode" aria-label="Level code or link"></textarea>
+    <p class="status" id="imStatus"></p>
+    <div class="row"><button id="imPlay" class="primary">Play</button><button id="imEdit">Open in editor</button><button id="imClose">Cancel</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="galleryCard" hidden>
+  <div class="card">
+    <h2>Level gallery</h2>
+    <p class="sub">Levels published by everyone who can open this game. Publish your own from the editor's Share button.</p>
+    <p class="status" id="galStatus">Connecting…</p>
+    <div class="gal" id="galList"></div>
+    <div class="row"><button id="galClose">Close</button></div>
+  </div>
+</div>
+
+<div class="touch" id="touch">
+  <div class="grp"><button data-k="left">⟲</button><button data-k="right">⟳</button></div>
+  <div class="grp"><button data-k="flip">⇄</button><button data-k="brake">▼</button><button data-k="gas">▲</button></div>
+</div>
+
+<script>
+"use strict";
+// ---------- constants ----------
+const G = 10, DT = 1 / 480;
+const WR = 0.4, HEAD_R = 0.26, APPLE_R = 0.4, KILL_R = 0.4, FLOWER_R = 0.45;
+const BODY_M = 3, BODY_I = 1.1, WM = 1, WI = 0.5 * WM * WR * WR;
+const K = 300, C = 10, MU = 1.4;
+const MAXW = 55, ACC = 260, BRAKE = 70, VOLT = 2.8, LEAN = 7, LEAN_MAX = 3.5;
+const WOFF = [[-0.85, -0.55], [0.85, -0.55]];
+const HEAD = [-0.1, 0.62];
+
+// ---------- RNG ----------
+function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+// ---------- level building ----------
+class Track {
+  constructor(x0 = -6, y0 = 0) { this.x = x0; this.y = y0; this.p = [[x0, y0]]; this.apples = []; this.killers = []; this.solids = []; }
+  to(dx, dy) { this.x += dx; this.y += dy; this.p.push([this.x, this.y]); return this; }
+  flat(l) { return this.to(l, 0); }
+  curve(l, dy, n = 14) { const sx = this.x, sy = this.y; for (let i = 1; i <= n; i++) { const t = i / n; this.p.push([sx + l * t, sy + dy * (1 - Math.cos(Math.PI * t)) / 2]); } this.x = sx + l; this.y = sy + dy; return this; }
+  hills(l, amp, count) { const sx = this.x, sy = this.y, n = count * 16; for (let i = 1; i <= n; i++) { const t = i / n; this.p.push([sx + l * t, sy + amp * (1 - Math.cos(t * count * 2 * Math.PI)) / 2]); } this.x = sx + l; return this; }
+  apple(dx = 0, h = 1.3) { this.apples.push([this.x + dx, this.groundAt(this.x + dx) + h]); return this; }
+  appleAt(x, y) { this.apples.push([x, y]); return this; }
+  killer(x, y) { this.killers.push([x, y]); return this; }
+  block(x1, y1, x2, y2) { this.solids.push([[x1, y1], [x2, y1], [x2, y2], [x1, y2]]); return this; }
+  groundAt(x) { const p = this.p; for (let i = 1; i < p.length; i++) { const a = p[i - 1], b = p[i]; if (x >= a[0] && x <= b[0] && b[0] > a[0]) return a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0]); } return this.y; }
+  done(name, extra = 0) { this.flat(8); const fx = this.x - 4; return { name, pts: this.p, apples: this.apples, killers: this.killers, solids: this.solids, flower: [fx, this.groundAt(fx) + 0.6], start: [0, this.groundAt(0) + 1.0], extra }; }
+}
+
+const LEVELS = [
+  () => { const t = new Track(); t.flat(10).apple(-2).curve(10, 2).flat(4).apple(-2, 1.4).curve(10, -2).hills(24, 1.2, 3).apple(-4).flat(4); return t.done("First Ride"); },
+  () => { const t = new Track(); t.flat(8); [1.5, 2.5, 3.5, 2.5, 4.5].forEach(a => { t.hills(9 + a * 1.5, a, 1); t.appleAt(t.x - (9 + a * 1.5) / 2, t.y + a + 1.2); t.flat(2); }); return t.done("Rolling Hills"); },
+  () => {
+    const t = new Track(); t.flat(18).curve(3, 0.4).to(6, 1.9); const lip = t.x, top = t.y;
+    t.to(0.05, -6.3).flat(4.5); t.killer(lip + 1.2, top - 5.9).killer(lip + 3.3, top - 5.9);
+    t.to(0.05, 4.8).appleAt(lip + 2.3, top + 1.4).flat(6).apple(0).curve(10, -1).flat(6); return t.done("Pit Stop");
+  },
+  () => {
+    const t = new Track(); t.flat(10).curve(6, -1); const tx = t.x; t.flat(16); t.block(tx + 1, t.y + 3.0, tx + 15, t.y + 7);
+    t.appleAt(tx + 8, t.y + 1.3).curve(8, 3.5).apple(0).flat(3).curve(8, -3).hills(10, 0.8, 2).apple(-5); return t.done("Low Ceiling");
+  },
+  () => { const t = new Track(); t.flat(10); for (let i = 0; i < 6; i++) t.to(0.35, 0.35).flat(2.2); t.apple(-1); for (let i = 0; i < 4; i++) t.to(0.5, 0.5).flat(2.6); t.apple(-1.2).flat(3).curve(12, -7).apple(-2).flat(4).hills(12, 1.5, 2); return t.done("Staircase"); },
+  () => {
+    const t = new Track(); t.flat(12).curve(16, 5).apple(0, 1.4).flat(2).curve(6, -4).flat(1); const lip = t.x, top = t.y;
+    t.to(0.05, -5).flat(4); t.killer(lip + 2, top - 4.6); t.to(0.05, 3).flat(5).apple(-2).curve(14, -6).apple(-3).flat(4).curve(6, 2).to(0.05, -2); t.apple(4); return t.done("Up and Over");
+  },
+];
+
+function generate(seed) {
+  const r = rng(seed), t = new Track(); t.flat(10);
+  const n = 8 + Math.floor(r() * 4);
+  for (let i = 0; i < n; i++) {
+    const k = r();
+    if (k < 0.2) { const l = 8 + r() * 10, a = (r() * 2 - 1) * 4; t.curve(l, a); if (r() < 0.5) t.apple(-l / 2); }
+    else if (k < 0.4) { const l = 12 + r() * 10; t.hills(l, 0.5 + r() * 1.2, 2 + Math.floor(r() * 3)); t.apple(-l / 3); }
+    else if (k < 0.55) {
+      t.curve(6, 1.5 + r() * 1.2).flat(1); const lip = t.x, top = t.y, w = 2.5 + r() * 2, d = 4 + r() * 2;
+      t.to(0.05, -d).flat(w); t.killer(lip + w / 2, top - d + 0.4); const drop = 0.5 + r() * 1.2; t.to(0.05, d - drop).flat(4); t.appleAt(lip + w / 2, top + 1.5);
+    }
+    else if (k < 0.7) { const l = 10 + r() * 6, x = t.x; t.flat(l); t.block(x + 1, t.y + 3.0, x + l - 1, t.y + 6); t.appleAt(x + l / 2, t.y + 1.3); }
+    else if (k < 0.85) { t.flat(3).curve(6 + r() * 4, -(2 + r() * 4)); if (r() < 0.6) t.apple(0); }
+    else { t.curve(10 + r() * 4, 3 + r() * 3); t.apple(0, 1.4); }
+    t.flat(3 + r() * 4);
+  }
+  if (t.apples.length < 2) t.apple(-1.5);
+  return t.done("Random #" + seed);
+}
+
+function compile(L) {
+  let top = -1e9; for (const q of L.pts) top = Math.max(top, q[1]); for (const s of L.solids) for (const q of s) top = Math.max(top, q[1]);
+  top += 22;
+  const first = L.pts[0], last = L.pts[L.pts.length - 1];
+  L.outer = L.pts.concat([[last[0], top], [first[0], top]]);
+  L.top = top; L.minX = first[0]; L.maxX = last[0];
+  L.solids = L.solids.map(s => { let a = 0; for (let i = 0; i < s.length; i++) { const p = s[i], q = s[(i + 1) % s.length]; a += p[0] * q[1] - q[0] * p[1]; } return a < 0 ? s.slice().reverse() : s; });
+  const segs = [];
+  const add = (a, b, grass) => { if (a[0] === b[0] && a[1] === b[1]) return; segs.push({ ax: a[0], ay: a[1], bx: b[0], by: b[1], x0: Math.min(a[0], b[0]) - 1, x1: Math.max(a[0], b[0]) + 1, y0: Math.min(a[1], b[1]) - 1, y1: Math.max(a[1], b[1]) + 1, grass }); };
+  for (let i = 0; i < L.outer.length; i++) { const a = L.outer[i], b = L.outer[(i + 1) % L.outer.length]; const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1; add(a, b, dx / len > 0.5); }
+  for (const s of L.solids) for (let i = 0; i < s.length; i++) { const a = s[i], b = s[(i + 1) % s.length]; const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1; add(a, b, -dx / len > 0.5); }
+  L.segs = segs;
+  return L;
+}
+
+// ---------- game state ----------
+let custom = null, level, bike, state = "menu", time = 0, taken, levelIndex = 0, randomSeed = 0, input = { gas: 0, brake: 0, left: 0, right: 0 }, voltCd = 0, cam = { x: 0, y: 0 }, events = [];
+
+function loadLevel(i, seed) {
+  levelIndex = i; randomSeed = seed || 0;
+  level = compile(i === -2 ? JSON.parse(JSON.stringify(custom.data)) : i < 0 ? generate(seed) : LEVELS[i]());
+  const [sx, sy] = level.start;
+  bike = { x: sx, y: sy, vx: 0, vy: 0, a: 0, w: 0, dir: 1, dirAnim: 1, wheels: WOFF.map(o => ({ x: sx + o[0], y: sy + o[1], vx: 0, vy: 0, a: 0, w: 0 })) };
+  taken = level.apples.map(() => false);
+  time = 0; voltCd = 0; cam.x = sx; cam.y = sy; events.length = 0;
+}
+
+function headPos(b) { const c = Math.cos(b.a), s = Math.sin(b.a), hx = HEAD[0] * b.dirAnim, hy = HEAD[1]; return [b.x + hx * c - hy * s, b.y + hx * s + hy * c]; }
+
+function closest(sg, px, py) {
+  const dx = sg.bx - sg.ax, dy = sg.by - sg.ay; let t = ((px - sg.ax) * dx + (py - sg.ay) * dy) / (dx * dx + dy * dy);
+  t = t < 0 ? 0 : t > 1 ? 1 : t; return [sg.ax + dx * t, sg.ay + dy * t];
+}
+
+function touches(px, py, r) {
+  for (const sg of level.segs) { if (px < sg.x0 || px > sg.x1 || py < sg.y0 || py > sg.y1) continue; const [qx, qy] = closest(sg, px, py); if ((px - qx) ** 2 + (py - qy) ** 2 < r * r) return true; }
+  return false;
+}
+
+function step(inp) {
+  const b = bike, alive = state === "play";
+  const c = Math.cos(b.a), s = Math.sin(b.a);
+  b.vy -= G * DT; for (const wh of b.wheels) wh.vy -= G * DT;
+  // suspension springs
+  for (let i = 0; i < 2; i++) {
+    const wh = b.wheels[i], ox = WOFF[i][0], oy = WOFF[i][1], rx = ox * c - oy * s, ry = ox * s + oy * c;
+    const ax = b.x + rx, ay = b.y + ry, avx = b.vx - b.w * ry, avy = b.vy + b.w * rx;
+    const fx = -K * (wh.x - ax) - C * (wh.vx - avx), fy = -K * (wh.y - ay) - C * (wh.vy - avy);
+    wh.vx += fx / WM * DT; wh.vy += fy / WM * DT;
+    b.vx -= fx / BODY_M * DT; b.vy -= fy / BODY_M * DT;
+    b.w += (rx * -fy - ry * -fx) / BODY_I * DT;
+  }
+  if (alive) {
+    const rear = b.wheels[b.dir > 0 ? 0 : 1];
+    if (inp.gas) { const sp = -b.dir * rear.w; if (sp < MAXW) { const dw = -b.dir * ACC * (1 - Math.max(0, sp) / MAXW * 0.6) * DT; rear.w += dw; b.w -= dw * WI / BODY_I; } }
+    if (inp.brake) for (const wh of b.wheels) { const rel = wh.w - b.w, nw = b.w + rel * Math.exp(-BRAKE * DT), d = nw - wh.w; wh.w = nw; b.w -= d * WI / BODY_I; }
+    const lean = (inp.left ? 1 : 0) - (inp.right ? 1 : 0);
+    if (lean && b.w * lean < LEAN_MAX) spin(lean * LEAN * DT);
+  }
+  b.dirAnim += Math.sign(b.dir - b.dirAnim) * Math.min(Math.abs(b.dir - b.dirAnim), 12 * DT);
+  // integrate
+  b.x += b.vx * DT; b.y += b.vy * DT; b.a += b.w * DT; b.vx *= 0.99995; b.vy *= 0.99995;
+  for (const wh of b.wheels) { wh.x += wh.vx * DT; wh.y += wh.vy * DT; wh.a += wh.w * DT; wh.w *= 1 - 0.15 * DT; }
+  // wheel contacts
+  for (const wh of b.wheels) {
+    for (const sg of level.segs) {
+      if (wh.x < sg.x0 || wh.x > sg.x1 || wh.y < sg.y0 || wh.y > sg.y1) continue;
+      const [qx, qy] = closest(sg, wh.x, wh.y); let dx = wh.x - qx, dy = wh.y - qy; const d = Math.hypot(dx, dy);
+      if (d >= WR || d < 1e-7) continue;
+      const nx = dx / d, ny = dy / d; wh.x += nx * (WR - d); wh.y += ny * (WR - d);
+      const vn = wh.vx * nx + wh.vy * ny; let jn = 0;
+      if (vn < 0) { const e = vn < -1.5 ? 0.15 : 0; jn = -vn * (1 + e) * WM; wh.vx += nx * jn / WM; wh.vy += ny * jn / WM; if (vn < -4.5) events.push(["bump", -vn]); }
+      const tx = -ny, ty = nx, vcx = wh.vx + wh.w * ny * WR, vcy = wh.vy - wh.w * nx * WR, sl = vcx * tx + vcy * ty;
+      let j = -sl / (1 / WM + WR * WR / WI); const mj = MU * jn + 1e-4; j = Math.max(-mj, Math.min(mj, j));
+      wh.vx += tx * j / WM; wh.vy += ty * j / WM; wh.w += -WR * j / WI;
+    }
+  }
+  if (!alive) return;
+  time += DT;
+  const [hx, hy] = headPos(b);
+  if (touches(hx, hy, HEAD_R)) return die();
+  for (const [kx, ky] of level.killers) {
+    if ((hx - kx) ** 2 + (hy - ky) ** 2 < (HEAD_R + KILL_R) ** 2) return die();
+    for (const wh of b.wheels) if ((wh.x - kx) ** 2 + (wh.y - ky) ** 2 < (WR + KILL_R) ** 2) return die();
+  }
+  const near = (px, py, r) => [[hx, hy, HEAD_R], [b.x, b.y, 0.5], [b.wheels[0].x, b.wheels[0].y, WR], [b.wheels[1].x, b.wheels[1].y, WR]].some(([x, y, rr]) => (x - px) ** 2 + (y - py) ** 2 < (r + rr) ** 2);
+  level.apples.forEach((ap, i) => { if (!taken[i] && near(ap[0], ap[1], APPLE_R)) { taken[i] = true; events.push(["apple"]); } });
+  if (taken.every(Boolean) && near(level.flower[0], level.flower[1], FLOWER_R)) win();
+  if (b.y < -60 || b.x < level.minX - 5 || b.x > level.maxX + 5) die();
+}
+
+// rotate the whole bike (body and both wheels) about the body centre, like an Elma volt
+function spin(dw) { const b = bike; b.w += dw; for (const wh of b.wheels) { wh.vx -= dw * (wh.y - b.y); wh.vy += dw * (wh.x - b.x); } }
+function die() { state = "dead"; events.push(["die"]); showEnd(false); }
+function win() {
+  state = "won"; events.push(["win"]);
+  const key = levelKey(), prev = bestTimes[key]; const best = prev == null || time < prev;
+  if (best) { bestTimes[key] = time; saveBest(); }
+  if (levelIndex === -2 && window.onCustomWin) onCustomWin(time);
+  showEnd(true, best && prev != null ? "New best! Previous " + fmt(prev) : best ? "First finish on this track." : "Best " + fmt(prev));
+}
+
+// ---------- persistence ----------
+let bestTimes = {};
+try { bestTimes = JSON.parse(localStorage.getItem("springrider-best") || "{}") || {}; } catch (e) { bestTimes = {}; }
+function saveBest() { try { localStorage.setItem("springrider-best", JSON.stringify(bestTimes)); } catch (e) {} }
+function levelKey() { return levelIndex === -2 ? custom.key : levelIndex < 0 ? "r" + randomSeed : "l" + levelIndex; }
+function fmt(t) { const cs = Math.floor(t * 100), m = Math.floor(cs / 6000), s = Math.floor(cs / 100) % 60, c = cs % 100; return [m, s, c].map(v => String(v).padStart(2, "0")).join(":"); }
+
+// ---------- audio ----------
+let ac = null, eng = null, soundOn = true;
+function ensureAudio() {
+  if (ac) { if (ac.state === "suspended") ac.resume(); return; }
+  try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+  const master = ac.createGain(); master.gain.value = soundOn ? 0.6 : 0; master.connect(ac.destination);
+  const o1 = ac.createOscillator(), o2 = ac.createOscillator(), lp = ac.createBiquadFilter(), g = ac.createGain();
+  o1.type = "sawtooth"; o2.type = "square"; o2.detune.value = -1200; lp.type = "lowpass"; lp.frequency.value = 600; lp.Q.value = 4; g.gain.value = 0;
+  o1.connect(lp); o2.connect(lp); lp.connect(g); g.connect(master); o1.start(); o2.start();
+  const noise = ac.createBuffer(1, ac.sampleRate, ac.sampleRate), nd = noise.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  eng = { o1, o2, lp, g, master, noise };
+}
+function tone(freq, t0, dur, type = "sine", vol = 0.25, f1) {
+  if (!ac) return; const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime + t0;
+  o.type = type; o.frequency.setValueAtTime(freq, t); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g); g.connect(eng.master); o.start(t); o.stop(t + dur + 0.05);
+}
+function noiseHit(dur, freq, vol) {
+  if (!ac) return; const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(), t = ac.currentTime;
+  src.buffer = eng.noise; f.type = "lowpass"; f.frequency.value = freq; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  src.connect(f); f.connect(g); g.connect(eng.master); src.start(t); src.stop(t + dur + 0.05);
+}
+function playEvents() {
+  for (const [e, v] of events) {
+    if (e === "apple") { tone(880, 0, 0.12, "triangle", 0.3); tone(1320, 0.07, 0.18, "triangle", 0.3); }
+    if (e === "bump") noiseHit(0.12, 300, Math.min(0.5, v / 18));
+    if (e === "die") { noiseHit(0.5, 900, 0.5); tone(320, 0, 0.6, "sawtooth", 0.2, 50); }
+    if (e === "win") [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.11, 0.3, "square", 0.12));
+    if (e === "flip") tone(500, 0, 0.08, "triangle", 0.12, 300);
+  }
+  events.length = 0;
+  if (!eng) return;
+  const rear = bike.wheels[bike.dir > 0 ? 0 : 1], rpm = Math.min(1, Math.abs(rear.w) / MAXW), t = ac.currentTime;
+  const on = state === "play";
+  eng.o1.frequency.setTargetAtTime(38 + rpm * 110 + (input.gas ? 18 : 0), t, 0.05);
+  eng.o2.frequency.setTargetAtTime(38 + rpm * 110 + (input.gas ? 18 : 0), t, 0.05);
+  eng.lp.frequency.setTargetAtTime(input.gas && on ? 1400 : 500, t, 0.08);
+  eng.g.gain.setTargetAtTime(on ? (input.gas ? 0.13 : 0.05) : 0, t, 0.08);
+}
+
+// ---------- graphics ----------
+const cv = document.getElementById("game"), ctx = cv.getContext("2d");
+let W = 0, H = 0, S = 40, DPR = 1;
+function resize() { DPR = Math.min(2, window.devicePixelRatio || 1); W = cv.clientWidth; H = cv.clientHeight; cv.width = W * DPR; cv.height = H * DPR; S = Math.max(26, Math.min(58, H / 15)); }
+window.addEventListener("resize", resize);
+
+function makeDirt() {
+  const n = 160, c = document.createElement("canvas"); c.width = c.height = n; const g = c.getContext("2d"), r = rng(7);
+  g.fillStyle = "#a9773f"; g.fillRect(0, 0, n, n);
+  const blob = (x, y, rx, ry, col) => { for (const ox of [-n, 0, n]) for (const oy of [-n, 0, n]) { g.fillStyle = col; g.beginPath(); g.ellipse(x + ox, y + oy, rx, ry, 0, 0, 7); g.fill(); } };
+  for (let i = 0; i < 260; i++) blob(r() * n, r() * n, 1 + r() * 2, 1 + r() * 2, r() < 0.5 ? "#8f6031" : "#bd8b52");
+  for (let i = 0; i < 14; i++) { const x = r() * n, y = r() * n, s = 3 + r() * 5; blob(x, y, s, s * 0.7, "#7d5a3c"); blob(x - 1, y - 1, s * 0.75, s * 0.5, "#c8a27a"); }
+  return ctx.createPattern(c, "repeat");
+}
+const dirt = makeDirt();
+
+const sx = x => (x - cam.x) * S + W / 2, sy = y => H / 2 - (y - cam.y) * S;
+
+function polyPath(path, pts) { path.moveTo(sx(pts[0][0]), sy(pts[0][1])); for (let i = 1; i < pts.length; i++) path.lineTo(sx(pts[i][0]), sy(pts[i][1])); path.closePath(); }
+
+function drawBackground(now) {
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#9fd3ee"); g.addColorStop(1, "#eef8fb"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // clouds
+  ctx.fillStyle = "rgba(255,255,255,.9)";
+  for (let i = 0; i < 7; i++) { const span = W + 400, x = ((i * 397 - cam.x * S * 0.08 + now * 0.004 * (1 + i % 3)) % span + span) % span - 200, y = 40 + (i * 71) % (H * 0.35); for (const [dx, dy, r] of [[0, 0, 30], [32, 6, 24], [-30, 8, 22], [10, -14, 22]]) { ctx.beginPath(); ctx.arc(x + dx, y + dy, r, 0, 7); ctx.fill(); } }
+  // parallax hills
+  for (const [k, col, base, amp] of [[0.15, "#b9dcc4", 0.62, 60], [0.3, "#9ccaa6", 0.72, 45]]) {
+    ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, H);
+    for (let x = 0; x <= W + 10; x += 10) { const wx = (x + cam.x * S * k) / 90; ctx.lineTo(x, H * base + (cam.y * S * k * 0.3) - amp * (Math.sin(wx) * 0.6 + Math.sin(wx * 0.37 + 1) * 0.8 + Math.sin(wx * 2.1) * 0.15)); }
+    ctx.lineTo(W, H); ctx.fill();
+  }
+}
+
+function drawLevel(now) {
+  // ground everywhere, sky cut out of the outer polygon (holes stay solid via evenodd)
+  ctx.save();
+  dirt.setTransform(new DOMMatrix().translateSelf(-cam.x * S + W / 2, cam.y * S + H / 2).scaleSelf(S / 40));
+  ctx.fillStyle = dirt; ctx.fillRect(0, 0, W, H);
+  const p = new Path2D(); polyPath(p, level.outer); for (const s of level.solids) polyPath(p, s);
+  ctx.clip(p, "evenodd"); drawBackground(now); ctx.restore();
+  // outlines and grass
+  ctx.lineJoin = "round"; ctx.lineCap = "round";
+  ctx.strokeStyle = "#5c3d22"; ctx.lineWidth = 3; ctx.stroke(p);
+  ctx.beginPath(); for (const sg of level.segs) if (sg.grass) { ctx.moveTo(sx(sg.ax), sy(sg.ay)); ctx.lineTo(sx(sg.bx), sy(sg.by)); }
+  ctx.strokeStyle = "#3f8a2a"; ctx.lineWidth = Math.max(5, S * 0.16); ctx.stroke();
+  ctx.strokeStyle = "#78c454"; ctx.lineWidth = Math.max(2, S * 0.06); ctx.stroke();
+}
+
+function drawApple(x, y, now, i) {
+  const X = sx(x), Y = sy(y + Math.sin(now / 400 + i) * 0.06), r = APPLE_R * S;
+  ctx.fillStyle = "#d8342b"; ctx.strokeStyle = "#22313a"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(X - r * 0.32, Y, r * 0.68, 0, 7); ctx.arc(X + r * 0.32, Y, r * 0.68, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(X, Y + r * 0.05, r * 1.0, r * 0.82, 0, 0, 7); ctx.stroke(); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.beginPath(); ctx.ellipse(X - r * 0.4, Y - r * 0.25, r * 0.18, r * 0.28, -0.5, 0, 7); ctx.fill();
+  ctx.strokeStyle = "#5c3d22"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(X, Y - r * 0.6); ctx.lineTo(X + r * 0.1, Y - r * 1.05); ctx.stroke();
+  ctx.fillStyle = "#4f9e35"; ctx.beginPath(); ctx.ellipse(X + r * 0.38, Y - r * 0.95, r * 0.32, r * 0.14, -0.5, 0, 7); ctx.fill();
+}
+
+function drawKiller(x, y, now) {
+  const X = sx(x), Y = sy(y), r = KILL_R * S, a0 = now / 500;
+  ctx.fillStyle = "#2a2226"; ctx.beginPath();
+  for (let i = 0; i < 24; i++) { const a = a0 + i * Math.PI / 12, rr = i % 2 ? r * 0.72 : r * 1.12; ctx.lineTo(X + Math.cos(a) * rr, Y + Math.sin(a) * rr); }
+  ctx.fill(); ctx.fillStyle = "#e0492e"; ctx.beginPath(); ctx.arc(X, Y, r * 0.5, 0, 7); ctx.fill();
+  ctx.fillStyle = "#ffd25a"; ctx.beginPath(); ctx.arc(X, Y, r * 0.2, 0, 7); ctx.fill();
+}
+
+function drawFlower(x, y, now, open) {
+  const X = sx(x), Y = sy(y), r = FLOWER_R * S;
+  ctx.strokeStyle = "#3f8a2a"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(X, Y); ctx.quadraticCurveTo(X - r * 0.3, Y + r, X, Y + r * 1.4); ctx.stroke();
+  const a0 = open ? now / 900 : 0, k = open ? 1 + Math.sin(now / 200) * 0.08 : 0.7;
+  for (let i = 0; i < 6; i++) { const a = a0 + i * Math.PI / 3; ctx.fillStyle = open ? (i % 2 ? "#f06fa5" : "#ff8fc0") : "#c9c2c6"; ctx.beginPath(); ctx.ellipse(X + Math.cos(a) * r * 0.55 * k, Y + Math.sin(a) * r * 0.55 * k, r * 0.42 * k, r * 0.26 * k, a, 0, 7); ctx.fill(); }
+  ctx.fillStyle = open ? "#ffd25a" : "#e2ddd0"; ctx.beginPath(); ctx.arc(X, Y, r * 0.3, 0, 7); ctx.fill(); ctx.strokeStyle = "#22313a"; ctx.lineWidth = 1.5; ctx.stroke();
+}
+
+function drawWheel(wh) {
+  const X = sx(wh.x), Y = sy(wh.y), r = WR * S;
+  ctx.fillStyle = "#e9eef0"; ctx.beginPath(); ctx.arc(X, Y, r, 0, 7); ctx.fill();
+  ctx.strokeStyle = "#7e8a90"; ctx.lineWidth = Math.max(1, S * 0.025); ctx.beginPath();
+  for (let i = 0; i < 8; i++) { const a = -wh.a + i * Math.PI / 4; ctx.moveTo(X, Y); ctx.lineTo(X + Math.cos(a) * r * 0.85, Y + Math.sin(a) * r * 0.85); } ctx.stroke();
+  ctx.strokeStyle = "#1e2326"; ctx.lineWidth = r * 0.28; ctx.beginPath(); ctx.arc(X, Y, r * 0.86, 0, 7); ctx.stroke();
+  ctx.fillStyle = "#22313a"; ctx.beginPath(); ctx.arc(X, Y, r * 0.14, 0, 7); ctx.fill();
+}
+
+function drawBike() {
+  const b = bike; drawWheel(b.wheels[0]); drawWheel(b.wheels[1]);
+  // suspension struts in world space
+  const c = Math.cos(b.a), s = Math.sin(b.a), W2 = (lx, ly) => [b.x + lx * c - ly * s, b.y + lx * s + ly * c];
+  ctx.strokeStyle = "#22313a"; ctx.lineWidth = S * 0.09; ctx.lineCap = "round";
+  for (const [i, ax, ay] of [[0, -0.3, -0.15], [1, 0.55, 0.15]]) { const p = W2(ax * (i === 0 ? 1 : 1), ay), wh = b.wheels[i]; ctx.beginPath(); ctx.moveTo(sx(p[0]), sy(p[1])); ctx.lineTo(sx(wh.x), sy(wh.y)); ctx.stroke(); }
+  ctx.save(); ctx.translate(sx(b.x), sy(b.y)); ctx.rotate(-b.a); ctx.scale(S * b.dirAnim, -S);
+  const L = (pts, col, w) => { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (const q of pts.slice(1)) ctx.lineTo(q[0], q[1]); ctx.stroke(); };
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  // frame
+  ctx.fillStyle = "#d8342b"; ctx.strokeStyle = "#22313a"; ctx.lineWidth = 0.05;
+  ctx.beginPath(); ctx.moveTo(-0.55, -0.05); ctx.lineTo(0.45, 0.12); ctx.lineTo(0.3, -0.35); ctx.lineTo(-0.2, -0.38); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#22313a"; ctx.fillRect(-0.15, -0.35, 0.32, 0.22);
+  L([[-0.6, 0.02], [-0.15, 0.06]], "#22313a", 0.11); // seat
+  L([[0.42, 0.1], [0.5, 0.32]], "#22313a", 0.06);  // bar stem
+  // rider
+  const hip = [-0.22, 0.15], sh = [-0.06, 0.45], hand = [0.5, 0.32], foot = [0.02, -0.3];
+  L([hip, [0.18, 0.05], foot], "#2e6fb5", 0.13);
+  L([hip, sh], "#2e6fb5", 0.17);
+  L([sh, [0.22, 0.32], hand], "#2e6fb5", 0.09);
+  ctx.fillStyle = "#22313a"; ctx.fillRect(foot[0] - 0.05, foot[1] - 0.05, 0.2, 0.08);
+  // helmet
+  ctx.fillStyle = "#ffffff"; ctx.strokeStyle = "#22313a"; ctx.lineWidth = 0.045; ctx.beginPath(); ctx.arc(HEAD[0], HEAD[1], HEAD_R, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#d8342b"; ctx.beginPath(); ctx.arc(HEAD[0], HEAD[1], HEAD_R, Math.PI * 0.55, Math.PI * 0.95); ctx.lineTo(HEAD[0], HEAD[1]); ctx.fill();
+  ctx.fillStyle = "#22313a"; ctx.beginPath(); ctx.ellipse(HEAD[0] + 0.12, HEAD[1] + 0.02, 0.1, 0.07, 0, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+function render(now) {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  drawLevel(now);
+  const all = taken.every(Boolean);
+  level.killers.forEach(k => drawKiller(k[0], k[1], now));
+  level.apples.forEach((ap, i) => { if (!taken[i]) drawApple(ap[0], ap[1], now, i); });
+  drawFlower(level.flower[0], level.flower[1], now, all);
+  drawBike();
+}
+
+// ---------- UI ----------
+const $ = id => document.getElementById(id);
+function updateHud() {
+  $("hudTime").textContent = fmt(time);
+  $("hudApples").textContent = taken.filter(Boolean).length + "/" + taken.length;
+  $("hudLevel").textContent = level.name;
+}
+function buildMenu() {
+  const list = $("levelList"); list.innerHTML = "";
+  LEVELS.forEach((f, i) => {
+    const bt = document.createElement("button"), best = bestTimes["l" + i], name = f().name;
+    bt.className = "lv" + (best != null ? " done" : ""); bt.id = "lv" + i;
+    bt.innerHTML = `<span class="n">Level ${i + 1}</span><span class="t"></span><span class="b">${best != null ? "Best " + fmt(best) : "Not finished"}</span>`;
+    bt.querySelector(".t").textContent = name;
+    bt.onclick = () => start(i); list.appendChild(bt);
+  });
+}
+function hidePanels() { document.querySelectorAll(".overlay").forEach(o => o.hidden = true); $("edBar").hidden = true; document.body.classList.remove("editing"); }
+function showMenu() {
+  if (levelIndex === -2 && custom && custom.fromEditor && (state === "play" || state === "dead" || state === "won")) return openEditor();
+  state = "menu"; hidePanels(); buildMenu(); $("menu").hidden = false;
+}
+function start(i, seed) { ensureAudio(); hidePanels(); loadLevel(i, seed); state = "play"; updateHud(); }
+function showEnd(won, note) {
+  $("endTitle").textContent = won ? "Finished " + level.name : "Crashed";
+  $("endTime").textContent = fmt(time);
+  endAt = performance.now();
+  $("endNote").textContent = won ? note : "Your head hit something hard.";
+  $("bRetry").textContent = "Retry" + (won ? "" : hint("retry"));
+  $("bEndMenu").textContent = "Menu" + hint("back");
+  $("bNext").hidden = !won;
+  $("bNext").textContent = levelIndex === -2 ? (custom.fromEditor ? "Back to editor" : custom.galleryId ? "Level gallery" : "Menu") + hint("retry") : (levelIndex < 0 ? "Another random track" : levelIndex === LEVELS.length - 1 ? "Random track" : "Next level") + hint("retry");
+  setTimeout(() => { if (state !== "play") $("endCard").hidden = false; }, won ? 300 : 0);
+}
+function next() { if (levelIndex === -2) return custom.fromEditor ? openEditor() : custom.galleryId ? openGallery() : showMenu(); if (levelIndex >= 0 && levelIndex < LEVELS.length - 1) start(levelIndex + 1); else start(-1, 1 + Math.floor(Math.random() * 99999)); }
+function retry() { if (state === "edit" || state === "menu") return; start(levelIndex, randomSeed); }
+function flip() { if (state === "play") { bike.dir = -bike.dir; events.push(["flip"]); } }
+function volt(sgn) { if (state === "play" && voltCd <= 0) { spin(sgn * VOLT); voltCd = 0.25; } }
+function setSound(on) { soundOn = on; $("bSound").textContent = on ? "Sound on" : "Sound off"; if (eng) eng.master.gain.value = on ? 0.6 : 0; }
+
+$("bRandom").onclick = () => start(-1, 1 + Math.floor(Math.random() * 99999));
+$("bMenu").onclick = e => { e.currentTarget.blur(); showMenu(); };
+$("bRestart").onclick = e => { e.currentTarget.blur(); retry(); };
+$("bSound").onclick = e => { e.currentTarget.blur(); ensureAudio(); setSound(!soundOn); };
+$("bNext").onclick = next; $("bRetry").onclick = retry; $("bEndMenu").onclick = showMenu;
+
+// ---------- key bindings (two slots per action, saved per browser) ----------
+const ACTIONS = [
+  ["gas", "Throttle", "ride"], ["brake", "Brake", "ride"], ["left", "Lean left / volt", "ride"], ["right", "Lean right / volt", "ride"],
+  ["flip", "Turn around", "ride"], ["restart", "Restart level", "ride"], ["menu", "Open menu", "ride"], ["sound", "Sound on/off", "ride"],
+  ["retry", "Retry / next level", "screen"], ["back", "Back to menu", "screen"],
+];
+const GROUPS = { ride: "While riding", screen: "Crash and finish screens" };
+const DEFAULT_KEYS = { gas: ["ArrowUp", "KeyW"], brake: ["ArrowDown", "KeyS"], left: ["ArrowLeft", "KeyA"], right: ["ArrowRight", "KeyD"], flip: ["Space", ""], restart: ["Enter", ""], menu: ["Escape", ""], sound: ["KeyM", ""], retry: ["Space", ""], back: ["Enter", ""] };
+const HELD = new Set(["gas", "brake", "left", "right"]);
+let keys = JSON.parse(JSON.stringify(DEFAULT_KEYS)), capture = null, endAt = 0;
+try { const saved = JSON.parse(localStorage.getItem("springrider-keys") || "null"); if (saved) for (const a in keys) if (Array.isArray(saved[a])) keys[a] = [String(saved[a][0] || ""), String(saved[a][1] || "")]; } catch (e) {}
+function saveKeys() { try { localStorage.setItem("springrider-keys", JSON.stringify(keys)); } catch (e) {} }
+function keyName(code) {
+  if (!code) return "";
+  const named = { ArrowUp: "↑", ArrowDown: "↓", ArrowLeft: "←", ArrowRight: "→", Escape: "Esc", Space: "Space", Enter: "Enter", Backquote: "`", Minus: "-", Equal: "=", BracketLeft: "[", BracketRight: "]", Semicolon: ";", Quote: "'", Comma: ",", Period: ".", Slash: "/", Backslash: "\\" };
+  return named[code] || code.replace(/^Key|^Digit/, "").replace(/^Numpad/, "Num ").replace(/(Left|Right)$/, " $1");
+}
+function keyLabel(a) { return keys[a].filter(Boolean).map(keyName).join(" / ") || "unbound"; }
+function hint(a) { return keys[a][0] || keys[a][1] ? " (" + keyName(keys[a][0] || keys[a][1]) + ")" : ""; }
+function actionFor(code, group) { for (const [a, , g] of ACTIONS) if (g === group && keys[a].includes(code)) return a; return null; }
+function renderLegend() {
+  const dl = $("keyLegend"); dl.innerHTML = "";
+  for (const [a, label, g] of ACTIONS) { if (g !== "ride" && a !== "retry" && a !== "back") continue; const dt = document.createElement("dt"), dd = document.createElement("dd"); dt.innerHTML = keys[a].filter(Boolean).map(c => "<kbd></kbd>").join(" ") || "<kbd>–</kbd>"; dt.querySelectorAll("kbd").forEach((k, i) => { if (keys[a].filter(Boolean)[i]) k.textContent = keyName(keys[a].filter(Boolean)[i]); }); dd.textContent = label + (g === "screen" ? " (after a run)" : ""); dl.append(dt, dd); }
+}
+function renderTitles() { $("bSound").title = "Sound" + hint("sound"); $("bRestart").title = "Restart" + hint("restart"); $("bMenu").title = "Menu" + hint("menu"); }
+function renderBindings() {
+  const box = $("bindList"); box.innerHTML = ""; let group = "";
+  for (const [a, label, g] of ACTIONS) {
+    if (g !== group) { group = g; const h = document.createElement("h3"); h.textContent = GROUPS[g]; box.appendChild(h); }
+    const name = document.createElement("span"); name.textContent = label; box.appendChild(name);
+    for (let slot = 0; slot < 2; slot++) {
+      const bt = document.createElement("button"), waiting = capture && capture.a === a && capture.slot === slot;
+      bt.id = "kb-" + a + "-" + slot; bt.className = "kb" + (waiting ? " wait" : keys[a][slot] ? "" : " empty");
+      bt.textContent = waiting ? "Press a key…" : keyName(keys[a][slot]) || "—";
+      bt.onclick = e => { e.currentTarget.blur(); capture = { a, slot }; renderBindings(); };
+      box.appendChild(bt);
+    }
+  }
+}
+function finishCapture(code) {
+  const { a, slot } = capture; capture = null;
+  if (code === "Backspace" || code === "Delete") keys[a][slot] = "";
+  else if (code !== "Escape") {
+    const g = ACTIONS.find(x => x[0] === a)[2];
+    for (const [b, , gb] of ACTIONS) if (gb === g) keys[b] = keys[b].map(c => c === code ? "" : c);
+    keys[a][slot] = code;
+  }
+  saveKeys(); renderBindings(); renderLegend(); renderTitles();
+}
+function openKeys() { capture = null; renderBindings(); $("menu").hidden = true; $("keysCard").hidden = false; }
+function closeKeys() { capture = null; $("keysCard").hidden = true; $("menu").hidden = false; renderLegend(); }
+$("bKeys").onclick = openKeys; $("bKeysDone").onclick = closeKeys;
+$("bKeysReset").onclick = e => { e.currentTarget.blur(); keys = JSON.parse(JSON.stringify(DEFAULT_KEYS)); saveKeys(); capture = null; renderBindings(); renderLegend(); renderTitles(); };
+
+window.addEventListener("keydown", e => {
+  ensureAudio();
+  if (capture) { e.preventDefault(); finishCapture(e.code); return; }
+  if (!$("keysCard").hidden) { if (e.code === "Escape") closeKeys(); return; }
+  if (state === "edit" || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if (state === "dead" || state === "won") {
+    const s = actionFor(e.code, "screen");
+    if (s) { e.preventDefault(); if (e.repeat || performance.now() - endAt < 350) return; if (s === "back") showMenu(); else if (state === "won") next(); else retry(); return; }
+  }
+  const a = actionFor(e.code, "ride");
+  if (!a) return;
+  e.preventDefault();
+  if (HELD.has(a)) { if (!input[a] && (a === "left" || a === "right")) volt(a === "left" ? 1 : -1); input[a] = 1; return; }
+  if (e.repeat) return;
+  if (a === "flip") flip();
+  else if (a === "restart") { if (state !== "menu") retry(); }
+  else if (a === "menu") showMenu();
+  else if (a === "sound") setSound(!soundOn);
+});
+window.addEventListener("keyup", e => { if (state === "edit") return; const a = actionFor(e.code, "ride"); if (a && HELD.has(a)) input[a] = 0; });
+renderLegend();
+window.addEventListener("blur", () => { for (const k in input) input[k] = 0; });
+document.querySelectorAll("#touch button").forEach(bt => {
+  const k = bt.dataset.k;
+  bt.addEventListener("pointerdown", e => { e.preventDefault(); ensureAudio(); if (k === "flip") return flip(); if (k === "left" || k === "right") volt(k === "left" ? 1 : -1); input[k] = 1; });
+  for (const ev of ["pointerup", "pointercancel", "pointerleave"]) bt.addEventListener(ev, () => { if (k !== "flip") input[k] = 0; });
+});
+
+// ---------- loop ----------
+let last = performance.now(), acc = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (state === "play") { acc += dt; while (acc >= DT && state === "play") { step(input); voltCd -= DT; acc -= DT; } } else acc = 0;
+  if (state === "edit") renderEditor(now);
+  else {
+    const tx = bike.x + bike.vx * 0.35, ty = bike.y + bike.vy * 0.15, k = 1 - Math.exp(-dt * 8);
+    cam.x += (tx - cam.x) * k; cam.y += (ty - cam.y) * k;
+    render(now); updateHud();
+  }
+  playEvents();
+  requestAnimationFrame(frame);
+}
+
+resize(); loadLevel(0); buildMenu(); updateHud(); requestAnimationFrame(frame);
+window.__game = { loadLevel, step: (n, inp) => { state = "play"; for (let i = 0; i < n; i++) step(inp); return { x: bike.x, y: bike.y, a: bike.a, state, time, apples: taken.filter(Boolean).length }; }, get state() { return state; }, generate, LEVELS, compile };
+</script>
+<script>
+"use strict";
+// ================= level codes =================
+const SHARE_BASE = "https://claude.ai/artifact/DhHNz2btFHGWEPeosqggzK";
+const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+function toB64(bytes) {
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 3) {
+    const n = (bytes[i] << 16) | ((bytes[i + 1] || 0) << 8) | (bytes[i + 2] || 0);
+    s += B64[n >> 18 & 63] + B64[n >> 12 & 63];
+    if (i + 1 < bytes.length) s += B64[n >> 6 & 63];
+    if (i + 2 < bytes.length) s += B64[n & 63];
+  }
+  return s;
+}
+function fromB64(s) {
+  const out = []; let buf = 0, bits = 0;
+  for (const ch of s) { const v = B64.indexOf(ch); if (v < 0) throw new Error("bad character"); buf = ((buf << 6) | v) & 0xffffff; bits += 6; if (bits >= 8) { bits -= 8; out.push((buf >> bits) & 255); } }
+  return new Uint8Array(out);
+}
+async function pipeBytes(bytes, stream) { return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer()); }
+const q10 = v => Math.round(v * 10), r10 = v => Math.round(v * 10) / 10;
+async function packLevel(d) {
+  const obj = { v: 1, n: d.name, p: d.pts.flat().map(q10), s: d.solids.map(s => s.flat().map(q10)), a: d.apples.flat().map(q10), k: d.killers.flat().map(q10), f: d.flower.map(q10), t: d.start.map(q10) };
+  const raw = new TextEncoder().encode(JSON.stringify(obj));
+  if (window.CompressionStream) { try { return "SR1." + toB64(await pipeBytes(raw, new CompressionStream("deflate-raw"))); } catch (e) {} }
+  return "SR0." + toB64(raw);
+}
+function pairs(arr, max) {
+  if (!Array.isArray(arr) || arr.length % 2 || arr.length > max * 2) throw new Error("bad list");
+  const out = []; for (let i = 0; i < arr.length; i += 2) { const x = arr[i], y = arr[i + 1]; if (!Number.isFinite(x) || !Number.isFinite(y) || Math.abs(x) > 1e6 || Math.abs(y) > 1e6) throw new Error("bad number"); out.push([x / 10, y / 10]); }
+  return out;
+}
+async function unpackLevel(text) {
+  let code = String(text || "").trim(); const h = code.indexOf("#"); if (h >= 0) code = code.slice(h + 1);
+  code = code.replace(/\s+/g, "");
+  const m = /^SR([01])\.([A-Za-z0-9_-]+)$/.exec(code); if (!m) throw new Error("That doesn't look like a level code. Codes start with SR1.");
+  let raw = fromB64(m[2]);
+  if (m[1] === "1") { if (!window.DecompressionStream) throw new Error("This browser can't read compressed codes."); raw = await pipeBytes(raw, new DecompressionStream("deflate-raw")); }
+  const o = JSON.parse(new TextDecoder().decode(raw));
+  const d = { name: String(o.n || "Shared level").slice(0, 40), pts: pairs(o.p, 4000), solids: (o.s || []).slice(0, 200).map(s => pairs(s, 400)), apples: pairs(o.a || [], 300), killers: pairs(o.k || [], 300), flower: pairs(o.f, 1)[0], start: pairs(o.t, 1)[0] };
+  if (d.pts.length < 2 || !d.flower || !d.start || d.solids.some(s => s.length < 3)) throw new Error("The level code is incomplete.");
+  return { data: d, code };
+}
+function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); }
+function levelProblems(d) {
+  const p = [], a = d.pts[0][0], b = d.pts[d.pts.length - 1][0];
+  if (a >= b) p.push("The ground must run left to right: its first point has to be left of its last point.");
+  if (d.start[0] <= a || d.start[0] >= b) p.push("Move the start between the two ends of the ground.");
+  if (d.flower[0] <= a || d.flower[0] >= b) p.push("Move the flower between the two ends of the ground.");
+  return p;
+}
+function playCustom(data, meta) { custom = Object.assign({ data: JSON.parse(JSON.stringify(data)) }, meta); start(-2); }
+
+// ================= editor =================
+const ED = { data: null, tool: "move", snap: true, sel: null, drag: null, undo: [], cam: { x: 8, y: 3 }, zoom: 34, compiled: null, rect: null, saveT: 0 };
+const HINTS = {
+  move: "Drag points and items to move them. Drag empty space to pan, scroll to zoom. Double-click the ground's edge to add a point. Right-click or Delete removes.",
+  ground: "Click to add a ground point; it joins the nearest edge. Drag points to shape hills and drops.",
+  block: "Drag a rectangle to add a solid block, for ceilings and floating platforms. Drag its corners to reshape it.",
+  apple: "Click to place an apple. The flower only opens once every apple is eaten.",
+  killer: "Click to place a killer. Touching one is a crash.",
+  flower: "Click to move the flower, which is the finish.",
+  start: "Click to move where the bike starts.",
+};
+function blankLevel() { return { name: "My level", pts: [[-6, 0], [10, 0], [18, 2], [26, 2], [34, 0], [48, 0]], solids: [], apples: [[22, 3.5]], killers: [], flower: [42, 0.6], start: [0, 1] }; }
+function toEditable(L, name) { const rp = p => [r10(p[0]), r10(p[1])]; return { name: name || L.name, pts: L.pts.map(rp), solids: L.solids.map(s => s.map(rp)), apples: L.apples.map(rp), killers: L.killers.map(rp), flower: rp(L.flower), start: rp(L.start) }; }
+function edChanged(save = true) {
+  const d = ED.data;
+  try { ED.compiled = compile(JSON.parse(JSON.stringify(d))); } catch (e) {}
+  $("edName").value = d.name;
+  const probs = levelProblems(d), hint = $("edHint");
+  hint.textContent = probs.length ? probs[0] : HINTS[ED.tool]; hint.classList.toggle("warn", probs.length > 0);
+  if (save) { clearTimeout(ED.saveT); ED.saveT = setTimeout(() => { try { localStorage.setItem("springrider-draft", JSON.stringify(d)); } catch (e) {} }, 300); }
+}
+function pushUndo() { ED.undo.push(JSON.stringify(ED.data)); if (ED.undo.length > 80) ED.undo.shift(); }
+function edUndo() { const u = ED.undo.pop(); if (!u) return; ED.data = JSON.parse(u); ED.sel = null; edChanged(); }
+function setTool(t) { ED.tool = t; document.querySelectorAll("#edBar .tool").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tool === t))); edChanged(false); }
+function openEditor(data) {
+  hidePanels(); state = "edit"; document.body.classList.add("editing"); $("edBar").hidden = false;
+  if (data) { if (ED.data) pushUndo(); ED.data = JSON.parse(JSON.stringify(data)); ED.cam.x = data.start[0] + 8; ED.cam.y = data.start[1] + 2; ED.sel = null; }
+  else if (!ED.data) { let d = null; try { d = JSON.parse(localStorage.getItem("springrider-draft") || "null"); } catch (e) {} ED.data = d && d.pts ? d : blankLevel(); ED.cam.x = ED.data.start[0] + 8; ED.cam.y = ED.data.start[1] + 2; }
+  setTool(ED.tool);
+}
+function snapV(v) { return ED.snap ? Math.round(v * 2) / 2 : r10(v); }
+function toWorld(px, py) { return [(px - W / 2) / ED.zoom + ED.cam.x, ED.cam.y - (py - H / 2) / ED.zoom]; }
+function getPos(sel) { const d = ED.data; return sel.kind === "pt" ? d.pts[sel.i] : sel.kind === "solidpt" ? d.solids[sel.s][sel.i] : sel.kind === "apple" ? d.apples[sel.i] : sel.kind === "killer" ? d.killers[sel.i] : sel.kind === "flower" ? d.flower : d.start; }
+function setPos(sel, x, y) {
+  const d = ED.data, p = [r10(x), r10(y)];
+  if (sel.kind === "pt") d.pts[sel.i] = p; else if (sel.kind === "solidpt") d.solids[sel.s][sel.i] = p; else if (sel.kind === "apple") d.apples[sel.i] = p;
+  else if (sel.kind === "killer") d.killers[sel.i] = p; else if (sel.kind === "flower") d.flower = p; else if (sel.kind === "start") d.start = p;
+}
+function inPoly(x, y, poly) { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; }
+function segDist(px, py, a, b) { const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy || 1; let t = ((px - a[0]) * dx + (py - a[1]) * dy) / L; t = Math.max(0, Math.min(1, t)); return Math.hypot(px - a[0] - dx * t, py - a[1] - dy * t); }
+function hitTest(wx, wy) {
+  const d = ED.data, tol = 11 / ED.zoom, D = p => Math.hypot(p[0] - wx, p[1] - wy);
+  for (let i = 0; i < d.pts.length; i++) if (D(d.pts[i]) < tol) return { kind: "pt", i };
+  for (let s = 0; s < d.solids.length; s++) for (let i = 0; i < d.solids[s].length; i++) if (D(d.solids[s][i]) < tol) return { kind: "solidpt", s, i };
+  if (D(d.flower) < 0.6) return { kind: "flower" };
+  for (let i = d.apples.length - 1; i >= 0; i--) if (D(d.apples[i]) < 0.55) return { kind: "apple", i };
+  for (let i = d.killers.length - 1; i >= 0; i--) if (D(d.killers[i]) < 0.55) return { kind: "killer", i };
+  if (D(d.start) < 0.9) return { kind: "start" };
+  for (let s = d.solids.length - 1; s >= 0; s--) if (inPoly(wx, wy, d.solids[s])) return { kind: "solid", s };
+  return null;
+}
+function insertGroundPoint(x, y) {
+  const P = ED.data.pts; let at;
+  if (x < P[0][0]) at = 0; else if (x > P[P.length - 1][0]) at = P.length;
+  else { let best = 1e9; for (let i = 0; i < P.length - 1; i++) { const dd = segDist(x, y, P[i], P[i + 1]); if (dd < best) { best = dd; at = i + 1; } } }
+  P.splice(at, 0, [r10(x), r10(y)]); return { kind: "pt", i: at };
+}
+function deleteSel(sel) {
+  const d = ED.data; if (!sel) return;
+  if (sel.kind === "pt" && d.pts.length > 2) { pushUndo(); d.pts.splice(sel.i, 1); }
+  else if (sel.kind === "solidpt") { pushUndo(); if (d.solids[sel.s].length > 3) d.solids[sel.s].splice(sel.i, 1); else d.solids.splice(sel.s, 1); }
+  else if (sel.kind === "solid") { pushUndo(); d.solids.splice(sel.s, 1); }
+  else if (sel.kind === "apple") { pushUndo(); d.apples.splice(sel.i, 1); }
+  else if (sel.kind === "killer") { pushUndo(); d.killers.splice(sel.i, 1); }
+  else return;
+  ED.sel = null; edChanged();
+}
+function edDown(e) {
+  if (state !== "edit") return;
+  cv.setPointerCapture(e.pointerId);
+  const [wx, wy] = toWorld(e.offsetX, e.offsetY), h = hitTest(wx, wy);
+  if (e.button === 2) { deleteSel(h); return; }
+  if (e.button !== 0) { ED.drag = { pan: true, px: e.offsetX, py: e.offsetY, cx: ED.cam.x, cy: ED.cam.y }; return; }
+  const t = ED.tool, d = ED.data, sx0 = snapV(wx), sy0 = snapV(wy);
+  const grab = sel => { ED.sel = sel; ED.drag = { sel, wx, wy, px: e.offsetX, py: e.offsetY, moved: false, orig: sel.kind === "solid" ? d.solids[sel.s].map(p => p.slice()) : getPos(sel).slice() }; };
+  if (t === "block") { ED.rect = { x0: sx0, y0: sy0, x1: sx0, y1: sy0 }; ED.drag = { rect: true }; return; }
+  if (t === "apple" || t === "killer") { if (h && h.kind === t) return grab(h); pushUndo(); d[t + "s"].push([sx0, sy0]); ED.sel = { kind: t, i: d[t + "s"].length - 1 }; edChanged(); return; }
+  if (t === "flower" || t === "start") { pushUndo(); setPos({ kind: t }, sx0, sy0); ED.sel = { kind: t }; edChanged(); grab({ kind: t }); ED.drag.moved = true; return; }
+  if (t === "ground" && !(h && (h.kind === "pt" || h.kind === "solidpt"))) { pushUndo(); const sel = insertGroundPoint(sx0, sy0); edChanged(); grab(sel); ED.drag.moved = true; return; }
+  if (h) return grab(h);
+  ED.sel = null; ED.drag = { pan: true, px: e.offsetX, py: e.offsetY, cx: ED.cam.x, cy: ED.cam.y };
+}
+function edMove(e) {
+  const g = ED.drag; if (!g || state !== "edit") return;
+  if (g.pan) { ED.cam.x = g.cx - (e.offsetX - g.px) / ED.zoom; ED.cam.y = g.cy + (e.offsetY - g.py) / ED.zoom; return; }
+  const [wx, wy] = toWorld(e.offsetX, e.offsetY);
+  if (g.rect) { ED.rect.x1 = snapV(wx); ED.rect.y1 = snapV(wy); return; }
+  if (!g.moved) { if (Math.hypot(e.offsetX - g.px, e.offsetY - g.py) < 4) return; pushUndo(); g.moved = true; }
+  if (g.sel.kind === "solid") { const dx = snapV(wx - g.wx), dy = snapV(wy - g.wy); ED.data.solids[g.sel.s] = g.orig.map(p => [r10(p[0] + dx), r10(p[1] + dy)]); }
+  else setPos(g.sel, snapV(g.orig[0] + wx - g.wx), snapV(g.orig[1] + wy - g.wy));
+  edChanged();
+}
+function edUp() {
+  const g = ED.drag; ED.drag = null; if (!g || !g.rect) return;
+  const r = ED.rect; ED.rect = null;
+  const x0 = Math.min(r.x0, r.x1), x1 = Math.max(r.x0, r.x1), y0 = Math.min(r.y0, r.y1), y1 = Math.max(r.y0, r.y1);
+  if (x1 - x0 < 0.5 || y1 - y0 < 0.5) return;
+  pushUndo(); ED.data.solids.push([[x0, y0], [x1, y0], [x1, y1], [x0, y1]]); ED.sel = { kind: "solid", s: ED.data.solids.length - 1 }; edChanged();
+}
+function edZoom(f, px = W / 2, py = H / 2) {
+  const [wx, wy] = toWorld(px, py); ED.zoom = Math.max(8, Math.min(90, ED.zoom * f));
+  ED.cam.x = wx - (px - W / 2) / ED.zoom; ED.cam.y = wy + (py - H / 2) / ED.zoom;
+}
+cv.addEventListener("pointerdown", edDown);
+cv.addEventListener("pointermove", edMove);
+cv.addEventListener("pointerup", edUp); cv.addEventListener("pointercancel", edUp);
+cv.addEventListener("contextmenu", e => { if (state === "edit") e.preventDefault(); });
+cv.addEventListener("wheel", e => { if (state !== "edit") return; e.preventDefault(); edZoom(Math.exp(-e.deltaY * 0.0015), e.offsetX, e.offsetY); }, { passive: false });
+cv.addEventListener("dblclick", e => {
+  if (state !== "edit" || ED.tool !== "move") return;
+  const [wx, wy] = toWorld(e.offsetX, e.offsetY), P = ED.data.pts;
+  for (let i = 0; i < P.length - 1; i++) if (segDist(wx, wy, P[i], P[i + 1]) < 10 / ED.zoom) { pushUndo(); P.splice(i + 1, 0, [snapV(wx), snapV(wy)]); ED.sel = { kind: "pt", i: i + 1 }; edChanged(); return; }
+});
+window.addEventListener("keydown", e => {
+  if (state !== "edit" || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || !$("shareCard").hidden) return;
+  if ((e.ctrlKey || e.metaKey) && e.code === "KeyZ") { e.preventDefault(); edUndo(); }
+  else if (e.code === "Delete" || e.code === "Backspace") { e.preventDefault(); deleteSel(ED.sel); }
+  else if (/^Digit[1-7]$/.test(e.code)) setTool(Object.keys(HINTS)[+e.code.slice(5) - 1]);
+  else if (e.code === "KeyT") testRide();
+  else if (e.code === "Escape") ED.sel = null;
+});
+
+function drawGrid() {
+  const x0 = Math.floor(cam.x - W / 2 / S), x1 = Math.ceil(cam.x + W / 2 / S), y0 = Math.floor(cam.y - H / 2 / S), y1 = Math.ceil(cam.y + H / 2 / S);
+  ctx.lineWidth = 1;
+  for (let x = x0; x <= x1; x++) { ctx.strokeStyle = ((x % 5) + 5) % 5 ? "rgba(34,49,58,.06)" : "rgba(34,49,58,.16)"; ctx.beginPath(); ctx.moveTo(sx(x), 0); ctx.lineTo(sx(x), H); ctx.stroke(); }
+  for (let y = y0; y <= y1; y++) { ctx.strokeStyle = ((y % 5) + 5) % 5 ? "rgba(34,49,58,.06)" : "rgba(34,49,58,.16)"; ctx.beginPath(); ctx.moveTo(0, sy(y)); ctx.lineTo(W, sy(y)); ctx.stroke(); }
+}
+function handle(p, fill, selected) { const s = selected ? 7 : 5; ctx.fillStyle = selected ? "#d8342b" : fill; ctx.strokeStyle = "#22313a"; ctx.lineWidth = 2; ctx.fillRect(sx(p[0]) - s, sy(p[1]) - s, s * 2, s * 2); ctx.strokeRect(sx(p[0]) - s, sy(p[1]) - s, s * 2, s * 2); }
+const same = (a, b) => a && b && a.kind === b.kind && a.i === b.i && a.s === b.s;
+function renderEditor(now) {
+  const S0 = S; S = ED.zoom; cam.x = ED.cam.x; cam.y = ED.cam.y;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  level = ED.compiled; drawLevel(now); drawGrid();
+  const d = ED.data, sel = ED.sel;
+  d.killers.forEach(k => drawKiller(k[0], k[1], now));
+  d.apples.forEach((a, i) => drawApple(a[0], a[1], 0, i));
+  drawFlower(d.flower[0], d.flower[1], now, true);
+  // start ghost
+  ctx.strokeStyle = sel && sel.kind === "start" ? "#d8342b" : "#22313a"; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
+  for (const o of WOFF) { ctx.beginPath(); ctx.arc(sx(d.start[0] + o[0]), sy(d.start[1] + o[1]), WR * S, 0, 7); ctx.stroke(); }
+  ctx.beginPath(); ctx.arc(sx(d.start[0] + HEAD[0]), sy(d.start[1] + HEAD[1]), HEAD_R * S, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = "#22313a"; ctx.font = "700 13px " + getComputedStyle(document.body).fontFamily; ctx.textAlign = "center"; ctx.fillText("START", sx(d.start[0]), sy(d.start[1] + 1.25));
+  if (sel && (sel.kind === "apple" || sel.kind === "killer" || sel.kind === "flower")) { const p = getPos(sel); ctx.strokeStyle = "#d8342b"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(sx(p[0]), sy(p[1]), 0.62 * S, 0, 7); ctx.stroke(); }
+  d.solids.forEach((s, si) => { if (sel && sel.kind === "solid" && sel.s === si) { ctx.strokeStyle = "#d8342b"; ctx.lineWidth = 3; ctx.beginPath(); s.forEach((p, i) => i ? ctx.lineTo(sx(p[0]), sy(p[1])) : ctx.moveTo(sx(p[0]), sy(p[1]))); ctx.closePath(); ctx.stroke(); } s.forEach((p, i) => handle(p, "#ffb347", same(sel, { kind: "solidpt", s: si, i }))); });
+  d.pts.forEach((p, i) => handle(p, "#ffffff", same(sel, { kind: "pt", i })));
+  if (ED.rect) { const r = ED.rect; ctx.strokeStyle = "#d8342b"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.strokeRect(sx(Math.min(r.x0, r.x1)), sy(Math.max(r.y0, r.y1)), Math.abs(r.x1 - r.x0) * S, Math.abs(r.y1 - r.y0) * S); ctx.setLineDash([]); }
+  S = S0;
+}
+function testRide() {
+  const probs = levelProblems(ED.data); if (probs.length) { $("edHint").textContent = probs[0]; return; }
+  playCustom(ED.data, { key: "c" + hashStr(JSON.stringify(ED.data)), fromEditor: true });
+}
+
+// editor controls
+document.querySelectorAll("#edBar .tool").forEach(b => b.onclick = () => { b.blur(); setTool(b.dataset.tool); });
+$("edName").addEventListener("input", e => { ED.data.name = e.target.value.slice(0, 40) || "Untitled"; edChanged(); });
+$("edSnap").onchange = e => { ED.snap = e.target.checked; };
+$("edUndo").onclick = edUndo; $("edDelete").onclick = () => deleteSel(ED.sel);
+$("edZoomIn").onclick = () => edZoom(1.25); $("edZoomOut").onclick = () => edZoom(0.8);
+$("edTest").onclick = e => { e.currentTarget.blur(); testRide(); };
+$("edExit").onclick = () => { custom = null; loadLevel(0); showMenu(); };
+$("edShare").onclick = () => openShare();
+(() => {
+  const sel = $("edFrom"), add = (v, t) => { const o = document.createElement("option"); o.value = v; o.textContent = t; sel.appendChild(o); };
+  add("", "Start from…"); add("blank", "Blank level"); LEVELS.forEach((f, i) => add(String(i), "Level " + (i + 1) + ": " + f().name)); add("random", "A random track");
+  sel.onchange = () => {
+    const v = sel.value; sel.value = ""; sel.blur(); if (!v) return;
+    const d = v === "blank" ? blankLevel() : v === "random" ? toEditable(generate(1 + Math.floor(Math.random() * 99999))) : toEditable(LEVELS[+v](), LEVELS[+v]().name + " remix");
+    openEditor(d);
+  };
+})();
+
+// ================= share & import =================
+let shareCode = "";
+function flash(btn, text) { const old = btn.dataset.label || btn.textContent; btn.dataset.label = old; btn.textContent = text; setTimeout(() => { btn.textContent = old; }, 1400); }
+function copyText(text, btn, area) {
+  const fallback = () => { if (area) { area.focus(); area.select(); } flash(btn, "Press Ctrl+C"); };
+  try { navigator.clipboard.writeText(text).then(() => flash(btn, "Copied"), fallback); } catch (e) { fallback(); }
+}
+async function openShare() {
+  const probs = levelProblems(ED.data); if (probs.length) { $("edHint").textContent = probs[0]; $("edHint").classList.add("warn"); return; }
+  shareCode = await packLevel(ED.data);
+  $("shCode").value = shareCode; $("shStatus").textContent = ""; $("shStatus").className = "status";
+  const link = SHARE_BASE + "#" + shareCode;
+  $("shLinkInfo").textContent = link.length > 1800 ? "This level is large, so its link is " + link.length + " characters long. Some apps cut long links; the code always works." : "The link only opens for people who can open this game.";
+  $("shPublish").hidden = !gal.db;
+  $("shareCard").hidden = false;
+}
+$("shCopyCode").onclick = e => copyText(shareCode, e.currentTarget, $("shCode"));
+$("shCopyLink").onclick = e => copyText(SHARE_BASE + "#" + shareCode, e.currentTarget, $("shCode"));
+$("shClose").onclick = () => { $("shareCard").hidden = true; };
+$("shPublish").onclick = () => publishLevel();
+
+function openImport(prefill) { hidePanels(); state = "menu"; $("imCode").value = prefill || ""; $("imStatus").textContent = ""; $("imStatus").className = "status"; $("importCard").hidden = false; if (!prefill) $("imCode").focus(); }
+async function readImport() {
+  try { return await unpackLevel($("imCode").value); }
+  catch (e) { $("imStatus").textContent = e.message && /^[A-Z]/.test(e.message) && e.message.length > 20 ? e.message : "That code couldn't be read. Check that it was copied in full."; $("imStatus").className = "status bad"; return null; }
+}
+$("bImport").onclick = () => openImport();
+$("imClose").onclick = () => { history.replaceState(null, "", location.pathname + location.search); showMenu(); };
+$("imPlay").onclick = async () => { const r = await readImport(); if (r) playCustom(r.data, { key: "c" + hashStr(r.code) }); };
+$("imEdit").onclick = async () => { const r = await readImport(); if (r) openEditor(r.data); };
+$("bEditor").onclick = () => openEditor();
+
+function checkHash() { const h = decodeURIComponent(location.hash.slice(1)); if (/^SR[01]\./.test(h)) openImport(h); }
+window.addEventListener("hashchange", checkHash);
+checkHash();
+
+// ================= shared gallery (db capability) =================
+const gal = { db: null, user: null, me: null, owner: false, levels: [], names: {}, unsub: null, pendingDelete: null };
+(async () => {
+  try {
+    const [db, user] = await Promise.all([window.claude?.use?.("db") ?? null, window.claude?.use?.("user") ?? null]);
+    gal.db = db; gal.user = user;
+    if (user) { gal.me = await user.id().catch(() => null); gal.owner = await Promise.resolve(user.isOwner()).catch(() => false); }
+  } catch (e) {}
+  if (!$("galleryCard").hidden) subscribeGallery();
+  if (!$("shareCard").hidden) $("shPublish").hidden = !gal.db;
+})();
+function subscribeGallery() {
+  if (!gal.db) { $("galStatus").textContent = "The shared gallery isn't available in this view. You can still share levels with codes and links."; return; }
+  if (gal.unsub) return renderGallery();
+  $("galStatus").textContent = "Loading levels…";
+  gal.unsub = gal.db.collection("levels").orderBy("created", "desc").limit(300).onSnapshot(snap => {
+    gal.levels = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(l => typeof l.code === "string" && typeof l.name === "string");
+    renderGallery();
+  }, err => { gal.unsub = null; $("galStatus").textContent = "The gallery stopped updating. Close it and open it again to reconnect."; });
+}
+async function renderGallery() {
+  const list = $("galList"); list.innerHTML = "";
+  $("galStatus").textContent = gal.levels.length ? gal.levels.length + (gal.levels.length === 1 ? " level" : " levels") : "No levels yet. Build one in the editor and publish it from Share.";
+  const ids = [...new Set(gal.levels.flatMap(l => [l.by, l.best && l.best.by]).filter(Boolean))];
+  if (gal.user && ids.length) { try { const ps = await gal.user.profiles(ids); for (const id of ids) gal.names[id] = (ps[id] && ps[id].name) || ""; } catch (e) {} }
+  const who = id => !id ? "someone" : id === gal.me ? "you" : gal.names[id] || "someone";
+  list.innerHTML = "";
+  for (const l of gal.levels) {
+    const row = document.createElement("div"); row.className = "gi";
+    const t = document.createElement("div"); t.className = "t"; t.textContent = l.name;
+    const best = document.createElement("div"); best.className = "m"; best.textContent = l.best && Number.isFinite(l.best.t) ? "Best " + fmt(l.best.t) + " by " + who(l.best.by) : "No finishes yet";
+    const m = document.createElement("div"); m.className = "m"; m.textContent = "By " + who(l.by) + (l.created ? " · " + new Date(l.created).toLocaleDateString() : "");
+    const acts = document.createElement("div"); acts.className = "acts";
+    const btn = (label, fn, cls) => { const b = document.createElement("button"); b.textContent = label; if (cls) b.className = cls; b.onclick = fn; acts.appendChild(b); return b; };
+    const load = async () => { try { return await unpackLevel(l.code); } catch (e) { $("galStatus").textContent = "That level's code is damaged and can't be loaded."; return null; } };
+    btn("Play", async () => { const r = await load(); if (r) playCustom(r.data, { key: "c" + hashStr(r.code), galleryId: l.id }); }, "primary");
+    btn("Edit a copy", async () => { const r = await load(); if (r) openEditor(r.data); });
+    btn("Copy link", e => copyText(SHARE_BASE + "#" + l.code, e.currentTarget));
+    if (l.by && (l.by === gal.me || gal.owner)) {
+      const del = btn("Delete", async () => {
+        if (gal.pendingDelete !== l.id) { gal.pendingDelete = l.id; del.textContent = "Confirm delete"; return; }
+        gal.pendingDelete = null; del.disabled = true;
+        try { await gal.db.doc("levels/" + l.id).delete(); } catch (e) { del.disabled = false; $("galStatus").textContent = "Couldn't delete that level."; }
+      });
+    }
+    row.append(t, best, m, acts); list.appendChild(row);
+  }
+}
+function openGallery() { hidePanels(); state = "menu"; $("galleryCard").hidden = false; subscribeGallery(); }
+$("bGallery").onclick = openGallery;
+$("galClose").onclick = () => showMenu();
+async function publishLevel() {
+  const st = $("shStatus"), b = $("shPublish");
+  if (!gal.db) { st.textContent = "The gallery isn't available in this view."; st.className = "status bad"; return; }
+  if (shareCode.length > 200000) { st.textContent = "This level is too big for the gallery. Share its code instead."; st.className = "status bad"; return; }
+  if (gal.levels.some(l => l.code === shareCode)) { st.textContent = "This exact level is already in the gallery."; st.className = "status"; return; }
+  b.disabled = true; st.className = "status"; st.textContent = "Publishing…";
+  try {
+    await gal.db.collection("levels").add({ name: ED.data.name, code: shareCode, by: gal.me || "", created: Date.now(), best: null });
+    st.textContent = "Published. It's in the Level gallery now."; if (!gal.unsub) subscribeGallery();
+  } catch (e) {
+    st.className = "status bad";
+    st.textContent = e && e.code === "invalid_argument" ? "You don't have permission to publish to this gallery. Ask the owner for Contributor access, or share the code instead." : e && e.code === "quota_exceeded" ? "The gallery is full. Delete some old levels first." : "Publishing failed. Try again in a moment.";
+  } finally { b.disabled = false; }
+}
+window.onCustomWin = t => {
+  if (!custom || !custom.galleryId || !gal.db) return;
+  const l = gal.levels.find(x => x.id === custom.galleryId);
+  if (l && l.best && Number.isFinite(l.best.t) && l.best.t <= t) return;
+  gal.db.doc("levels/" + custom.galleryId).update({ best: { t: Math.round(t * 100) / 100, by: gal.me || "" } }).catch(() => {});
+};
+window.__editor = { ED, packLevel, unpackLevel, openEditor, testRide, edChanged };
+</script>
