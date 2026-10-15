@@ -33,8 +33,34 @@ button{font-family:var(--ui);font-weight:700;font-size:16px;letter-spacing:.06em
 button:hover{background:#fff1e8}
 button:focus-visible{outline:3px solid var(--signal);outline-offset:2px}
 button.primary{background:var(--signal);border-color:var(--signal);color:#fff}
-.stage{position:relative;border:3px solid var(--ink);border-radius:6px;overflow:hidden;background:#bfe1ee;max-width:100%;margin-inline:auto;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-canvas{display:block;width:100%;touch-action:none}
+.stage{position:relative;border:3px solid var(--ink);border-radius:6px;overflow:hidden;background:#bfe1ee;width:100%;max-width:100%;margin-inline:auto;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#c{display:block;width:100%;touch-action:none}
+/* Course editor */
+.editor{display:grid;gap:10px;background:var(--panel);border:2px solid var(--ink);border-radius:6px;padding:12px;min-width:0}
+.ed-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}
+.ed-spacer{flex:1}
+.ed-group{display:flex;align-items:stretch;border:2px solid var(--ink);border-radius:4px;overflow:hidden}
+.ed-group button{border:0;border-radius:0;border-left:2px solid var(--ink)}
+.ed-group > :first-child{border-left:0}
+.ed-glabel{display:flex;align-items:center;padding:0 8px;font-weight:700;font-size:15px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:var(--paper)}
+.tog[aria-pressed="true"]{background:var(--ink);color:#fff}
+button:disabled{opacity:.4;cursor:not-allowed}
+.palette{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}
+.piece{position:relative;display:grid;justify-items:center;gap:3px;padding:10px 4px 6px;text-transform:none;letter-spacing:.01em;font-size:15px;border-width:1.5px}
+.piece kbd{position:absolute;top:3px;left:4px;font-size:11px;padding:0 4px;line-height:1.3}
+.editor canvas{display:block;pointer-events:none}
+.piece canvas{width:72px;height:30px}
+.strip{position:relative;display:flex;gap:4px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin}
+.tile{flex:0 0 auto;display:grid;justify-items:center;align-content:center;gap:1px;padding:4px 4px 2px;border-width:1.5px;font-size:13px;letter-spacing:0;min-width:52px}
+.tile canvas{width:56px;height:24px}
+.tile.start{color:var(--muted);font-size:12px}
+.tile.sel{border-color:var(--signal);background:#fff1e8;box-shadow:inset 0 0 0 2px var(--signal)}
+#edCode{flex:1 1 220px;min-width:0;border:2px solid var(--ink);border-radius:4px;padding:6px 8px;font:600 15px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--ink);background:var(--paper)}
+.ed-label,.ed-count{font-weight:700;font-size:15px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.ed-msg{color:var(--turf);font-weight:700}
+.ed-help{margin:0;color:var(--muted);font-size:15px}
+@media (pointer:coarse){.ed-help{display:none}}
+html.editing .pad,html.editing .rotate{display:none!important}
 .pad{display:flex;justify-content:space-between;align-items:center;gap:12px;user-select:none;-webkit-user-select:none}
 .pad .dir{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(2,52px);gap:6px}
 .pad .dir .u{grid-column:2;grid-row:1}
@@ -59,7 +85,8 @@ kbd{font-family:var(--ui);font-weight:700;background:var(--panel);border:1px sol
   .wrap{max-width:none;padding-block:6px;gap:6px}
   header>div:first-child,.rotate,#bestChip{display:none}
   header{justify-content:center}
-  .trackbar{flex-wrap:nowrap;justify-content:center}
+  .trackbar{justify-content:center}
+  html.editing .stage{width:min(100%,calc((100vh - 60px) * 1.4));width:min(100%,calc((100dvh - 60px) * 1.4))}
   .chip,.trackbar button,.seedform input,.seedform label{font-size:14px}
   .trackbar button{padding:4px 10px}
   .stage{width:min(100%,calc((100vh - 60px) * 2.4));width:min(100%,calc((100dvh - 60px) * 2.4))}
@@ -82,7 +109,7 @@ kbd{font-family:var(--ui);font-weight:700;background:var(--panel);border:1px sol
     <div class="trackbar">
       <form class="seedform" id="seedForm" autocomplete="off">
         <label for="seedInput">Track</label>
-        <input id="seedInput" name="seed" type="text" maxlength="24" placeholder="seed" title="Any number or word" spellcheck="false">
+        <input id="seedInput" name="seed" type="text" maxlength="200" placeholder="seed" title="A number, any word, or a course code (e-…)" spellcheck="false">
         <button type="submit">Load</button>
       </form>
       <span class="chip" id="bestChip">Best —</span>
@@ -90,11 +117,34 @@ kbd{font-family:var(--ui);font-weight:700;background:var(--panel);border:1px sol
       <button id="newBtn" class="primary" type="button">New track</button>
       <button id="soundBtn" type="button" aria-pressed="true">Sound on</button>
       <button id="fsBtn" type="button" hidden>Full screen</button>
+      <button id="editBtn" class="tog" type="button" aria-pressed="false">Editor</button>
     </div>
   </header>
 
   <div class="stage"><canvas id="c" aria-label="Motocross race track"></canvas></div>
   <p class="rotate">Turn your phone sideways for a bigger track.</p>
+
+  <section class="editor" id="editor" hidden aria-label="Course editor">
+    <div class="ed-row">
+      <div class="ed-group"><button id="edPrev" type="button" aria-label="Previous piece">◀</button><button id="edNext" type="button" aria-label="Next piece">▶</button></div>
+      <div class="ed-group"><button id="modeIns" class="tog" type="button">Insert</button><button id="modeRep" class="tog" type="button">Replace</button></div>
+      <button id="edDel" type="button">Delete</button>
+      <div class="ed-group" id="edLanes"><span class="ed-glabel">Lanes</span><button class="tog" data-lane="1" type="button">1</button><button class="tog" data-lane="2" type="button">2</button><button class="tog" data-lane="3" type="button">3</button><button class="tog" data-lane="4" type="button">4</button></div>
+      <span class="ed-spacer"></span>
+      <button id="edClear" type="button">Clear</button>
+      <button id="edTest" class="primary" type="button">Test ride</button>
+    </div>
+    <div class="palette" id="palette" aria-label="Track pieces"></div>
+    <div class="strip" id="strip" aria-label="Course, start to finish"></div>
+    <div class="ed-row">
+      <label class="ed-label" for="edCode">Course code</label>
+      <input id="edCode" readonly spellcheck="false">
+      <button id="edCopy" type="button">Copy</button>
+      <span class="ed-count" id="edCount"></span>
+      <span class="ed-msg" id="edMsg" role="status"></span>
+    </div>
+    <p class="ed-help"><kbd>A</kbd>–<kbd>M</kbd> add piece · <kbd>←</kbd><kbd>→</kbd> move · <kbd>Del</kbd> remove · <kbd>1</kbd>–<kbd>4</kbd> hazard lanes · <kbd>R</kbd> insert / replace · <kbd>Enter</kbd> test ride · <kbd>Esc</kbd> close. Mud and Cooler pieces cover the lanes you pick; lane 1 is the far lane.</p>
+  </section>
 
   <div class="pad" aria-label="Touch controls">
     <div class="dir">
@@ -115,7 +165,7 @@ kbd{font-family:var(--ui);font-weight:700;background:var(--panel);border:1px sol
     <li><kbd>X</kbd> / <kbd>K</kbd> turbo (heats the engine)</li>
     <li><kbd>↑</kbd><kbd>↓</kbd> change lane</li>
     <li><kbd>←</kbd><kbd>→</kbd> lean back / forward in the air</li>
-    <li><kbd>P</kbd> pause · <kbd>R</kbd> restart · <kbd>N</kbd> new track · <kbd>M</kbd> sound</li>
+    <li><kbd>E</kbd> course editor · <kbd>P</kbd> pause · <kbd>R</kbd> restart · <kbd>N</kbd> new track · <kbd>M</kbd> sound</li>
   </ul>
 </main>
 
@@ -200,6 +250,65 @@ function genTrack(seed) {
   }
   return {segs, hz, FIN, end:x, seed};
 }
+// ---------- course pieces (editor) ----------
+// Each piece is a run of [length, end height] steps that starts and ends at ground level.
+const PIECES = {
+  A:{name:'Flat', steps:[[160,0]]},
+  B:{name:'Hump', steps:[[45,16],[45,0],[70,0]]},
+  C:{name:'Small ramp', steps:[[60,40],[80,0],[90,0]]},
+  D:{name:'Ramp', steps:[[105,75],[110,0],[120,0]]},
+  E:{name:'Big ramp', steps:[[150,110],[170,0],[150,0]]},
+  F:{name:'Tabletop', steps:[[95,70],[140,70],[100,0],[120,0]]},
+  G:{name:'Gap jump', steps:[[105,80],[16,0],[170,0],[70,60],[130,0],[120,0]]},
+  H:{name:'Whoops', steps:[[28,12],[28,0],[28,12],[28,0],[28,12],[28,0],[28,12],[28,0],[28,12],[28,0],[60,0]]},
+  I:{name:'Kicker', steps:[[40,45],[120,0],[120,0]]},
+  J:{name:'Plateau', steps:[[75,50],[300,50],[90,0],[120,0]]},
+  K:{name:'Double', steps:[[80,60],[80,0],[80,60],[100,0],[120,0]]},
+  L:{name:'Mud', steps:[[180,0]], hz:'mud', a:10, b:170, dm:6},
+  M:{name:'Cooler', steps:[[120,0]], hz:'cool', a:42, b:78, dm:2}
+};
+const MAXP = 80, SAMPLE = 'ACABDHLfFMbIAEGKJA';
+function fnv(s) { let h = 2166136261; for (const ch of s) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+// Code format: one capital letter per piece; Mud/Cooler add a lowercase letter a–o for the lane bitmask (1–15).
+function encodeCourse(list) { return list.map(p => p.t + (PIECES[p.t].hz ? String.fromCharCode(96 + p.m) : '')).join(''); }
+function decodeCourse(s) {
+  const out = [], re = /([A-M])([a-o]?)/g; let m;
+  while ((m = re.exec(s)) && out.length < MAXP) { const d = PIECES[m[1]]; out.push({t:m[1], m: d.hz ? (m[2] ? m[2].charCodeAt(0) - 96 : d.dm) : 0}); }
+  return out;
+}
+function buildCourse(list, sd) {
+  const segs = [], hz = [], starts = []; let x = 0, h = 0;
+  const push = (len, h1) => { segs.push({x0:x, x1:x + len, h0:h, h1}); x += len; h = h1; };
+  push(760, 0);
+  for (const p of list) {
+    const d = PIECES[p.t], x0 = x; starts.push(x0);
+    for (const [l, hh] of d.steps) push(l, hh);
+    if (d.hz) for (let ln = 0; ln < 4; ln++) if (p.m >> ln & 1) hz.push({k:d.hz, lane:ln, x0:x0 + d.a, x1:x0 + d.b});
+  }
+  const pend = x; push(200, 0); const FIN = x + 60; push(1600, 0);
+  return {segs, hz, FIN, end:x, seed:sd, starts, pend};
+}
+function drawIcon(cnv, t, mask, w, h) {
+  const d = PIECES[t], dpr = Math.min(2, window.devicePixelRatio || 1);
+  cnv.width = Math.round(w * dpr); cnv.height = Math.round(h * dpr);
+  const c = cnv.getContext('2d'); c.scale(dpr, dpr);
+  const base = h - 4; let len = 0; for (const s of d.steps) len += s[0];
+  const sx = (w - 4) / len, sy = (h - 9) / 110;
+  c.fillStyle = '#69a64e'; c.fillRect(0, base, w, 4);
+  if (d.hz) {
+    const rowH = (base - 3) / 4;
+    for (let r = 0; r < 4; r++) {
+      const on = mask >> (3 - r) & 1;
+      c.fillStyle = on ? (d.hz === 'mud' ? '#5b3a22' : '#2b8fd6') : '#dfe7e6';
+      c.fillRect(2 + d.a * sx, 2 + r * rowH + 1, (d.b - d.a) * sx, rowH - 2);
+    }
+  }
+  c.beginPath(); c.moveTo(2, base); let x = 0;
+  for (const [l, hh] of d.steps) { x += l; c.lineTo(2 + x * sx, base - hh * sy); }
+  c.lineTo(2 + x * sx, base); c.closePath();
+  c.fillStyle = '#c48a57'; c.fill(); c.strokeStyle = '#8b5a33'; c.lineWidth = 1.5; c.lineJoin = 'round'; c.stroke();
+}
+
 function seg(x) {
   const s = T.segs; if (x <= 0) return s[0]; if (x >= T.end) return s[s.length - 1];
   let lo = 0, hi = s.length - 1;
@@ -335,6 +444,8 @@ function pop(text, col) { const [sx, sy] = proj(P1.x, P1.y, P1.z); pops.push({te
 
 // ---------- state ----------
 let state = 'title', stateT = 0, camX = 0, time = 0, raceT = 0, finishT = 0, best = null, newBest = false, cheer = 0, shake = 0, doneT = 0, paused = false;
+let course = null;   // array of {t, m} when racing an editor course, null for seeded tracks
+const trackKey = () => course ? 'e-' + encodeCourse(course) : String(seed);
 const buzz = p => { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} };
 function togglePause() { if (state === 'race' || state === 'count') paused = !paused; }
 let P1, cpus = [], stats = {clean:0, crash:0, heat:0, take:0}, seed = 7;
@@ -344,17 +455,19 @@ function loadBest(s) { try { const v = localStorage.getItem('heatline-best-' + s
 function saveBest(s, t) { try { localStorage.setItem('heatline-best-' + s, String(t)); } catch (e) {} }
 function updateChips() {
   const si = document.getElementById('seedInput');
-  if (document.activeElement !== si) si.value = String(seed).padStart(4, '0');
-  try { history.replaceState(null, '', '#' + seed); } catch (e) {}
+  const key = trackKey();
+  if (document.activeElement !== si) si.value = course ? key : String(seed).padStart(4, '0');
+  try { history.replaceState(null, '', '#' + key); } catch (e) {}
   document.getElementById('bestChip').textContent = 'Best ' + fmt(best);
 }
 function resetRace(go) {
-  T = genTrack(seed); buildMap();
+  setEditing(false);
+  T = course ? buildCourse(course, seed) : genTrack(seed); buildMap();
   P1 = mkRider({x:250, lane:1, col:PAL_P});
   cpus = []; const R = mulberry(seed + 5);
   for (let i = 0; i < 5; i++) cpus.push(mkRider({cpu:true, x:560 + i * 520 + R() * 200, lane:R() * 4 | 0, col:PAL_C[i], vg:255 + R() * 70, ai:2 + R() * 4}));
   parts = []; pops = []; stats = {clean:0, crash:0, heat:0, take:0}; paused = false;
-  raceT = 0; best = loadBest(seed); newBest = false;
+  raceT = 0; best = loadBest(trackKey()); newBest = false;
   state = go ? 'count' : 'title'; stateT = go ? 2.4 : 0;
   camX = P1.x - 300; updateChips();
 }
@@ -374,6 +487,8 @@ function press(k) {
 function release(k) { held[k] = false; if ((k === 'up' && laneTap === 1) || (k === 'down' && laneTap === -1)) laneTap = 0; }
 addEventListener('keydown', e => {
   if (e.target instanceof HTMLInputElement) { if (e.code === 'Escape') e.target.blur(); return; }
+  if (state === 'edit') { edKey(e); return; }
+  if (e.code === 'KeyE' && !e.repeat && !e.ctrlKey && !e.metaKey) { openEditor(); return; }
   const k = KEYMAP[e.code];
   if (k) { e.preventDefault(); if (!e.repeat) press(k); return; }
   if (e.code === 'KeyR') { initAudio(); resetRace(true); }
@@ -408,8 +523,9 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) { if 
 addEventListener('pointerdown', e => { if (e.pointerType === 'touch') document.documentElement.classList.add('touch'); }, {capture:true, passive:true});
 addEventListener('touchend', initAudio, {passive:true});
 document.querySelector('.stage').addEventListener('contextmenu', e => e.preventDefault());
-cv.addEventListener('pointerdown', () => {
+cv.addEventListener('pointerdown', e => {
   initAudio();
+  if (state === 'edit') { const r = cv.getBoundingClientRect(); edSelect(edIndexAt((e.clientX - r.left) / r.width * W + camX - 2 * DX)); return; }
   if (paused) { paused = false; return; }
   if (state === 'title' || (state === 'done' && doneT > 1)) resetRace(true);
 });
@@ -440,12 +556,19 @@ function parseSeed(v) {
 }
 document.getElementById('seedForm').addEventListener('submit', e => {
   e.preventDefault();
-  const si = document.getElementById('seedInput'), s = parseSeed(si.value);
+  const si = document.getElementById('seedInput');
   si.blur();
-  if (s == null) { updateChips(); return; }
-  seed = s; resetRace(false);
+  if (!applyTrackString(si.value)) { updateChips(); return; }
+  resetRace(false);
 });
-{ const s = parseSeed(location.hash.slice(1)); if (s != null) seed = s; }
+// "e-…" loads an editor course; anything else is a seed.
+function applyTrackString(v) {
+  v = String(v || '').trim();
+  if (/^e-/i.test(v)) { course = decodeCourse(v.slice(2)); seed = 1 + fnv(encodeCourse(course)) % 999999; return true; }
+  const s = parseSeed(v); if (s == null) return false;
+  course = null; seed = s; return true;
+}
+try { applyTrackString(decodeURIComponent(location.hash.slice(1))); } catch (e) {}
 document.getElementById('restartBtn').addEventListener('click', e => { initAudio(); resetRace(true); e.currentTarget.blur(); });
 document.getElementById('newBtn').addEventListener('click', e => { newTrack(); e.currentTarget.blur(); });
 document.getElementById('soundBtn').addEventListener('click', e => { initAudio(); toggleSound(); e.currentTarget.blur(); });
@@ -472,7 +595,7 @@ function toggleSound() {
 function audioTick() {
   if (!ac) return;
   const t = ac.currentTime, p = P1;
-  const on = !muted && !paused && state !== 'title' && p.state !== 'crash';
+  const on = !muted && !paused && state !== 'title' && state !== 'edit' && p.state !== 'crash';
   const f = p.state === 'heat' ? 28 : 36 + p.vx * .2 + (p.turbo ? 16 : 0) + (p.air ? 22 : 0);
   osc1.frequency.setTargetAtTime(f, t, .06); osc2.frequency.setTargetAtTime(f * .503, t, .06);
   filt.frequency.setTargetAtTime(420 + p.vx * 2.2, t, .1);
@@ -482,6 +605,7 @@ function audioTick() {
 // ---------- update ----------
 function update(dt) {
   time += dt; stateT -= dt; laneCD -= dt;
+  if (state === 'edit') { gasEdge = false; camX += (edTarget() - camX) * Math.min(1, dt * 8); audioTick(); return; }
   cheer = Math.max(0, cheer - dt * .7); shake = Math.max(0, shake - dt * 30);
   if (state === 'title' && gasEdge) resetRace(true);
   if (state === 'done') { doneT += dt; if (doneT > 1 && gasEdge) resetRace(true); }
@@ -523,7 +647,7 @@ function update(dt) {
   }
   if (racing && P1.x >= T.FIN) {
     state = 'done'; doneT = 0; finishT = raceT; cheer = 1.6;
-    if (best == null || finishT < best) { best = finishT; newBest = true; saveBest(seed, best); updateChips(); }
+    if (best == null || finishT < best) { best = finishT; newBest = true; saveBest(trackKey(), best); updateChips(); }
   }
   const focusX = P1.state === 'crash' ? P1.x : P1.x;
   camX += ((focusX - 300) - camX) * Math.min(1, dt * 8);
@@ -862,7 +986,7 @@ function drawOverlay() {
     panel(W / 2 - 270, 100, 540, 176);
     ctx.font = DFONT(54); ctx.fillStyle = '#1d2830'; ctx.fillText('HEATLINE', W / 2 - 52, 162); ctx.fillStyle = '#ff5a1f'; ctx.fillText('MX', W / 2 + 150, 162);
     ctx.font = FONT(700, 18); ctx.fillStyle = '#55666d';
-    ctx.fillText(`TRACK ${String(seed).padStart(4, '0')} · ${Math.round(T.FIN / 10)} M · BEST ${fmt(best)}`, W / 2, 192);
+    ctx.fillText(`${course ? 'CUSTOM COURSE · ' + course.length + ' PIECES' : 'TRACK ' + String(seed).padStart(4, '0')} · ${Math.round(T.FIN / 10)} M · BEST ${fmt(best)}`, W / 2, 192);
     if (Math.floor(time * 2) % 2 === 0) { ctx.font = FONT(800, 24); ctx.fillStyle = '#1d2830'; ctx.fillText(touch ? 'TAP GAS TO START' : 'PRESS Z TO START', W / 2, 228); }
     ctx.font = FONT(600, 15); ctx.fillStyle = '#55666d';
     ctx.fillText('Land with the bike parallel to the slope. Turbo is fast but cooks the engine — blue arrows cool it.', W / 2, 258);
@@ -879,7 +1003,9 @@ function drawOverlay() {
     ctx.fillStyle = '#55666d';
     ctx.fillText(`CLEAN LANDINGS ${stats.clean} · TAKEDOWNS ${stats.take} · WIPEOUTS ${stats.crash} · OVERHEATS ${stats.heat}`, W / 2, 242);
     ctx.fillStyle = '#1d2830'; ctx.font = FONT(800, 18);
-    ctx.fillText(touch ? 'GAS TO RACE AGAIN · NEW TRACK ABOVE' : 'Z TO RACE AGAIN · N FOR A NEW TRACK', W / 2, 272);
+    ctx.fillText(course
+      ? (touch ? 'GAS TO RACE AGAIN · EDITOR ABOVE' : 'Z TO RACE AGAIN · E TO EDIT THE COURSE')
+      : (touch ? 'GAS TO RACE AGAIN · NEW TRACK ABOVE' : 'Z TO RACE AGAIN · N FOR A NEW TRACK'), W / 2, 272);
   }
   ctx.textAlign = 'left';
 }
@@ -889,9 +1015,204 @@ function draw() {
   ctx.save();
   if (shake > 0) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake * .6);
   drawSky(); drawHills(); drawStands(); drawFence(); drawArch(false); drawTrack(); drawVerge();
-  drawRiders(); drawParticles(); drawArch(true);
+  if (state === 'edit') drawEditMarks(); else { drawRiders(); drawParticles(); }
+  drawArch(true);
   ctx.restore();
-  drawHUD(); drawOverlay();
+  if (state === 'edit') drawEditHUD(); else { drawHUD(); drawOverlay(); }
+}
+
+// ---------- course editor ----------
+const ed = {list:null, cur:-1, mode:'insert'};
+const edEl = document.getElementById('editor'), editBtn = document.getElementById('editBtn');
+const stripEl = document.getElementById('strip'), palEl = document.getElementById('palette'), msgEl = document.getElementById('edMsg');
+const laneBtns = [...document.querySelectorAll('#edLanes button')];
+const edSave = () => { try { localStorage.setItem('heatline-editor', encodeCourse(ed.list)); } catch (e) {} };
+const edLoad = () => { try { const v = localStorage.getItem('heatline-editor'); return v != null ? decodeCourse(v) : null; } catch (e) { return null; } };
+
+function setEditing(on) {
+  document.documentElement.classList.toggle('editing', on);
+  edEl.hidden = !on;
+  editBtn.textContent = on ? 'Close editor' : 'Editor';
+  editBtn.setAttribute('aria-pressed', String(on));
+}
+function openEditor() {
+  if (course) ed.list = course.map(p => ({...p}));
+  else if (!ed.list) ed.list = edLoad() || decodeCourse(SAMPLE);
+  ed.cur = clamp(ed.cur, -1, ed.list.length - 1);
+  releaseAll(); paused = false; pops = []; parts = [];
+  state = 'edit'; setEditing(true); edChanged(true);
+  camX = edTarget();
+}
+function closeEditor(race) {
+  course = ed.list.map(p => ({...p}));
+  seed = 1 + fnv(encodeCourse(course)) % 999999;
+  resetRace(race);
+}
+function edRange(i) {
+  const s = T.starts || [];
+  if (i < 0 || !s.length) return [560, 760];
+  return [s[i], i + 1 < s.length ? s[i + 1] : T.pend];
+}
+function edTarget() { const [a, b] = edRange(ed.cur); return Math.max(-40, (a + b) / 2 - W / 2 + 40); }
+function edIndexAt(wx) {
+  const s = T.starts || [];
+  if (!s.length || wx < s[0]) return -1;
+  let i = 0; while (i + 1 < s.length && s[i + 1] <= wx) i++;
+  return i;
+}
+function edChanged(noSave) {
+  T = buildCourse(ed.list, 1 + fnv(encodeCourse(ed.list)) % 999999); buildMap();
+  renderStrip(); edSync();
+  if (!noSave) edSave();
+}
+function renderStrip() {
+  stripEl.textContent = '';
+  const start = document.createElement('button');
+  start.type = 'button'; start.className = 'tile start'; start.dataset.i = -1; start.textContent = 'START';
+  start.title = 'Start line: new pieces go after it';
+  stripEl.append(start);
+  ed.list.forEach((p, i) => {
+    const b = document.createElement('button'), c = document.createElement('canvas'), n = document.createElement('span');
+    b.type = 'button'; b.className = 'tile'; b.dataset.i = i; b.title = `${i + 1}. ${PIECES[p.t].name}`;
+    drawIcon(c, p.t, p.m, 56, 24); n.textContent = i + 1;
+    b.append(c, n); stripEl.append(b);
+  });
+}
+function edSync() {
+  const p = ed.list[ed.cur], d = p && PIECES[p.t];
+  laneBtns.forEach(b => {
+    const ln = 4 - +b.dataset.lane;
+    b.disabled = !(d && d.hz);
+    b.setAttribute('aria-pressed', String(!!(d && d.hz && (p.m >> ln & 1))));
+  });
+  document.getElementById('modeIns').setAttribute('aria-pressed', String(ed.mode === 'insert'));
+  document.getElementById('modeRep').setAttribute('aria-pressed', String(ed.mode === 'replace'));
+  document.getElementById('edDel').disabled = ed.cur < 0;
+  document.getElementById('edPrev').disabled = ed.cur < 0;
+  document.getElementById('edNext').disabled = ed.cur >= ed.list.length - 1;
+  document.getElementById('edCode').value = 'e-' + encodeCourse(ed.list);
+  document.getElementById('edCount').textContent = `${ed.list.length} / ${MAXP} pieces`;
+  const tiles = stripEl.children;
+  for (let i = 0; i < tiles.length; i++) tiles[i].classList.toggle('sel', i === ed.cur + 1);
+  const sel = tiles[ed.cur + 1];
+  if (sel) {
+    if (sel.offsetLeft < stripEl.scrollLeft) stripEl.scrollLeft = sel.offsetLeft - 8;
+    else if (sel.offsetLeft + sel.offsetWidth > stripEl.scrollLeft + stripEl.clientWidth) stripEl.scrollLeft = sel.offsetLeft + sel.offsetWidth - stripEl.clientWidth + 8;
+  }
+}
+function edMsg(s) { msgEl.textContent = s; clearTimeout(edMsg.t); edMsg.t = setTimeout(() => { msgEl.textContent = ''; }, 3000); }
+function edSelect(i) { ed.cur = clamp(i, -1, ed.list.length - 1); edSync(); }
+function edPlace(t) {
+  const d = PIECES[t];
+  if (ed.mode === 'replace' && ed.cur >= 0) {
+    const old = ed.list[ed.cur];
+    ed.list[ed.cur] = {t, m: d.hz ? (old.t === t ? old.m : d.dm) : 0};
+  } else {
+    if (ed.list.length >= MAXP) { edMsg(`A course holds up to ${MAXP} pieces.`); return; }
+    ed.list.splice(ed.cur + 1, 0, {t, m: d.hz ? d.dm : 0}); ed.cur++;
+  }
+  edChanged();
+}
+function edDelete() { if (ed.cur < 0) return; ed.list.splice(ed.cur, 1); ed.cur = Math.min(ed.cur, ed.list.length - 1); edChanged(); }
+function edLane(n) {
+  const p = ed.list[ed.cur]; if (!p || !PIECES[p.t].hz) return;
+  const m = p.m ^ (1 << (4 - n));
+  if (!m) { edMsg('Keep at least one lane.'); return; }
+  p.m = m; edChanged();
+}
+function edSetMode(m) { ed.mode = m; edSync(); }
+function edKey(e) {
+  const c = e.code, plain = !e.ctrlKey && !e.metaKey && !e.altKey;
+  if (c === 'ArrowLeft') edSelect(ed.cur - 1);
+  else if (c === 'ArrowRight') edSelect(ed.cur + 1);
+  else if (c === 'Home') edSelect(-1);
+  else if (c === 'End') edSelect(ed.list.length - 1);
+  else if (c === 'Delete' || c === 'Backspace') edDelete();
+  else if (c === 'Escape') closeEditor(false);
+  else if (c === 'Enter' && !(e.target.closest && e.target.closest('button'))) closeEditor(true);
+  else if (/^Digit[1-4]$/.test(c) && plain) edLane(+c[5]);
+  else if (/^Key[A-M]$/.test(c) && plain) edPlace(c[3]);
+  else if ((c === 'KeyR' || c === 'Insert') && plain) edSetMode(ed.mode === 'insert' ? 'replace' : 'insert');
+  else return;
+  e.preventDefault();
+}
+for (const t in PIECES) {
+  const b = document.createElement('button'), c = document.createElement('canvas'), nm = document.createElement('span'), k = document.createElement('kbd');
+  b.type = 'button'; b.className = 'piece'; b.dataset.t = t;
+  drawIcon(c, t, PIECES[t].dm || 0, 72, 30); nm.textContent = PIECES[t].name; k.textContent = t;
+  b.append(k, c, nm); palEl.append(b);
+}
+palEl.addEventListener('click', e => { const b = e.target.closest('.piece'); if (b) edPlace(b.dataset.t); });
+stripEl.addEventListener('click', e => { const b = e.target.closest('.tile'); if (b) edSelect(+b.dataset.i); });
+laneBtns.forEach(b => b.addEventListener('click', () => edLane(+b.dataset.lane)));
+document.getElementById('edPrev').addEventListener('click', () => edSelect(ed.cur - 1));
+document.getElementById('edNext').addEventListener('click', () => edSelect(ed.cur + 1));
+document.getElementById('modeIns').addEventListener('click', () => edSetMode('insert'));
+document.getElementById('modeRep').addEventListener('click', () => edSetMode('replace'));
+document.getElementById('edDel').addEventListener('click', edDelete);
+document.getElementById('edTest').addEventListener('click', e => { initAudio(); e.currentTarget.blur(); closeEditor(true); });
+editBtn.addEventListener('click', e => { initAudio(); e.currentTarget.blur(); if (state === 'edit') closeEditor(false); else openEditor(); });
+{
+  const btn = document.getElementById('edClear'); let armed = 0;
+  btn.addEventListener('click', () => {
+    if (Date.now() < armed) { armed = 0; btn.textContent = 'Clear'; ed.list = []; ed.cur = -1; edChanged(); edMsg('Course cleared.'); return; }
+    armed = Date.now() + 3000; btn.textContent = 'Tap again to clear';
+    setTimeout(() => { if (Date.now() >= armed) btn.textContent = 'Clear'; }, 3100);
+  });
+}
+document.getElementById('edCopy').addEventListener('click', () => {
+  const inp = document.getElementById('edCode');
+  const ok = () => edMsg('Copied. Paste it into the Track box to load it.');
+  const fail = () => { inp.focus(); inp.select(); edMsg('Code selected. Copy it with your keyboard.'); };
+  try { navigator.clipboard.writeText(inp.value).then(ok, fail); } catch (e) { fail(); }
+});
+function drawEditMarks() {
+  const n = ed.list.length;
+  ctx.textAlign = 'center'; ctx.font = FONT(800, 13);
+  for (let i = 0; i < n; i++) {
+    const [a, b] = edRange(i);
+    if (proj(b, 0, 4)[0] < -40 || proj(a, 0, 0)[0] > W + 40) continue;
+    const ha = heightAt(a), q0 = proj(a, ha, 0), q1 = proj(a, ha, 4);
+    ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(q0[0], q0[1]); ctx.lineTo(q1[0], q1[1]); ctx.stroke(); ctx.setLineDash([]);
+    const mx = proj((a + b) / 2, 0, 0)[0], sel = i === ed.cur;
+    ctx.fillStyle = sel ? '#ff5a1f' : 'rgba(255,255,255,.92)'; rr(mx - 17, BASE + 30, 34, 18, 3); ctx.fill();
+    ctx.fillStyle = sel ? '#ffffff' : '#1d2830'; ctx.fillText(ed.list[i].t + (i + 1), mx, BASE + 43);
+  }
+  const [a, b] = edRange(ed.cur);
+  if (ed.cur >= 0) {
+    ctx.beginPath();
+    for (let x = a; x <= b + .1; x += 6) { const p = proj(x, heightAt(x), 4); x === a ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1]); }
+    for (let x = b; x >= a - .1; x -= 6) { const p = proj(x, heightAt(x), 0); ctx.lineTo(p[0], p[1]); }
+    ctx.closePath(); ctx.fillStyle = 'rgba(255,90,31,.22)'; ctx.fill();
+    ctx.strokeStyle = '#ff5a1f'; ctx.lineWidth = 2; ctx.stroke();
+  }
+  if (ed.mode === 'insert') {
+    const h = heightAt(b), p = proj(b, h, 0), q = proj(b, h, 4);
+    ctx.strokeStyle = '#ff5a1f'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1] - 10); ctx.stroke();
+    ctx.fillStyle = '#ff5a1f'; ctx.beginPath(); ctx.arc(q[0], q[1] - 22, 12, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(q[0] - 6, q[1] - 23.5, 12, 3); ctx.fillRect(q[0] - 1.5, q[1] - 28, 3, 12);
+  }
+  ctx.textAlign = 'left';
+}
+function drawEditHUD() {
+  ctx.textAlign = 'left';
+  panel(14, 12, 330, 54);
+  ctx.fillStyle = '#55666d'; ctx.font = FONT(700, 12);
+  ctx.fillText(ed.mode === 'insert' ? 'COURSE EDITOR · INSERT AFTER SELECTION' : 'COURSE EDITOR · REPLACE SELECTION', 26, 29);
+  const p = ed.list[ed.cur];
+  ctx.fillStyle = '#1d2830'; ctx.font = FONT(800, 24);
+  ctx.fillText(p ? `${ed.cur + 1}. ${PIECES[p.t].name}` : 'Start line', 26, 56);
+  const gx = W - 14 - 200; panel(gx, 12, 200, 54);
+  ctx.fillStyle = '#55666d'; ctx.font = FONT(700, 12); ctx.fillText('LENGTH', gx + 12, 29); ctx.fillText('PIECES', gx + 112, 29);
+  ctx.fillStyle = '#1d2830'; ctx.font = FONT(800, 24);
+  ctx.fillText(`${Math.round(T.FIN / 10)} m`, gx + 12, 56); ctx.fillText(`${ed.list.length}/${MAXP}`, gx + 112, 56);
+  if (!ed.list.length) {
+    panel(W / 2 - 230, 120, 460, 64); ctx.textAlign = 'center';
+    ctx.fillStyle = '#1d2830'; ctx.font = FONT(800, 20); ctx.fillText('EMPTY COURSE', W / 2, 146);
+    ctx.fillStyle = '#55666d'; ctx.font = FONT(600, 16); ctx.fillText('Pick a piece below to place it after the start line.', W / 2, 170);
+    ctx.textAlign = 'left';
+  }
 }
 
 // ---------- loop ----------
