@@ -13,6 +13,7 @@ Browser remakes of old games. Live site: https://morbeo.github.io/remakes/
 
 1. Create `<game>/index.html` (full document with doctype, charset and viewport meta).
 2. Add a card to the root `index.html` and a row to the root `README.md` table.
+   The card shows `<game>/screenshot.webp`; make it with `python3 tools/screenshots.py <game>` (add a recipe in that script if the game needs input to reach gameplay).
 3. Optional `<game>/README.md` with controls and layout, and `<game>/RESEARCH.md` with notes on the original.
 
 ## Conventions
