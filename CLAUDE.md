@@ -27,7 +27,7 @@ Browser remakes of old games. Live site: https://morbeo.github.io/remakes/
 
 - Default branch is `master`. Work on a branch and open a PR.
 - Commit messages have a short summary line and a longer body.
-- No AI or tool attribution in commits, PRs or code comments.
+- Never add attribution of any kind: no "Generated with Claude", no "Requested by" lines, no Co-Authored-By or session trailers, no Claude or project links. This applies to commits, PR titles and bodies, and code comments.
 
 ## Agents
 
