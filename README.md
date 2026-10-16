@@ -7,3 +7,4 @@ Browser remakes of old games. Each game lives in its own folder as a self-contai
 | Elasto Mania | [elasto-mania/](elasto-mania/) |
 | ClockWerx | [clockwerx/](clockwerx/) |
 | Excitebike | [excitebike/](excitebike/) |
+| Arctic Adventure | [arctic-adventure/](arctic-adventure/) |
