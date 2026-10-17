@@ -18,7 +18,9 @@ Pick **1 player vs CPU** or **2 players**. Destroy the other ship with blaster t
 | Energy → shield | `Z` | `N` |
 | Shield → energy | `C` | `,` |
 
-Solo, either key set flies the Needle and `Space` also fires the blaster. `Esc` pauses.
+These are the defaults (`Space` is also a Needle blaster key). Every action has two key slots per ship; open **Controls** in the menu, click a slot and press the new key to rebind it (`Backspace` clears, `Esc` cancels, **Reset keys** restores the defaults). A key can drive only one action, so binding it moves it from wherever it was. Bindings are saved in the browser.
+
+Solo, either key set flies the Needle. `Esc` pauses.
 
 Touch screens get on-screen pads (below the field in portrait, over its corners in landscape): rotate, shield and cloak on the left; thrust, blaster, laser, teleport and energy transfer on the right. In 2-player mode the Wedge's pad is upside down across the top, for two players sharing a tablet.
 

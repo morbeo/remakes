@@ -39,6 +39,12 @@ td,th{padding:3px 6px;text-align:left;border-bottom:1px solid #eee8da}
 th{color:var(--ink)}
 kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:#fff;color:var(--ink)}
 .p1{color:var(--p1)}.p2{color:var(--p2)}
+#keys td{white-space:nowrap}
+#keys button{min-width:44px;margin:1px 2px;padding:2px 6px;font:12px ui-monospace,monospace;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;background:#fff;color:var(--ink);cursor:pointer}
+#keys button.empty{color:#b8b1a0}
+#keys button.wait{background:#ffe0b0;border-color:var(--accent)}
+.keyhelp{font-size:13px}
+button.link{border:0;background:none;padding:0;font:inherit;color:var(--p1);text-decoration:underline;cursor:pointer}
 .back{display:inline-block;margin-top:10px;font-size:14px;color:var(--muted)}
 /* touch pads: left hand rotates and toggles, right hand flies and fights */
 .pad{display:none;justify-content:space-between;align-items:flex-end;gap:8px;pointer-events:none}
@@ -78,19 +84,9 @@ body.over .pad button{opacity:.62}
       <div id="opts" class="opts"></div>
       <details>
         <summary>Controls</summary>
-        <table>
-          <tr><th></th><th class="p1">Needle</th><th class="p2">Wedge</th></tr>
-          <tr><td>Rotate</td><td><kbd>A</kbd> <kbd>D</kbd></td><td><kbd>J</kbd> <kbd>L</kbd> or <kbd>←</kbd> <kbd>→</kbd></td></tr>
-          <tr><td>Thrust</td><td><kbd>W</kbd></td><td><kbd>I</kbd> or <kbd>↑</kbd></td></tr>
-          <tr><td>Blaster</td><td><kbd>S</kbd></td><td><kbd>K</kbd> or <kbd>↓</kbd></td></tr>
-          <tr><td>Laser pulse</td><td><kbd>X</kbd></td><td><kbd>M</kbd> or <kbd>/</kbd></td></tr>
-          <tr><td>Teleport</td><td><kbd>Q</kbd></td><td><kbd>U</kbd> or <kbd>Right Shift</kbd></td></tr>
-          <tr><td>Shield (hold)</td><td><kbd>E</kbd></td><td><kbd>O</kbd></td></tr>
-          <tr><td>Cloak (hold)</td><td><kbd>R</kbd></td><td><kbd>P</kbd></td></tr>
-          <tr><td>Energy → shield</td><td><kbd>Z</kbd></td><td><kbd>N</kbd></td></tr>
-          <tr><td>Shield → energy</td><td><kbd>C</kbd></td><td><kbd>,</kbd></td></tr>
-        </table>
-        <p>Solo: either key set flies the Needle, and <kbd>Space</kbd> also fires the blaster. <kbd>Esc</kbd> pauses. On touch screens use the on-screen pads; in 2-player mode the Wedge's pad sits upside down across the top for a shared tablet.</p>
+        <table id="keys"></table>
+        <p class="keyhelp">Click a key to change it, then press the new key. <kbd>Backspace</kbd> clears a slot, <kbd>Esc</kbd> cancels. <button id="keysReset" class="link">Reset keys</button></p>
+        <p>Solo: either key set flies the Needle. <kbd>Esc</kbd> pauses. On touch screens use the on-screen pads; in 2-player mode the Wedge's pad sits upside down across the top for a shared tablet.</p>
         <p>Destroy the other ship with blaster torpedoes or laser pulses until all its <b>shield</b> energy is gone. Torpedoes cost 1 energy and hit for 4; laser pulses cost 1 and hit for 2, and can shoot down incoming torpedoes. Engines, the held shield and the held cloak each burn 1 energy every half second; teleport costs 8. <b>Energy</b> recharges 1 unit every 2 seconds, and you can move it into the shield or back. Holding the shield makes hits drain energy instead of shield. Touching the star burns 3 shield and flings you away, and a warning beep means it's nearly gone.</p>
       </details>
       <a class="back" href="../">← All remakes</a>
@@ -240,10 +236,70 @@ function hush() { loopSound(0, false, false, CX); loopSound(1, false, false, CX)
 
 // ---------- input ----------
 // l/r rotate, t thrust, f blaster, z laser, h teleport, s shield, c cloak, ts energy→shield, te shield→energy
-const KEYS = [
-  { l: ['KeyA'], r: ['KeyD'], t: ['KeyW'], f: ['KeyS'], z: ['KeyX'], h: ['KeyQ'], s: ['KeyE'], c: ['KeyR'], ts: ['KeyZ'], te: ['KeyC'] },
+const ACTIONS = [['l', 'Rotate left'], ['r', 'Rotate right'], ['t', 'Thrust'], ['f', 'Blaster'], ['z', 'Laser pulse'], ['h', 'Teleport'],
+  ['s', 'Shield (hold)'], ['c', 'Cloak (hold)'], ['ts', 'Energy → shield'], ['te', 'Shield → energy']];
+const DEFAULT_KEYS = [
+  { l: ['KeyA'], r: ['KeyD'], t: ['KeyW'], f: ['KeyS', 'Space'], z: ['KeyX'], h: ['KeyQ'], s: ['KeyE'], c: ['KeyR'], ts: ['KeyZ'], te: ['KeyC'] },
   { l: ['KeyJ', 'ArrowLeft'], r: ['KeyL', 'ArrowRight'], t: ['KeyI', 'ArrowUp'], f: ['KeyK', 'ArrowDown'], z: ['KeyM', 'Slash'], h: ['KeyU', 'ShiftRight'], s: ['KeyO'], c: ['KeyP'], ts: ['KeyN'], te: ['Comma'] },
 ];
+const SLOTS = 2;
+let KEYS = loadKeys();
+// Bindings are saved per browser; anything malformed falls back to the defaults
+function loadKeys() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('sunwell-keys') || 'null'); } catch (e) {}
+  return DEFAULT_KEYS.map((def, p) => {
+    const out = {};
+    for (const [k] of ACTIONS) {
+      const v = saved && saved[p] && saved[p][k];
+      out[k] = Array.isArray(v) && v.every(c => typeof c === 'string') ? v.slice(0, SLOTS) : def[k].slice();
+    }
+    return out;
+  });
+}
+function saveKeys() { try { localStorage.setItem('sunwell-keys', JSON.stringify(KEYS)); } catch (e) {} }
+const KEY_NAMES = { ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', ShiftLeft: 'L Shift', ShiftRight: 'R Shift',
+  ControlLeft: 'L Ctrl', ControlRight: 'R Ctrl', AltLeft: 'L Alt', AltRight: 'R Alt', MetaLeft: 'L Meta', MetaRight: 'R Meta',
+  Comma: ',', Period: '.', Slash: '/', Semicolon: ';', Quote: "'", BracketLeft: '[', BracketRight: ']', Backslash: '\\',
+  Minus: '-', Equal: '=', Backquote: '`', Space: 'Space', Enter: 'Enter', Tab: 'Tab', CapsLock: 'Caps' };
+function keyName(c) {
+  if (KEY_NAMES[c]) return KEY_NAMES[c];
+  return c.replace(/^Key/, '').replace(/^Digit/, '').replace(/^Numpad/, 'Num ');
+}
+let capture = null;   // { p, k, slot } while waiting for a key
+function buildKeys() {
+  const t = $('keys');
+  t.innerHTML = `<tr><th></th><th class="p1">${NAMES[0]}</th><th class="p2">${NAMES[1]}</th></tr>`;
+  for (const [k, label] of ACTIONS) {
+    const tr = document.createElement('tr'), td = document.createElement('td');
+    td.textContent = label; tr.append(td);
+    for (let p = 0; p < 2; p++) {
+      const cell = document.createElement('td');
+      for (let slot = 0; slot < SLOTS; slot++) {
+        const b = document.createElement('button'), code = KEYS[p][k][slot];
+        const waiting = capture && capture.p === p && capture.k === k && capture.slot === slot;
+        b.textContent = waiting ? '…' : code ? keyName(code) : '+';
+        b.className = waiting ? 'wait' : code ? '' : 'empty';
+        b.setAttribute('aria-label', `${NAMES[p]} ${label} key ${slot + 1}: ${code ? keyName(code) : 'none'}`);
+        b.onclick = () => { capture = waiting ? null : { p, k, slot }; buildKeys(); };
+        cell.append(b);
+      }
+      tr.append(cell);
+    }
+    t.append(tr);
+  }
+}
+function bindKey(code) {
+  const { p, k, slot } = capture;
+  capture = null;
+  if (code) for (const m of KEYS) for (const a in m) m[a] = m[a].filter(c => c !== code);   // a key drives one action only
+  const list = KEYS[p][k].slice();
+  if (code) list[Math.min(slot, list.length)] = code; else list.splice(slot, 1);
+  KEYS[p][k] = list.filter(Boolean).slice(0, SLOTS);
+  saveKeys(); buildKeys();
+}
+$('keysReset').onclick = () => { capture = null; KEYS = DEFAULT_KEYS.map(m => JSON.parse(JSON.stringify(m))); saveKeys(); buildKeys(); };
+buildKeys();
 const EDGE = ['h'];
 const down = new Set();
 // Taps shorter than a physics step still count: keydowns and pad presses latch until the next update
@@ -252,13 +308,19 @@ const touchIn = [{}, {}], touchTap = [{}, {}];
 function readInput(p) {
   const inp = {}, sets = mode === 1 && p === 0 ? [0, 1] : [p];
   for (const k in KEYS[0]) inp[k] = sets.some(q => KEYS[q][k].some(c => down.has(c) || tapped.has(c)) || !!touchIn[q][k] || !!touchTap[q][k]);
-  if (mode === 1 && p === 0) inp.f = inp.f || down.has('Space');
   return inp;
 }
-const GAME_KEYS = new Set(['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Slash']);
+const boundKey = c => KEYS.some(m => Object.values(m).some(l => l.includes(c)));
 addEventListener('keydown', e => {
   audioInit();
-  if (GAME_KEYS.has(e.code) && state !== 'menu') e.preventDefault();
+  if (capture) {
+    e.preventDefault();
+    if (e.code === 'Escape') { capture = null; buildKeys(); }
+    else if (e.code === 'Backspace' || e.code === 'Delete') bindKey(null);
+    else bindKey(e.code);
+    return;
+  }
+  if (state !== 'menu' && (boundKey(e.code) || e.code === 'Space' || e.code.startsWith('Arrow'))) e.preventDefault();
   if (e.repeat) return;
   down.add(e.code); tapped.add(e.code);
   if (e.code === 'Escape') {
