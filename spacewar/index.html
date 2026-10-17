@@ -117,7 +117,7 @@ const E_MAX = 40, S_MAX = 40, E_START = 30, S_START = 20, E_REGEN = 0.5;
 const THRUST_COST = 2, BLAST_COST = 1, LASER_COST = 1, TELE_COST = 8, SHIELD_DRAIN = 2, CLOAK_DRAIN = 2, XFER = 5;
 const BOLT_V = 320, BOLT_LIFE = 1.7, BOLT_CD = 0.25, BOLT_DMG = 4, ARM = 0.12;
 const LASER_RANGE = 150, LASER_DMG = 2, LASER_CD = 0.3, LASER_FLASH = 0.09, RAM_DMG = 4, STAR_DMG = 3, STAR_KICK = 360, LOW_SHIELD = 8;
-const HYPER_T = 0.9, HYPER_CD = 2, REVEAL = 0.45;
+const HYPER_T = 1.4, HYPER_CD = 2, REVEAL = 0.45, TELE_BITS = 36;
 const NAMES = ['Needle', 'Wedge'], COLORS = ['#2457c5', '#c8402c'], SHIELD_C = '#1f9a8a';
 // Ship outlines, nose along +x
 const SHAPES = [
@@ -476,17 +476,58 @@ function pulse(s) {
   sfx.zap(s.x, s.i);
   if (target) { spark(nx + c * len, ny + n * len, COLORS[s.i], 4); damage(target, LASER_DMG); }
 }
+// Points spread evenly along a ship outline, in ship-local coordinates
+function outlinePoints(shape, n) {
+  const segs = shape.map((p, k) => { const q = shape[(k + 1) % shape.length]; return [p, q, Math.hypot(q[0] - p[0], q[1] - p[1])]; });
+  const total = segs.reduce((t, g) => t + g[2], 0), pts = [];
+  for (let k = 0; k < n; k++) {
+    let d = k / n * total, g = 0;
+    while (d > segs[g][2]) { d -= segs[g][2]; g++; }
+    const [p, q, l] = segs[g], f = d / l;
+    pts.push([p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f]);
+  }
+  return pts;
+}
+// Teleport: the outline breaks into particles that scatter, stream to the destination and reassemble
 function jump(s) {
+  let x, y;
+  do { x = rnd(40, W - 40); y = rnd(40, H - 40); } while (Math.hypot(x - CX, y - CY) < 120);
   s.hyper = HYPER_T; s.hyperCd = HYPER_CD + HYPER_T; s.thrust = false; s.laserT = 0;
-  rings.push({ x: s.x, y: s.y, r: 2, life: 0.5, max: 0.5, c: COLORS[s.i], dots: true });
+  s.from = [s.x, s.y]; s.to = [x, y];
+  s.bits = outlinePoints(SHAPES[s.i], TELE_BITS).map(p => {
+    const a = rnd(0, 6.283), r = rnd(14, 38), b = rnd(0, 6.283), r2 = rnd(14, 38);
+    return { p, ax: Math.cos(a) * r, ay: Math.sin(a) * r, bx: Math.cos(b) * r2, by: Math.sin(b) * r2, arc: rnd(-60, 60), lag: rnd(0, 0.12) };
+  });
   sfx.hyper(s.x, false);
 }
 function emerge(s) {
-  let x, y;
-  do { x = rnd(40, W - 40); y = rnd(40, H - 40); } while (Math.hypot(x - CX, y - CY) < 120);
-  s.x = x; s.y = y; s.vx *= 0.3; s.vy *= 0.3;
-  if (!s.cloak) rings.push({ x, y, r: 40, life: 0.4, max: 0.4, c: COLORS[s.i], dots: true, shrink: true });
-  sfx.hyper(x, true);
+  s.x = s.to[0]; s.y = s.to[1]; s.vx *= 0.3; s.vy *= 0.3; s.bits = null;
+  sfx.hyper(s.x, true);
+}
+const ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
+function drawTeleport(s) {
+  if (!s.bits || s.cloak) return;
+  const k = 1 - s.hyper / HYPER_T, c = Math.cos(s.a), n = Math.sin(s.a);
+  const [fx, fy] = s.from, [tx, ty] = s.to;
+  ctx.fillStyle = COLORS[s.i];
+  for (const b of s.bits) {
+    const t = Math.min(1, Math.max(0, (k - b.lag) / (1 - 0.12)));
+    const lx = b.p[0] * c - b.p[1] * n, ly = b.p[0] * n + b.p[1] * c;
+    let x, y;
+    if (t < 0.25) {          // disintegrate around the old position
+      const e = ease(t / 0.25); x = fx + lx + (b.ax - lx) * e; y = fy + ly + (b.ay - ly) * e;
+    } else if (t < 0.75) {   // stream across, each particle on its own curve
+      const e = ease((t - 0.25) / 0.5), sx = fx + b.ax, sy = fy + b.ay, ex = tx + b.bx, ey = ty + b.by;
+      const dx = ex - sx, dy = ey - sy, d = Math.hypot(dx, dy) || 1, bend = Math.sin(e * Math.PI) * b.arc;
+      x = sx + dx * e - dy / d * bend; y = sy + dy * e + dx / d * bend;
+    } else {                 // reassemble into the outline
+      const e = ease((t - 0.75) / 0.25); x = tx + b.bx + (lx - b.bx) * e; y = ty + b.by + (ly - b.by) * e;
+    }
+    const sz = t > 0.25 && t < 0.75 ? 2.8 : 3.2;
+    ctx.globalAlpha = 0.9;
+    ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
+  }
+  ctx.globalAlpha = 1;
 }
 function explode(s) {
   if (!s.alive) return;
@@ -722,6 +763,7 @@ function draw() {
     ctx.beginPath(); ctx.arc(p.x, p.y, 2.6, 0, 6.283); ctx.fill();
   }
   for (const s of ships) if (s.alive && !s.hyper && s.laserT > 0) drawLaser(s);
+  for (const s of ships) if (s.alive && s.hyper) drawTeleport(s);
   for (const s of ships) if (s.alive && !s.hyper) {
     drawShip(s, s.x, s.y);
     if (opts.edges === 'wrap') {

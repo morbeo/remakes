@@ -33,7 +33,7 @@ Energy units follow the original DOS Spacewar instruction screen.
 | Engines | 1 energy every ½ s | thrust while held |
 | Cloak | 1 energy every ½ s | invisible while held; firing or being hit flickers it into view |
 | Shield | 1 energy every ½ s | while held, hits drain energy instead of shield |
-| Teleport | 8 energy | jump to a random spot |
+| Teleport | 8 energy | the ship breaks into particles that stream to a random spot and reassemble |
 
 - Each ship starts with 30 energy and 20 shield (max 40 each). Energy recharges 1 unit every 2 seconds.
 - Move energy into the shield or back with the transfer keys.
