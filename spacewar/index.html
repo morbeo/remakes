@@ -44,6 +44,12 @@ kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-bottom-
 #keys button.empty{color:#b8b1a0}
 #keys button.wait{background:#ffe0b0;border-color:var(--accent)}
 .keyhelp{font-size:13px}
+#adv{margin-top:8px}
+#tune fieldset{border:1px solid var(--line);border-radius:8px;margin:0 0 10px;padding:6px 10px 8px}
+#tune legend{font-weight:600;color:var(--ink);padding:0 4px}
+#tune label{display:grid;grid-template-columns:1fr 92px;align-items:center;gap:8px;padding:2px 0}
+#tune input{width:92px;padding:3px 6px;border:1px solid var(--line);border-radius:5px;font:13px ui-monospace,monospace;background:#fff;color:var(--ink)}
+#tune input.changed{border-color:var(--accent);background:#fff7ea}
 button.link{border:0;background:none;padding:0;font:inherit;color:var(--p1);text-decoration:underline;cursor:pointer}
 .back{display:inline-block;margin-top:10px;font-size:14px;color:var(--muted)}
 /* touch pads: left hand rotates and toggles, right hand flies and fights */
@@ -89,6 +95,11 @@ body.over .pad button{opacity:.62}
         <p>Solo: either key set flies the Needle. <kbd>Esc</kbd> pauses. On touch screens use the on-screen pads; in 2-player mode the Wedge's pad sits upside down across the top for a shared tablet.</p>
         <p>Destroy the other ship with blaster torpedoes or laser pulses until all its <b>shield</b> energy is gone. Torpedoes cost 1 energy and hit for 4; laser pulses cost 1 and hit for 2, and can shoot down incoming torpedoes. Engines, the held shield and the held cloak each burn 1 energy every half second; teleport costs 8. <b>Energy</b> recharges 1 unit every 2 seconds, up to 8 times faster close to the star, and you can move it into the shield or back. Holding the shield makes hits drain energy instead of shield. Touching the star burns 3 shield and flings you away, and a warning beep means it's nearly gone.</p>
       </details>
+      <details id="adv">
+        <summary>Advanced settings</summary>
+        <p class="keyhelp">Change the rules to taste. Values are saved in this browser and apply right away. <button id="tuneReset" class="link">Reset to defaults</button></p>
+        <div id="tune"></div>
+      </details>
       <a class="back" href="../">← All remakes</a>
     </div>
     <div id="msg" hidden>
@@ -104,22 +115,96 @@ body.over .pad button{opacity:.62}
 // ---------- constants ----------
 const W = 960, H = 600, CX = W / 2, CY = H / 2;
 const STEP = 1 / 120;
-const G_BASE = 9e5, SUN_R = 16;
-const SHIP_R = 10, SHIELD_R = 18, TURN = 3.8, THRUST = 150, MAXV = 420;
-// Energy units as in the DOS original: torpedo costs 1 and hits for 4, laser costs 1 and hits for 2,
-// engines and cloak cost 1 every half second, hyperspace 8, recharge 1 every 2 seconds.
-// A ship is destroyed when its shield energy runs out.
-const E_MAX = 40, S_MAX = 40, E_START = 30, S_START = 20, E_REGEN = 0.5;
-const THRUST_COST = 2, BLAST_COST = 1, LASER_COST = 1, TELE_COST = 8, SHIELD_DRAIN = 2, CLOAK_DRAIN = 2, XFER = 5;
-const BOLT_V = 320, BOLT_LIFE = 1.7, BOLT_CD = 0.25, BOLT_DMG = 4, ARM = 0.12;
-const LASER_RANGE = 150, LASER_DMG = 2, LASER_CD = 0.3, LASER_FLASH = 0.09, RAM_DMG = 4, STAR_DMG = 3, STAR_KICK = 360, LOW_SHIELD = 8;
-const SOLAR_R = 60, SOLAR_BOOST = 7;   // recharge rate rises with (SOLAR_R / distance)², up to 8x
-const HYPER_T = 1.4, HYPER_CD = 2, REVEAL = 0.45, TELE_BITS = 36;
+const ARM = 0.12, LASER_FLASH = 0.09, TELE_BITS = 36;
+// Tunable rules, editable under Advanced settings. Energy defaults follow the DOS original:
+// torpedo costs 1 and hits for 4, laser costs 1 and hits for 2, engines and cloak cost 1 every half second,
+// hyperspace 8, recharge 1 every 2 seconds. A ship is destroyed when its shield energy runs out.
+const TUNE = [
+  ['Ship', [
+    ['maxSpeed', 'Max speed', 420, 50, 1500, 10],
+    ['thrust', 'Thrust acceleration', 150, 10, 1000, 10],
+    ['turn', 'Turn rate (rad/s)', 3.8, 0.5, 12, 0.1],
+    ['shipR', 'Hit radius', 10, 4, 24, 1],
+    ['shieldR', 'Shield radius', 18, 8, 40, 1],
+  ]],
+  ['Energy', [
+    ['eMax', 'Max energy', 40, 1, 200, 1],
+    ['sMax', 'Max shield', 40, 1, 200, 1],
+    ['eStart', 'Starting energy', 30, 0, 200, 1],
+    ['sStart', 'Starting shield', 20, 1, 200, 1],
+    ['eRegen', 'Recharge per second', 0.5, 0, 20, 0.1],
+    ['solarBoost', 'Extra recharge near star (×)', 7, 0, 30, 0.5],
+    ['solarR', 'Star recharge radius', 60, 10, 300, 5],
+    ['xfer', 'Transfer per second', 5, 0.5, 50, 0.5],
+  ]],
+  ['Energy costs', [
+    ['thrustCost', 'Engines per second', 2, 0, 20, 0.5],
+    ['blastCost', 'Blaster shot', 1, 0, 20, 0.5],
+    ['laserCost', 'Laser pulse', 1, 0, 20, 0.5],
+    ['teleCost', 'Teleport', 8, 0, 100, 1],
+    ['shieldDrain', 'Shield per second', 2, 0, 20, 0.5],
+    ['cloakDrain', 'Cloak per second', 2, 0, 20, 0.5],
+  ]],
+  ['Weapons', [
+    ['boltDmg', 'Blaster damage', 4, 0, 100, 1],
+    ['boltV', 'Blaster bolt speed', 320, 50, 1200, 10],
+    ['boltLife', 'Blaster bolt life (s)', 1.7, 0.2, 8, 0.1],
+    ['boltCd', 'Blaster cooldown (s)', 0.25, 0.02, 3, 0.01],
+    ['laserDmg', 'Laser damage', 2, 0, 100, 1],
+    ['laserRange', 'Laser range', 150, 20, 600, 10],
+    ['laserCd', 'Laser cooldown (s)', 0.3, 0.02, 3, 0.01],
+  ]],
+  ['Star and hazards', [
+    ['gBase', 'Gravity strength', 9e5, 0, 5e6, 5e4],
+    ['starR', 'Star radius', 16, 4, 60, 1],
+    ['starDmg', 'Star touch damage', 3, 0, 100, 1],
+    ['starKick', 'Star bounce speed', 360, 0, 1200, 10],
+    ['ramDmg', 'Ramming damage', 4, 0, 100, 1],
+    ['lowShield', 'Low-shield warning at', 8, 0, 100, 1],
+  ]],
+  ['Teleport and cloak', [
+    ['hyperT', 'Teleport duration (s)', 1.4, 0.2, 5, 0.1],
+    ['hyperCd', 'Teleport cooldown (s)', 2, 0, 20, 0.5],
+    ['reveal', 'Cloak reveal after firing (s)', 0.45, 0, 3, 0.05],
+  ]],
+];
+const T = {};
+(function loadTune() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem('sunwell-tune') || '{}') || {}; } catch (e) {}
+  for (const [, rows] of TUNE) for (const [k, , def, min, max] of rows) {
+    const v = saved[k];
+    T[k] = typeof v === 'number' && isFinite(v) ? Math.min(max, Math.max(min, v)) : def;
+  }
+})();
+function saveTune() { try { localStorage.setItem('sunwell-tune', JSON.stringify(T)); } catch (e) {} }
+function buildTune() {
+  const box = document.getElementById('tune'); box.innerHTML = '';
+  for (const [group, rows] of TUNE) {
+    const fs = document.createElement('fieldset'), lg = document.createElement('legend');
+    lg.textContent = group; fs.append(lg);
+    for (const [k, label, def, min, max, step] of rows) {
+      const lab = document.createElement('label'), span = document.createElement('span'), inp = document.createElement('input');
+      span.textContent = label;
+      Object.assign(inp, { type: 'number', min, max, step, value: T[k], title: `Default ${def}, range ${min} to ${max}` });
+      inp.classList.toggle('changed', T[k] !== def);
+      inp.onchange = () => {
+        const v = parseFloat(inp.value);
+        T[k] = isFinite(v) ? Math.min(max, Math.max(min, v)) : def;
+        inp.value = T[k]; inp.classList.toggle('changed', T[k] !== def);
+        saveTune();
+      };
+      lab.append(span, inp); fs.append(lab);
+    }
+    box.append(fs);
+  }
+}
 const NAMES = ['Needle', 'Wedge'], COLORS = ['#2457c5', '#c8402c'], SHIELD_C = '#1f9a8a';
 // Ship outlines, nose along +x
+// Same length, span and swept area for both, so neither ship is harder to see or hit; only the tails differ
 const SHAPES = [
-  [[15, 0], [-9, -6], [-5, -2], [-11, -2], [-11, 2], [-5, 2], [-9, 6]],
-  [[13, 0], [3, -4], [-9, -10], [-5, 0], [-9, 10], [3, 4]],
+  [[14, 0], [-10, -8], [-6, -3], [-11, -3], [-11, 3], [-6, 3], [-10, 8]],
+  [[14, 0], [-10, -8], [-7, -3], [-11, 0], [-7, 3], [-10, 8]],
 ];
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
@@ -299,6 +384,8 @@ function bindKey(code) {
   KEYS[p][k] = list.filter(Boolean).slice(0, SLOTS);
   saveKeys(); buildKeys();
 }
+$('tuneReset').onclick = () => { for (const [, rows] of TUNE) for (const [k, , def] of rows) T[k] = def; saveTune(); buildTune(); };
+buildTune();
 $('keysReset').onclick = () => { capture = null; KEYS = DEFAULT_KEYS.map(m => JSON.parse(JSON.stringify(m))); saveKeys(); buildKeys(); };
 buildKeys();
 const EDGE = ['h'];
@@ -396,7 +483,7 @@ addEventListener('resize', fit);
 let mode = 1, state = 'menu';
 let ships = [], bolts = [], parts = [], debris = [], rings = [], stars = [];
 let score = [0, 0], roundT = 0, shake = 0, time = 0, roundMsg = '';
-const gravity = () => [0, 1, 2.2][opts.gravity] * G_BASE;
+const gravity = () => [0, 1, 2.2][opts.gravity] * T.gBase;
 
 function rnd(a, b) { return a + Math.random() * (b - a); }
 // Shortest offset from a to b, respecting wraparound
@@ -421,7 +508,7 @@ function newShip(i) {
   const x = i ? CX + 300 : CX - 300, y = i ? CY + 140 : CY - 140;
   const [vx, vy] = orbitV(x, y, 1);
   return {
-    i, x, y, vx, vy, a: i ? Math.PI : 0, energy: E_START, shield: S_START, shieldOn: false, cloak: false,
+    i, x, y, vx, vy, a: i ? Math.PI : 0, energy: Math.min(T.eStart, T.eMax), shield: Math.min(T.sStart, T.sMax), shieldOn: false, cloak: false,
     cd: 0, alive: true, hyper: 0, hyperCd: 0, thrust: false, laser: 0, laserT: 0, lcd: 0, hitT: 0, reveal: 0, warnT: 0,
     prev: {}, ai: { t: 0, err: 0, lx: x, ly: y, calm: 0, cloakT: 0 },
   };
@@ -495,7 +582,7 @@ function pull(o, dt) {
 function solarGain(s) {
   if (!opts.sun) return 1;
   const d = Math.max(1, Math.hypot(s.x - CX, s.y - CY));
-  return 1 + SOLAR_BOOST * Math.min(1, (SOLAR_R / d) ** 2);
+  return 1 + T.solarBoost * Math.min(1, (T.solarR / d) ** 2);
 }
 function spend(s, amount) {
   if (s.energy < amount) return false;
@@ -514,7 +601,7 @@ function setCloak(s, on) {
 }
 // A hit drains shield energy; a held shield takes it from energy first. The ship is lost when shields run out.
 function damage(s, dmg) {
-  s.reveal = REVEAL; s.hitT = 0.25;
+  s.reveal = T.reveal; s.hitT = 0.25;
   if (s.shieldOn) { const m = Math.min(dmg, s.energy); s.energy -= m; dmg -= m; }
   s.shield -= dmg;
   sfx.shieldHit(s.x);
@@ -522,18 +609,18 @@ function damage(s, dmg) {
 }
 function fire(s) {
   const c = Math.cos(s.a), n = Math.sin(s.a);
-  bolts.push({ x: s.x + c * 15, y: s.y + n * 15, vx: s.vx + c * BOLT_V, vy: s.vy + n * BOLT_V, life: BOLT_LIFE, age: 0, o: s.i });
-  s.cd = BOLT_CD; s.reveal = REVEAL;
+  bolts.push({ x: s.x + c * 15, y: s.y + n * 15, vx: s.vx + c * T.boltV, vy: s.vy + n * T.boltV, life: T.boltLife, age: 0, o: s.i });
+  s.cd = T.boltCd; s.reveal = T.reveal;
   sfx.fire(s.x, s.i);
 }
 // Laser pulse: an instant short beam from the nose; it stops at the first ship it strikes and shoots down torpedoes
 function pulse(s) {
   const c = Math.cos(s.a), n = Math.sin(s.a), nx = s.x + c * 14, ny = s.y + n * 14;
-  let len = LASER_RANGE, target = null;
+  let len = T.laserRange, target = null;
   for (const t of ships) {
     if (t === s || !t.alive || t.hyper) continue;
     const [dx, dy] = off(nx, ny, t.x, t.y), along = dx * c + dy * n, perp = Math.abs(-dx * n + dy * c);
-    const r = t.shieldOn ? SHIELD_R : SHIP_R;
+    const r = t.shieldOn ? T.shieldR : T.shipR;
     if (along > 0 && along < len && perp < r) { len = Math.max(0, along - Math.sqrt(Math.max(0, r * r - perp * perp))); target = t; }
   }
   for (const b of bolts) {
@@ -541,9 +628,9 @@ function pulse(s) {
     const [dx, dy] = off(nx, ny, b.x, b.y), along = dx * c + dy * n, perp = Math.abs(-dx * n + dy * c);
     if (along > 0 && along < len && perp < 6) { b.life = 0; spark(b.x, b.y, '#e08a12', 5); }
   }
-  s.laser = len; s.laserT = LASER_FLASH; s.lcd = LASER_CD; s.reveal = REVEAL;
+  s.laser = len; s.laserT = LASER_FLASH; s.lcd = T.laserCd; s.reveal = T.reveal;
   sfx.zap(s.x, s.i);
-  if (target) { spark(nx + c * len, ny + n * len, COLORS[s.i], 4); damage(target, LASER_DMG); }
+  if (target) { spark(nx + c * len, ny + n * len, COLORS[s.i], 4); damage(target, T.laserDmg); }
 }
 // Points spread evenly along a ship outline, in ship-local coordinates
 function outlinePoints(shape, n) {
@@ -561,7 +648,7 @@ function outlinePoints(shape, n) {
 function jump(s) {
   let x, y;
   do { x = rnd(40, W - 40); y = rnd(40, H - 40); } while (Math.hypot(x - CX, y - CY) < 120);
-  s.hyper = HYPER_T; s.hyperCd = HYPER_CD + HYPER_T; s.thrust = false; s.laserT = 0;
+  s.hyper = T.hyperT; s.hyperCd = T.hyperCd + T.hyperT; s.thrust = false; s.laserT = 0;
   s.from = [s.x, s.y]; s.to = [x, y];
   s.bits = outlinePoints(SHAPES[s.i], TELE_BITS).map(p => {
     const a = rnd(0, 6.283), r = rnd(14, 38), b = rnd(0, 6.283), r2 = rnd(14, 38);
@@ -576,7 +663,7 @@ function emerge(s) {
 const ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
 function drawTeleport(s) {
   if (!s.bits || s.cloak) return;
-  const k = 1 - s.hyper / HYPER_T, c = Math.cos(s.a), n = Math.sin(s.a);
+  const k = 1 - s.hyper / T.hyperT, c = Math.cos(s.a), n = Math.sin(s.a);
   const [fx, fy] = s.from, [tx, ty] = s.to;
   ctx.fillStyle = COLORS[s.i];
   for (const b of s.bits) {
@@ -668,19 +755,19 @@ function cpu(s, foe, dt) {
     const tx = seen ? foe.x : m.lx, ty = seen ? foe.y : m.ly;
     const [dx, dy] = off(s.x, s.y, tx, ty);
     dist = Math.hypot(dx, dy);
-    const rvx = seen ? foe.vx - s.vx : 0, rvy = seen ? foe.vy - s.vy : 0, t = dist / BOLT_V;
+    const rvx = seen ? foe.vx - s.vx : 0, rvy = seen ? foe.vy - s.vy : 0, t = dist / T.boltV;
     want = Math.atan2(dy + rvy * t, dx + rvx * t) + m.err * (seen ? 1 : 3);
     const da = Math.abs(angDiff(s.a, want)), sp = Math.hypot(s.vx, s.vy);
     if (s.energy > 18 && ((sp < 50 && da < 0.4) || (dist > 420 && da < 0.3))) inp.t = true;
     const reserve = opts.cpu ? 4 : 6;
-    if (seen && dist < LASER_RANGE * 0.95 && da < 0.15 && s.energy > reserve && Math.random() < sk.laser) inp.z = true;
-    else if (da < sk.tol * (seen ? 1 : 2) && dist < sk.range && s.energy > reserve + BLAST_COST) inp.f = true;
+    if (seen && dist < T.laserRange * 0.95 && da < 0.15 && s.energy > reserve && Math.random() < sk.laser) inp.z = true;
+    else if (da < sk.tol * (seen ? 1 : 2) && dist < sk.range && s.energy > reserve + T.blastCost) inp.f = true;
   }
   const da = angDiff(s.a, want);
   if (da > 0.04) inp.r = true; else if (da < -0.04) inp.l = true;
   // Defence: shields against incoming fire or a close enemy, teleport when they can't help
   const threat = boltThreat(s, 0.6);
-  const close = seen && dist < LASER_RANGE * 1.3;
+  const close = seen && dist < T.laserRange * 1.3;
   let wantShield = s.shieldOn;
   if ((threat < 0.5 || close) && Math.random() < sk.shields) { wantShield = true; m.calm = 0; }
   else { m.calm += dt; if (m.calm > 0.6) wantShield = false; }
@@ -690,7 +777,7 @@ function cpu(s, foe, dt) {
   else if (!wantShield && s.energy > 30 && Math.random() < sk.cloak * dt) { wantCloak = true; m.cloakT = rnd(2, 4); }
   inp.s = wantShield && s.energy > 1;
   inp.c = wantCloak;
-  if (threat < 0.3 && !s.shieldOn && s.hyperCd <= 0 && s.energy > TELE_COST + 4 && Math.random() < sk.dodge) inp.h = true;
+  if (threat < 0.3 && !s.shieldOn && s.hyperCd <= 0 && s.energy > T.teleCost + 4 && Math.random() < sk.dodge) inp.h = true;
   // Move spare energy into the shield when it runs low
   if (s.shield < 16 && s.energy > 22) inp.ts = true;
     return inp;
@@ -710,39 +797,39 @@ function update(dt) {
     }
     const inp = state !== 'play' ? {} : (mode === 1 && s.i === 1 ? cpu(s, ships[0], dt) : readInput(s.i));
     const press = k => inp[k] && !s.prev[k];
-    if (inp.l) s.a -= TURN * dt;
-    if (inp.r) s.a += TURN * dt;
+    if (inp.l) s.a -= T.turn * dt;
+    if (inp.r) s.a += T.turn * dt;
     s.lcd -= dt; s.laserT -= dt;
     // Shield and cloak work only while held and powered
-    const shieldNow = !!inp.s && spend(s, SHIELD_DRAIN * dt);
-    const cloakNow = !!inp.c && spend(s, CLOAK_DRAIN * dt);
+    const shieldNow = !!inp.s && spend(s, T.shieldDrain * dt);
+    const cloakNow = !!inp.c && spend(s, T.cloakDrain * dt);
     setShield(s, shieldNow); setCloak(s, cloakNow);
-    s.thrust = !!inp.t && spend(s, THRUST_COST * dt);
-    if (s.thrust) { s.vx += Math.cos(s.a) * THRUST * dt; s.vy += Math.sin(s.a) * THRUST * dt; }
-    if (inp.ts && s.shield < S_MAX) { const m = Math.min(XFER * dt, s.energy, S_MAX - s.shield); s.energy -= m; s.shield += m; }
-    if (inp.te && s.shield > 1 && s.energy < E_MAX) { const m = Math.min(XFER * dt, s.shield - 1, E_MAX - s.energy); s.shield -= m; s.energy += m; }
-    s.energy = Math.min(E_MAX, s.energy + E_REGEN * solarGain(s) * dt);
-    if (inp.f && s.cd <= 0 && spend(s, BLAST_COST)) fire(s);
-    if (inp.z && s.lcd <= 0 && spend(s, LASER_COST)) pulse(s);
+    s.thrust = !!inp.t && spend(s, T.thrustCost * dt);
+    if (s.thrust) { s.vx += Math.cos(s.a) * T.thrust * dt; s.vy += Math.sin(s.a) * T.thrust * dt; }
+    if (inp.ts && s.shield < T.sMax) { const m = Math.min(T.xfer * dt, s.energy, T.sMax - s.shield); s.energy -= m; s.shield += m; }
+    if (inp.te && s.shield > 1 && s.energy < T.eMax) { const m = Math.min(T.xfer * dt, s.shield - 1, T.eMax - s.energy); s.shield -= m; s.energy += m; }
+    s.energy = Math.min(T.eMax, s.energy + T.eRegen * solarGain(s) * dt);
+    if (inp.f && s.cd <= 0 && spend(s, T.blastCost)) fire(s);
+    if (inp.z && s.lcd <= 0 && spend(s, T.laserCost)) pulse(s);
     if (!s.alive) continue;
     loopSound(s.i, s.thrust, false, s.x);
-    if (s.shield <= LOW_SHIELD) { s.warnT -= dt; if (s.warnT <= 0) { s.warnT = 0.8; if (mode === 2 || s.i === 0) sfx.warn(); } }
-    const jumpNow = press('h') && s.hyperCd <= 0 && spend(s, TELE_COST);
+    if (s.shield <= T.lowShield) { s.warnT -= dt; if (s.warnT <= 0) { s.warnT = 0.8; if (mode === 2 || s.i === 0) sfx.warn(); } }
+    const jumpNow = press('h') && s.hyperCd <= 0 && spend(s, T.teleCost);
     for (const k of EDGE) s.prev[k] = !!inp[k];
     if (jumpNow) { jump(s); loopSound(s.i, false, false, s.x); continue; }
     pull(s, dt);
     const v = Math.hypot(s.vx, s.vy);
-    if (v > MAXV) { s.vx *= MAXV / v; s.vy *= MAXV / v; }
+    if (v > T.maxSpeed) { s.vx *= T.maxSpeed / v; s.vy *= T.maxSpeed / v; }
     s.x += s.vx * dt; s.y += s.vy * dt;
     if (wrapEdges(s, 0.6)) shake = Math.max(shake, 2);
     // Touching the star drains shields and shoves the ship back out
     const sdx = s.x - CX, sdy = s.y - CY, sd = Math.hypot(sdx, sdy) || 1;
-    if (opts.sun && sd < SUN_R + 8) {
+    if (opts.sun && sd < T.starR + 8) {
       const nx = sdx / sd, ny = sdy / sd, vin = s.vx * nx + s.vy * ny;
-      s.vx += (STAR_KICK - vin) * nx; s.vy += (STAR_KICK - vin) * ny;
-      s.x = CX + nx * (SUN_R + 8); s.y = CY + ny * (SUN_R + 8);
+      s.vx += (T.starKick - vin) * nx; s.vy += (T.starKick - vin) * ny;
+      s.x = CX + nx * (T.starR + 8); s.y = CY + ny * (T.starR + 8);
       spark(s.x, s.y, '#e08a12', 10); shake = Math.max(shake, 4);
-      damage(s, STAR_DMG);
+      damage(s, T.starDmg);
     }
   }
   // blaster bolts
@@ -751,11 +838,11 @@ function update(dt) {
     if (opts.torpGrav) pull(p, dt);
     p.x += p.vx * dt; p.y += p.vy * dt;
     if (wrapEdges(p, 0.8)) p.life -= 0.2;
-    if (opts.sun && Math.hypot(p.x - CX, p.y - CY) < SUN_R) { p.life = 0; spark(p.x, p.y, '#e08a12', 4); }
+    if (opts.sun && Math.hypot(p.x - CX, p.y - CY) < T.starR) { p.life = 0; spark(p.x, p.y, '#e08a12', 4); }
     for (const s of ships) {
       if (!s.alive || s.hyper || (p.o === s.i && p.age < ARM) || p.life <= 0) continue;
-      const [dx, dy] = off(p.x, p.y, s.x, s.y), r = s.shieldOn ? SHIELD_R : SHIP_R;
-      if (dx * dx + dy * dy < r * r) { p.life = 0; spark(p.x, p.y, s.shieldOn ? SHIELD_C : COLORS[s.i], 6); damage(s, BOLT_DMG); }
+      const [dx, dy] = off(p.x, p.y, s.x, s.y), r = s.shieldOn ? T.shieldR : T.shipR;
+      if (dx * dx + dy * dy < r * r) { p.life = 0; spark(p.x, p.y, s.shieldOn ? SHIELD_C : COLORS[s.i], 6); damage(s, T.boltDmg); }
     }
   }
   for (let a = 0; a < bolts.length; a++) for (let b = a + 1; b < bolts.length; b++) {
@@ -769,10 +856,10 @@ function update(dt) {
   const [A, B] = ships;
   if (A.alive && B.alive && !A.hyper && !B.hyper) {
     const [dx, dy] = off(A.x, A.y, B.x, B.y), d = Math.hypot(dx, dy);
-    const ra = A.shieldOn ? SHIELD_R : SHIP_R, rb = B.shieldOn ? SHIELD_R : SHIP_R;
+    const ra = A.shieldOn ? T.shieldR : T.shipR, rb = B.shieldOn ? T.shieldR : T.shipR;
     if (d < ra + rb) {
       const nx = dx / (d || 1), ny = dy / (d || 1), rel = (B.vx - A.vx) * nx + (B.vy - A.vy) * ny;
-      if (rel < -20) { damage(A, RAM_DMG); damage(B, RAM_DMG); }
+      if (rel < -20) { damage(A, T.ramDmg); damage(B, T.ramDmg); }
       if (rel < 0) { A.vx += rel * nx; A.vy += rel * ny; B.vx -= rel * nx; B.vy -= rel * ny; }
       const push = (ra + rb - d) / 2 + 0.5;
       A.x -= nx * push; A.y -= ny * push; B.x += nx * push; B.y += ny * push;
@@ -871,21 +958,21 @@ function drawSun() {
   }
   ctx.save(); ctx.translate(CX, CY);
   // Warm halo marks where solar recharge is strong
-  const halo = ctx.createRadialGradient(0, 0, SUN_R, 0, 0, SOLAR_R * 2.6);
+  const halo = ctx.createRadialGradient(0, 0, T.starR, 0, 0, T.solarR * 2.6);
   halo.addColorStop(0, 'rgba(255,190,70,.22)'); halo.addColorStop(1, 'rgba(255,190,70,0)');
-  ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(0, 0, SOLAR_R * 2.6, 0, 6.283); ctx.fill();
+  ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(0, 0, T.solarR * 2.6, 0, 6.283); ctx.fill();
   ctx.strokeStyle = '#f0a42a'; ctx.lineWidth = 2; ctx.lineCap = 'round';
   ctx.beginPath();
   for (let i = 0; i < 16; i++) {
     const a = i / 16 * 6.283 + time * 0.3;
-    const len = SUN_R + 6 + 6 * (0.5 + 0.5 * Math.sin(time * 7 + i * 2.3)) + 4 * Math.sin(time * 3.1 + i);
-    ctx.moveTo(Math.cos(a) * (SUN_R + 2), Math.sin(a) * (SUN_R + 2));
+    const len = T.starR + 6 + 6 * (0.5 + 0.5 * Math.sin(time * 7 + i * 2.3)) + 4 * Math.sin(time * 3.1 + i);
+    ctx.moveTo(Math.cos(a) * (T.starR + 2), Math.sin(a) * (T.starR + 2));
     ctx.lineTo(Math.cos(a) * len, Math.sin(a) * len);
   }
   ctx.stroke();
-  const g = ctx.createRadialGradient(0, 0, 2, 0, 0, SUN_R + 1);
+  const g = ctx.createRadialGradient(0, 0, 2, 0, 0, T.starR + 1);
   g.addColorStop(0, '#fff3c4'); g.addColorStop(0.6, '#ffc94a'); g.addColorStop(1, '#e8861a');
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, SUN_R, 0, 6.283); ctx.fill();
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, T.starR, 0, 6.283); ctx.fill();
   ctx.restore();
 }
 function drawLaser(s) {
@@ -900,13 +987,13 @@ function drawLaser(s) {
 function drawShip(s, x, y) {
   // A cloaked ship is invisible except for a faint flame and a flicker when it fires or is hit
   let alpha = 1;
-  if (s.cloak) alpha = Math.max(0, s.reveal / REVEAL) * 0.8;
+  if (s.cloak) alpha = Math.max(0, s.reveal / T.reveal) * 0.8;
   ctx.save(); ctx.translate(x, y);
   if (s.shieldOn) {
-    const k = s.shield / S_MAX, hit = s.hitT > 0;
+    const k = s.shield / T.sMax, hit = s.hitT > 0;
     ctx.strokeStyle = SHIELD_C; ctx.lineWidth = hit ? 3 : 1.5;
     ctx.globalAlpha = hit ? 0.9 : 0.25 + 0.45 * k;
-    ctx.beginPath(); ctx.arc(0, 0, SHIELD_R + Math.sin(time * 9) * 0.6, 0, 6.283); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, T.shieldR + Math.sin(time * 9) * 0.6, 0, 6.283); ctx.stroke();
     ctx.globalAlpha = (hit ? 0.25 : 0.08) * (0.5 + k); ctx.fillStyle = SHIELD_C; ctx.fill();
   }
   ctx.rotate(s.a);
@@ -944,14 +1031,14 @@ function drawHud() {
       ctx.font = '600 10px system-ui,sans-serif'; ctx.fillStyle = 'rgba(43,42,39,.55)';
       ctx.textAlign = right ? 'right' : 'left'; ctx.fillText(tag, x + dir * (bw + 6) - (right ? 0 : 0), y - 2);
     };
-    const low = s.shield <= LOW_SHIELD && Math.sin(time * 14) > 0;
-    bar(38, s.energy, E_MAX, s.energy < 8 ? '#d0611a' : COLORS[i], `ENERGY ${Math.floor(s.energy)}`);
-    bar(50, s.shield, S_MAX, low ? '#d0611a' : SHIELD_C, `SHIELD ${Math.ceil(s.shield)}`);
+    const low = s.shield <= T.lowShield && Math.sin(time * 14) > 0;
+    bar(38, s.energy, T.eMax, s.energy < 8 ? '#d0611a' : COLORS[i], `ENERGY ${Math.floor(s.energy)}`);
+    bar(50, s.shield, T.sMax, low ? '#d0611a' : SHIELD_C, `SHIELD ${Math.ceil(s.shield)}`);
     const tags = [];
     if (s.shieldOn) tags.push(['SHIELD UP', SHIELD_C]);
     if (s.cloak) tags.push(['CLOAKED', COLORS[i]]);
-    if (s.alive && !s.hyper && solarGain(s) > 2 && s.energy < E_MAX) tags.push([`SOLAR ×${solarGain(s).toFixed(1)}`, '#d08a12']);
-    if (s.alive && s.hyperCd <= 0 && s.energy >= TELE_COST) tags.push(['TELEPORT READY', 'rgba(43,42,39,.45)']);
+    if (s.alive && !s.hyper && solarGain(s) > 2 && s.energy < T.eMax) tags.push([`SOLAR ×${solarGain(s).toFixed(1)}`, '#d08a12']);
+    if (s.alive && s.hyperCd <= 0 && s.energy >= T.teleCost) tags.push(['TELEPORT READY', 'rgba(43,42,39,.45)']);
     ctx.font = '700 10px system-ui,sans-serif';
     let tx = x;
     for (const [t, c] of tags) {

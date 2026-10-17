@@ -42,6 +42,12 @@ Energy units follow the original DOS Spacewar instruction screen.
 - A ship is destroyed when its shield reaches 0. A warning beep and a flashing bar mean it's nearly gone.
 - Touching the star burns 3 shield and flings the ship away; ramming costs both ships 4.
 
+## Advanced settings
+
+The menu's **Advanced settings** panel exposes every rule as a number: ship speed, thrust, turn rate and hit/shield radius; energy and shield limits, starting values, recharge, solar boost and transfer rate; the energy cost of each system; blaster and laser damage, speed, range and cooldowns; gravity, star size, star and ramming damage; teleport timing and cloak reveal. Changed values are highlighted, saved in the browser and applied right away; **Reset to defaults** restores the DOS-style numbers.
+
+Both ships share the same outline length, span and swept area (only the tail notch differs) and use the same circular hit radius, so neither is easier to hit.
+
 ## Options
 
 Star gravity (normal, strong, off), deadly or hidden star, blaster bolt gravity, wrapping or bouncing edges, CPU skill, points to win and sound. Choices are remembered in the browser.
