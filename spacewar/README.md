@@ -37,7 +37,7 @@ Energy units follow the original DOS Spacewar instruction screen.
 | Shield | 1 energy every ½ s | while held, hits drain energy instead of shield |
 | Teleport | 8 energy | the ship breaks into particles that stream to a random spot and reassemble |
 
-- Each ship starts with 30 energy and 20 shield (max 40 each). Energy recharges 1 unit every 2 seconds.
+- Each ship starts with 30 energy and 20 shield (max 40 each). Energy recharges 1 unit every 2 seconds far from the star and faster the closer you fly, up to 8 times as fast in its glow (shown as SOLAR on the HUD). Flying close is a gamble: gravity is strongest there and touching the star burns shield.
 - Move energy into the shield or back with the transfer keys.
 - A ship is destroyed when its shield reaches 0. A warning beep and a flashing bar mean it's nearly gone.
 - Touching the star burns 3 shield and flings the ship away; ramming costs both ships 4.

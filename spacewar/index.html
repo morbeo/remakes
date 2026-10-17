@@ -87,7 +87,7 @@ body.over .pad button{opacity:.62}
         <table id="keys"></table>
         <p class="keyhelp">Click a key to change it, then press the new key. <kbd>Backspace</kbd> clears a slot, <kbd>Esc</kbd> cancels. <button id="keysReset" class="link">Reset keys</button></p>
         <p>Solo: either key set flies the Needle. <kbd>Esc</kbd> pauses. On touch screens use the on-screen pads; in 2-player mode the Wedge's pad sits upside down across the top for a shared tablet.</p>
-        <p>Destroy the other ship with blaster torpedoes or laser pulses until all its <b>shield</b> energy is gone. Torpedoes cost 1 energy and hit for 4; laser pulses cost 1 and hit for 2, and can shoot down incoming torpedoes. Engines, the held shield and the held cloak each burn 1 energy every half second; teleport costs 8. <b>Energy</b> recharges 1 unit every 2 seconds, and you can move it into the shield or back. Holding the shield makes hits drain energy instead of shield. Touching the star burns 3 shield and flings you away, and a warning beep means it's nearly gone.</p>
+        <p>Destroy the other ship with blaster torpedoes or laser pulses until all its <b>shield</b> energy is gone. Torpedoes cost 1 energy and hit for 4; laser pulses cost 1 and hit for 2, and can shoot down incoming torpedoes. Engines, the held shield and the held cloak each burn 1 energy every half second; teleport costs 8. <b>Energy</b> recharges 1 unit every 2 seconds, up to 8 times faster close to the star, and you can move it into the shield or back. Holding the shield makes hits drain energy instead of shield. Touching the star burns 3 shield and flings you away, and a warning beep means it's nearly gone.</p>
       </details>
       <a class="back" href="../">← All remakes</a>
     </div>
@@ -113,6 +113,7 @@ const E_MAX = 40, S_MAX = 40, E_START = 30, S_START = 20, E_REGEN = 0.5;
 const THRUST_COST = 2, BLAST_COST = 1, LASER_COST = 1, TELE_COST = 8, SHIELD_DRAIN = 2, CLOAK_DRAIN = 2, XFER = 5;
 const BOLT_V = 320, BOLT_LIFE = 1.7, BOLT_CD = 0.25, BOLT_DMG = 4, ARM = 0.12;
 const LASER_RANGE = 150, LASER_DMG = 2, LASER_CD = 0.3, LASER_FLASH = 0.09, RAM_DMG = 4, STAR_DMG = 3, STAR_KICK = 360, LOW_SHIELD = 8;
+const SOLAR_R = 60, SOLAR_BOOST = 7;   // recharge rate rises with (SOLAR_R / distance)², up to 8x
 const HYPER_T = 1.4, HYPER_CD = 2, REVEAL = 0.45, TELE_BITS = 36;
 const NAMES = ['Needle', 'Wedge'], COLORS = ['#2457c5', '#c8402c'], SHIELD_C = '#1f9a8a';
 // Ship outlines, nose along +x
@@ -490,6 +491,12 @@ function pull(o, dt) {
   const a = g / r2;
   o.vx += dx / r * a * dt; o.vy += dy / r * a * dt;
 }
+// Energy recharges faster near the star
+function solarGain(s) {
+  if (!opts.sun) return 1;
+  const d = Math.max(1, Math.hypot(s.x - CX, s.y - CY));
+  return 1 + SOLAR_BOOST * Math.min(1, (SOLAR_R / d) ** 2);
+}
 function spend(s, amount) {
   if (s.energy < amount) return false;
   s.energy -= amount; return true;
@@ -714,7 +721,7 @@ function update(dt) {
     if (s.thrust) { s.vx += Math.cos(s.a) * THRUST * dt; s.vy += Math.sin(s.a) * THRUST * dt; }
     if (inp.ts && s.shield < S_MAX) { const m = Math.min(XFER * dt, s.energy, S_MAX - s.shield); s.energy -= m; s.shield += m; }
     if (inp.te && s.shield > 1 && s.energy < E_MAX) { const m = Math.min(XFER * dt, s.shield - 1, E_MAX - s.energy); s.shield -= m; s.energy += m; }
-    s.energy = Math.min(E_MAX, s.energy + E_REGEN * dt);
+    s.energy = Math.min(E_MAX, s.energy + E_REGEN * solarGain(s) * dt);
     if (inp.f && s.cd <= 0 && spend(s, BLAST_COST)) fire(s);
     if (inp.z && s.lcd <= 0 && spend(s, LASER_COST)) pulse(s);
     if (!s.alive) continue;
@@ -863,6 +870,10 @@ function drawSun() {
     return;
   }
   ctx.save(); ctx.translate(CX, CY);
+  // Warm halo marks where solar recharge is strong
+  const halo = ctx.createRadialGradient(0, 0, SUN_R, 0, 0, SOLAR_R * 2.6);
+  halo.addColorStop(0, 'rgba(255,190,70,.22)'); halo.addColorStop(1, 'rgba(255,190,70,0)');
+  ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(0, 0, SOLAR_R * 2.6, 0, 6.283); ctx.fill();
   ctx.strokeStyle = '#f0a42a'; ctx.lineWidth = 2; ctx.lineCap = 'round';
   ctx.beginPath();
   for (let i = 0; i < 16; i++) {
@@ -939,6 +950,7 @@ function drawHud() {
     const tags = [];
     if (s.shieldOn) tags.push(['SHIELD UP', SHIELD_C]);
     if (s.cloak) tags.push(['CLOAKED', COLORS[i]]);
+    if (s.alive && !s.hyper && solarGain(s) > 2 && s.energy < E_MAX) tags.push([`SOLAR ×${solarGain(s).toFixed(1)}`, '#d08a12']);
     if (s.alive && s.hyperCd <= 0 && s.energy >= TELE_COST) tags.push(['TELEPORT READY', 'rgba(43,42,39,.45)']);
     ctx.font = '700 10px system-ui,sans-serif';
     let tx = x;
