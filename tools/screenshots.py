@@ -52,6 +52,7 @@ def arctic_adventure(pg):
 def spacewar(pg):
     pg.click("#b1")
     pg.wait_for_timeout(300)
+    pg.keyboard.press("KeyE")
     pg.keyboard.down("KeyW"); pg.keyboard.down("KeyD"); pg.wait_for_timeout(500); pg.keyboard.up("KeyD")
     pg.keyboard.down("KeyS"); pg.wait_for_timeout(900); pg.keyboard.up("KeyS"); pg.keyboard.up("KeyW")
     pg.add_style_tag(content="#pauseBtn{display:none!important}")
