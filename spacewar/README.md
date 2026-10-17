@@ -4,17 +4,17 @@ A browser remake of Spacewar, as played on DOS PCs: two armed ships duel around 
 
 ## Play
 
-Pick **1 player vs CPU** or **2 players**. A ship is destroyed by a blaster bolt or laser burn while its shield is down, by the star, or by ramming without a strong shield; the survivor scores. First to the target score wins.
+Pick **1 player vs CPU** or **2 players**. Destroy the other ship with blaster torpedoes or laser pulses until all its shield energy is gone; the survivor scores. First to the target score wins.
 
 | | Needle (blue) | Wedge (red) |
 | --- | --- | --- |
 | Rotate | `A` `D` | `J` `L` or `←` `→` |
 | Thrust | `W` | `I` or `↑` |
 | Blaster | `S` | `K` or `↓` |
-| Laser (hold) | `X` | `M` or `/` |
+| Laser pulse | `X` | `M` or `/` |
 | Teleport | `Q` | `U` or Right `Shift` |
-| Shield on/off | `E` | `O` |
-| Cloak on/off | `R` | `P` |
+| Shield (hold) | `E` | `O` |
+| Cloak (hold) | `R` | `P` |
 | Energy → shield | `Z` | `N` |
 | Shield → energy | `C` | `,` |
 
@@ -24,14 +24,21 @@ Touch screens get on-screen pads (below the field in portrait, over its corners 
 
 ## Ship systems
 
-Like the DOS Spacewar, each ship runs on energy and carries a separate shield reserve.
+Energy units follow the original DOS Spacewar instruction screen.
 
-- **Energy** (max 100) recharges slowly when you're not thrusting or firing the laser. Thrust, blaster shots, the laser, teleport, a raised shield and the cloak all draw on it.
-- **Shield** reserve (max 100, starts at 60) only fills when you move energy into it, and can be drained back into energy. While raised it soaks blaster bolts (34 each), laser burn and rams, and costs a trickle of energy. It drops when the reserve or energy runs out.
-- **Blaster**: bolts that inherit the ship's velocity, bend in the star's gravity (optional) and cancel enemy bolts they touch.
-- **Laser**: a short-range beam that burns while held. It strips shields fast, kills an unshielded ship after a brief burn, and shoots down bolts in its path. Costly on energy.
-- **Teleport**: drops you somewhere random. The first jump in a round is safe; each later one is riskier.
-- **Cloak**: makes the ship invisible (a faint flame still flickers) at a steep energy cost. Firing or being hit shows it for a moment. Shield and cloak can't run together.
+| System | Cost | Effect |
+| --- | --- | --- |
+| Blaster torpedo | 1 energy | 4 shield damage |
+| Laser pulse | 1 energy | 2 shield damage, short range, shoots down torpedoes |
+| Engines | 1 energy every ½ s | thrust while held |
+| Cloak | 1 energy every ½ s | invisible while held; firing or being hit flickers it into view |
+| Shield | 1 energy every ½ s | while held, hits drain energy instead of shield |
+| Teleport | 8 energy | jump to a random spot |
+
+- Each ship starts with 30 energy and 20 shield (max 40 each). Energy recharges 1 unit every 2 seconds.
+- Move energy into the shield or back with the transfer keys.
+- A ship is destroyed when its shield reaches 0. A warning beep and a flashing bar mean it's nearly gone.
+- Touching the star burns 3 shield and flings the ship away; ramming costs both ships 4.
 
 ## Options
 

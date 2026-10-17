@@ -83,15 +83,15 @@ body.over .pad button{opacity:.62}
           <tr><td>Rotate</td><td><kbd>A</kbd> <kbd>D</kbd></td><td><kbd>J</kbd> <kbd>L</kbd> or <kbd>←</kbd> <kbd>→</kbd></td></tr>
           <tr><td>Thrust</td><td><kbd>W</kbd></td><td><kbd>I</kbd> or <kbd>↑</kbd></td></tr>
           <tr><td>Blaster</td><td><kbd>S</kbd></td><td><kbd>K</kbd> or <kbd>↓</kbd></td></tr>
-          <tr><td>Laser (hold)</td><td><kbd>X</kbd></td><td><kbd>M</kbd> or <kbd>/</kbd></td></tr>
+          <tr><td>Laser pulse</td><td><kbd>X</kbd></td><td><kbd>M</kbd> or <kbd>/</kbd></td></tr>
           <tr><td>Teleport</td><td><kbd>Q</kbd></td><td><kbd>U</kbd> or <kbd>Right Shift</kbd></td></tr>
-          <tr><td>Shield on/off</td><td><kbd>E</kbd></td><td><kbd>O</kbd></td></tr>
-          <tr><td>Cloak on/off</td><td><kbd>R</kbd></td><td><kbd>P</kbd></td></tr>
+          <tr><td>Shield (hold)</td><td><kbd>E</kbd></td><td><kbd>O</kbd></td></tr>
+          <tr><td>Cloak (hold)</td><td><kbd>R</kbd></td><td><kbd>P</kbd></td></tr>
           <tr><td>Energy → shield</td><td><kbd>Z</kbd></td><td><kbd>N</kbd></td></tr>
           <tr><td>Shield → energy</td><td><kbd>C</kbd></td><td><kbd>,</kbd></td></tr>
         </table>
         <p>Solo: either key set flies the Needle, and <kbd>Space</kbd> also fires the blaster. <kbd>Esc</kbd> pauses. On touch screens use the on-screen pads; in 2-player mode the Wedge's pad sits upside down across the top for a shared tablet.</p>
-        <p>Everything runs on <b>energy</b>, which slowly recharges: thrust, blaster, laser, teleport, a raised shield and the cloak all draw on it. The <b>shield</b> has its own reserve that only fills when you move energy into it. With the shield up, hits drain the reserve; with it down, one blaster bolt or a short laser burn destroys you. Shield and cloak can't run together, and firing gives a cloaked ship away for a moment. The first teleport in a round is safe; later ones may not be.</p>
+        <p>Destroy the other ship with blaster torpedoes or laser pulses until all its <b>shield</b> energy is gone. Torpedoes cost 1 energy and hit for 4; laser pulses cost 1 and hit for 2, and can shoot down incoming torpedoes. Engines, the held shield and the held cloak each burn 1 energy every half second; teleport costs 8. <b>Energy</b> recharges 1 unit every 2 seconds, and you can move it into the shield or back. Holding the shield makes hits drain energy instead of shield. Touching the star burns 3 shield and flings you away, and a warning beep means it's nearly gone.</p>
       </details>
       <a class="back" href="../">← All remakes</a>
     </div>
@@ -110,11 +110,13 @@ const W = 960, H = 600, CX = W / 2, CY = H / 2;
 const STEP = 1 / 120;
 const G_BASE = 9e5, SUN_R = 16;
 const SHIP_R = 10, SHIELD_R = 18, TURN = 3.8, THRUST = 150, MAXV = 420;
-// Energy economy: one pool feeds everything, the shield has its own reserve
-const E_MAX = 100, S_MAX = 100, E_START = 100, S_START = 60, E_REGEN = 5;
-const THRUST_COST = 6, BLAST_COST = 6, LASER_COST = 30, TELE_COST = 25, SHIELD_DRAIN = 2.5, CLOAK_DRAIN = 9, XFER = 40;
-const BOLT_V = 320, BOLT_LIFE = 1.7, BOLT_CD = 0.25, BOLT_DMG = 34, ARM = 0.12;
-const LASER_RANGE = 150, LASER_DPS = 90, BURN_KILL = 25;
+// Energy units as in the DOS original: torpedo costs 1 and hits for 4, laser costs 1 and hits for 2,
+// engines and cloak cost 1 every half second, hyperspace 8, recharge 1 every 2 seconds.
+// A ship is destroyed when its shield energy runs out.
+const E_MAX = 40, S_MAX = 40, E_START = 30, S_START = 20, E_REGEN = 0.5;
+const THRUST_COST = 2, BLAST_COST = 1, LASER_COST = 1, TELE_COST = 8, SHIELD_DRAIN = 2, CLOAK_DRAIN = 2, XFER = 5;
+const BOLT_V = 320, BOLT_LIFE = 1.7, BOLT_CD = 0.25, BOLT_DMG = 4, ARM = 0.12;
+const LASER_RANGE = 150, LASER_DMG = 2, LASER_CD = 0.3, LASER_FLASH = 0.09, RAM_DMG = 4, STAR_DMG = 3, STAR_KICK = 360, LOW_SHIELD = 8;
 const HYPER_T = 0.9, HYPER_CD = 2, REVEAL = 0.45;
 const NAMES = ['Needle', 'Wedge'], COLORS = ['#2457c5', '#c8402c'], SHIELD_C = '#1f9a8a';
 // Ship outlines, nose along +x
@@ -129,7 +131,7 @@ const $ = id => document.getElementById(id);
 // ---------- options ----------
 const CHOICES = {
   gravity: { label: 'Star gravity', v: [[1, 'Normal'], [2, 'Strong'], [0, 'Off']] },
-  sun: { label: 'Star', v: [[1, 'Deadly'], [0, 'Hidden']] },
+  sun: { label: 'Star', v: [[1, 'Burns shields'], [0, 'Hidden']] },
   torpGrav: { label: 'Blaster bolts feel gravity', v: [[1, 'Yes'], [0, 'No']] },
   edges: { label: 'Screen edges', v: [['wrap', 'Wrap'], ['bounce', 'Bounce']] },
   cpu: { label: 'CPU skill', v: [[1, 'Normal'], [2, 'Hard'], [0, 'Easy']] },
@@ -220,6 +222,8 @@ const sfx = {
   },
   hyper(x, out) { sweep(x, 'sine', out ? 1600 : 180, out ? 180 : 1600, 0.38, 0.2); },
   shieldHit(x) { sweep(x, 'triangle', 1500, 700, 0.12, 0.18); },
+  zap(x, hi) { sweep(x, 'sawtooth', hi ? 2400 : 2000, 300, 0.07, 0.12); },
+  warn() { sweep(CX, 'square', 880, 880, 0.09, 0.1); },
   shield(x, on) { sweep(x, 'triangle', on ? 400 : 900, on ? 900 : 400, 0.15, 0.12); },
   cloak(x, on) { sweep(x, 'sine', on ? 700 : 120, on ? 120 : 700, 0.3, 0.14); },
   blip(f) { sweep(CX, 'triangle', f, f, 0.18, 0.2); },
@@ -240,7 +244,7 @@ const KEYS = [
   { l: ['KeyA'], r: ['KeyD'], t: ['KeyW'], f: ['KeyS'], z: ['KeyX'], h: ['KeyQ'], s: ['KeyE'], c: ['KeyR'], ts: ['KeyZ'], te: ['KeyC'] },
   { l: ['KeyJ', 'ArrowLeft'], r: ['KeyL', 'ArrowRight'], t: ['KeyI', 'ArrowUp'], f: ['KeyK', 'ArrowDown'], z: ['KeyM', 'Slash'], h: ['KeyU', 'ShiftRight'], s: ['KeyO'], c: ['KeyP'], ts: ['KeyN'], te: ['Comma'] },
 ];
-const EDGE = ['h', 's', 'c'];
+const EDGE = ['h'];
 const down = new Set();
 // Taps shorter than a physics step still count: keydowns and pad presses latch until the next update
 const tapped = new Set();
@@ -276,7 +280,7 @@ if (matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch'
 
 const PAD_HTML = `
   <div class="grp">
-    <div class="row small"><button data-k="s" aria-label="Shield on or off">SHIELD</button><button data-k="c" aria-label="Cloak on or off">CLOAK</button></div>
+    <div class="row small"><button data-k="s" aria-label="Shield, hold">SHIELD</button><button data-k="c" aria-label="Cloak, hold">CLOAK</button></div>
     <div class="row"><button data-k="l" aria-label="Rotate left">⟲</button><button data-k="r" aria-label="Rotate right">⟳</button></div>
   </div>
   <div class="grp">
@@ -295,17 +299,6 @@ document.querySelectorAll('.pad').forEach(pad => {
     b.addEventListener('contextmenu', e => e.preventDefault());
   });
 });
-// Light the shield and cloak buttons while those systems are on
-function padLights() {
-  if (!document.body.classList.contains('touch')) return;
-  document.querySelectorAll('.pad').forEach(pad => {
-    const s = ships[mode === 1 ? 0 : +pad.dataset.p];
-    if (!s) return;
-    pad.querySelector('[data-k="s"]').classList.toggle('lit', !!s.shieldOn);
-    pad.querySelector('[data-k="c"]').classList.toggle('lit', !!s.cloak);
-  });
-}
-
 // ---------- layout ----------
 let scale = 1;
 function fit() {
@@ -366,7 +359,7 @@ function newShip(i) {
   const [vx, vy] = orbitV(x, y, 1);
   return {
     i, x, y, vx, vy, a: i ? Math.PI : 0, energy: E_START, shield: S_START, shieldOn: false, cloak: false,
-    cd: 0, alive: true, hyper: 0, hyperCd: 0, jumps: 0, thrust: false, laser: 0, burn: 0, hitT: 0, reveal: 0,
+    cd: 0, alive: true, hyper: 0, hyperCd: 0, thrust: false, laser: 0, laserT: 0, lcd: 0, hitT: 0, reveal: 0, warnT: 0,
     prev: {}, ai: { t: 0, err: 0, lx: x, ly: y, calm: 0, cloakT: 0 },
   };
 }
@@ -441,29 +434,22 @@ function spend(s, amount) {
 }
 function setShield(s, on) {
   if (on === s.shieldOn) return;
-  if (on && (s.shield <= 0 || s.energy <= 1)) return;
   s.shieldOn = on;
-  if (on && s.cloak) setCloak(s, false);
   sfx.shield(s.x, on);
 }
 function setCloak(s, on) {
   if (on === s.cloak) return;
-  if (on && s.energy <= 5) return;
   s.cloak = on;
-  if (on && s.shieldOn) setShield(s, false);
   sfx.cloak(s.x, on);
-  if (on) rings.push({ x: s.x, y: s.y, r: 24, life: 0.35, max: 0.35, c: COLORS[s.i], dots: true, shrink: true });
+  rings.push({ x: s.x, y: s.y, r: 24, life: 0.35, max: 0.35, c: COLORS[s.i], dots: true, shrink: on });
 }
-// A hit of `dmg`: the raised shield soaks it, otherwise the ship is lost. Returns true if destroyed.
+// A hit drains shield energy; a held shield takes it from energy first. The ship is lost when shields run out.
 function damage(s, dmg) {
-  s.reveal = REVEAL;
-  if (s.shieldOn && s.shield > 0) {
-    s.shield -= dmg; s.hitT = 0.25;
-    if (s.shield <= 0) { s.shield = 0; s.shieldOn = false; sfx.shield(s.x, false); }
-    sfx.shieldHit(s.x);
-    return false;
-  }
-  explode(s); return true;
+  s.reveal = REVEAL; s.hitT = 0.25;
+  if (s.shieldOn) { const m = Math.min(dmg, s.energy); s.energy -= m; dmg -= m; }
+  s.shield -= dmg;
+  sfx.shieldHit(s.x);
+  if (s.shield <= 0) { s.shield = 0; explode(s); }
 }
 function fire(s) {
   const c = Math.cos(s.a), n = Math.sin(s.a);
@@ -471,8 +457,8 @@ function fire(s) {
   s.cd = BOLT_CD; s.reveal = REVEAL;
   sfx.fire(s.x, s.i);
 }
-// Laser: a short beam from the nose; returns its length (shortened where it strikes a ship)
-function laserBeam(s, dt) {
+// Laser pulse: an instant short beam from the nose; it stops at the first ship it strikes and shoots down torpedoes
+function pulse(s) {
   const c = Math.cos(s.a), n = Math.sin(s.a), nx = s.x + c * 14, ny = s.y + n * 14;
   let len = LASER_RANGE, target = null;
   for (const t of ships) {
@@ -484,23 +470,14 @@ function laserBeam(s, dt) {
   for (const b of bolts) {
     if (b.o === s.i || b.life <= 0) continue;
     const [dx, dy] = off(nx, ny, b.x, b.y), along = dx * c + dy * n, perp = Math.abs(-dx * n + dy * c);
-    if (along > 0 && along < len && perp < 5) { b.life = 0; spark(b.x, b.y, '#e08a12', 5); }
+    if (along > 0 && along < len && perp < 6) { b.life = 0; spark(b.x, b.y, '#e08a12', 5); }
   }
-  if (target) {
-    target.reveal = REVEAL;
-    if (target.shieldOn && target.shield > 0) {
-      target.shield -= LASER_DPS * dt; target.hitT = 0.12;
-      if (target.shield <= 0) { target.shield = 0; target.shieldOn = false; sfx.shield(target.x, false); }
-    } else {
-      target.burn += LASER_DPS * dt;
-      if (target.burn >= BURN_KILL) explode(target);
-    }
-    if (Math.random() < 0.5) spark(nx + c * len, ny + n * len, COLORS[s.i], 1);
-  }
-  return len;
+  s.laser = len; s.laserT = LASER_FLASH; s.lcd = LASER_CD; s.reveal = REVEAL;
+  sfx.zap(s.x, s.i);
+  if (target) { spark(nx + c * len, ny + n * len, COLORS[s.i], 4); damage(target, LASER_DMG); }
 }
 function jump(s) {
-  s.hyper = HYPER_T; s.hyperCd = HYPER_CD + HYPER_T; s.jumps++; s.thrust = false; s.laser = 0;
+  s.hyper = HYPER_T; s.hyperCd = HYPER_CD + HYPER_T; s.thrust = false; s.laserT = 0;
   rings.push({ x: s.x, y: s.y, r: 2, life: 0.5, max: 0.5, c: COLORS[s.i], dots: true });
   sfx.hyper(s.x, false);
 }
@@ -510,12 +487,10 @@ function emerge(s) {
   s.x = x; s.y = y; s.vx *= 0.3; s.vy *= 0.3;
   if (!s.cloak) rings.push({ x, y, r: 40, life: 0.4, max: 0.4, c: COLORS[s.i], dots: true, shrink: true });
   sfx.hyper(x, true);
-  // First jump is safe; each later one adds risk
-  if (Math.random() < Math.min(0.5, (s.jumps - 1) * 0.1)) explode(s);
 }
 function explode(s) {
   if (!s.alive) return;
-  s.alive = false; s.thrust = false; s.laser = 0; s.cloak = false; s.shieldOn = false;
+  s.alive = false; s.thrust = false; s.laserT = 0; s.cloak = false; s.shieldOn = false;
   const c = Math.cos(s.a), n = Math.sin(s.a), pts = SHAPES[s.i];
   for (let k = 0; k < pts.length; k++) {
     const p = pts[k], q = pts[(k + 1) % pts.length];
@@ -543,7 +518,7 @@ function spark(x, y, c, k) {
 
 // ---------- CPU pilot ----------
 const SKILL = [
-  { err: 0.35, tol: 0.2, react: 0.35, dodge: 0.25, range: 360, shields: 0.4, cloak: 0, laser: 0.5 },
+  { err: 0.25, tol: 0.22, react: 0.3, dodge: 0.25, range: 420, shields: 0.4, cloak: 0, laser: 0.5 },
   { err: 0.15, tol: 0.12, react: 0.18, dodge: 0.6, range: 440, shields: 0.8, cloak: 0.15, laser: 0.9 },
   { err: 0.05, tol: 0.08, react: 0.08, dodge: 0.9, range: 520, shields: 1, cloak: 0.35, laser: 1 },
 ];
@@ -586,9 +561,9 @@ function cpu(s, foe, dt) {
     const rvx = seen ? foe.vx - s.vx : 0, rvy = seen ? foe.vy - s.vy : 0, t = dist / BOLT_V;
     want = Math.atan2(dy + rvy * t, dx + rvx * t) + m.err * (seen ? 1 : 3);
     const da = Math.abs(angDiff(s.a, want)), sp = Math.hypot(s.vx, s.vy);
-    if (s.energy > 45 && ((sp < 50 && da < 0.4) || (dist > 420 && da < 0.3))) inp.t = true;
-    const reserve = opts.cpu ? 12 : 30;
-    if (seen && dist < LASER_RANGE * 0.95 && da < 0.12 && s.energy > reserve && Math.random() < sk.laser) inp.z = true;
+    if (s.energy > 18 && ((sp < 50 && da < 0.4) || (dist > 420 && da < 0.3))) inp.t = true;
+    const reserve = opts.cpu ? 4 : 6;
+    if (seen && dist < LASER_RANGE * 0.95 && da < 0.15 && s.energy > reserve && Math.random() < sk.laser) inp.z = true;
     else if (da < sk.tol * (seen ? 1 : 2) && dist < sk.range && s.energy > reserve + BLAST_COST) inp.f = true;
   }
   const da = angDiff(s.a, want);
@@ -597,20 +572,18 @@ function cpu(s, foe, dt) {
   const threat = boltThreat(s, 0.6);
   const close = seen && dist < LASER_RANGE * 1.3;
   let wantShield = s.shieldOn;
-  if ((threat < 0.6 || close) && Math.random() < sk.shields) { wantShield = true; m.calm = 0; }
-  else { m.calm += dt; if (m.calm > 1.5 && s.energy < 60) wantShield = false; }
-  if (s.shield < 8) wantShield = false;
+  if ((threat < 0.5 || close) && Math.random() < sk.shields) { wantShield = true; m.calm = 0; }
+  else { m.calm += dt; if (m.calm > 0.6) wantShield = false; }
   // Cloak when calm and charged, drop it when threatened
   let wantCloak = s.cloak;
-  if (s.cloak) { m.cloakT -= dt; if (m.cloakT <= 0 || threat < 0.6 || s.energy < 25) wantCloak = false; }
-  else if (!wantShield && s.energy > 85 && Math.random() < sk.cloak * dt) { wantCloak = true; m.cloakT = rnd(2, 4); }
-  if (wantCloak) wantShield = false;
-  inp.s = wantShield !== s.shieldOn;
-  inp.c = wantCloak !== s.cloak && !inp.s;
-  if (threat < 0.3 && !(s.shieldOn && s.shield > BOLT_DMG) && s.hyperCd <= 0 && s.jumps < 3 && s.energy > TELE_COST && Math.random() < sk.dodge) inp.h = true;
-  // Keep the shield reserve topped up from spare energy
-  if (s.shield < 50 && s.energy > 70) inp.ts = true;
-  return inp;
+  if (s.cloak) { m.cloakT -= dt; if (m.cloakT <= 0 || threat < 0.6 || s.energy < 10) wantCloak = false; }
+  else if (!wantShield && s.energy > 30 && Math.random() < sk.cloak * dt) { wantCloak = true; m.cloakT = rnd(2, 4); }
+  inp.s = wantShield && s.energy > 1;
+  inp.c = wantCloak;
+  if (threat < 0.3 && !s.shieldOn && s.hyperCd <= 0 && s.energy > TELE_COST + 4 && Math.random() < sk.dodge) inp.h = true;
+  // Move spare energy into the shield when it runs low
+  if (s.shield < 16 && s.energy > 22) inp.ts = true;
+    return inp;
 }
 
 // ---------- update ----------
@@ -620,7 +593,6 @@ function update(dt) {
   for (const s of ships) {
     if (!s.alive) continue;
     s.cd -= dt; s.hyperCd -= dt; s.hitT -= dt; s.reveal -= dt;
-    s.burn = Math.max(0, s.burn - 40 * dt);
     if (s.hyper > 0) {
       s.hyper -= dt;
       if (s.hyper <= 0) { s.hyper = 0; emerge(s); }
@@ -630,20 +602,21 @@ function update(dt) {
     const press = k => inp[k] && !s.prev[k];
     if (inp.l) s.a -= TURN * dt;
     if (inp.r) s.a += TURN * dt;
-    // Upkeep for raised systems, then recharge
-    if (s.shieldOn && !spend(s, SHIELD_DRAIN * dt)) setShield(s, false);
-    if (s.cloak && !spend(s, CLOAK_DRAIN * dt)) setCloak(s, false);
+    s.lcd -= dt; s.laserT -= dt;
+    // Shield and cloak work only while held and powered
+    const shieldNow = !!inp.s && spend(s, SHIELD_DRAIN * dt);
+    const cloakNow = !!inp.c && spend(s, CLOAK_DRAIN * dt);
+    setShield(s, shieldNow); setCloak(s, cloakNow);
     s.thrust = !!inp.t && spend(s, THRUST_COST * dt);
     if (s.thrust) { s.vx += Math.cos(s.a) * THRUST * dt; s.vy += Math.sin(s.a) * THRUST * dt; }
     if (inp.ts && s.shield < S_MAX) { const m = Math.min(XFER * dt, s.energy, S_MAX - s.shield); s.energy -= m; s.shield += m; }
-    if (inp.te && s.shield > 0 && s.energy < E_MAX) { const m = Math.min(XFER * dt, s.shield, E_MAX - s.energy); s.shield -= m; s.energy += m; if (s.shield <= 0 && s.shieldOn) setShield(s, false); }
-    if (!s.thrust && !inp.z) s.energy = Math.min(E_MAX, s.energy + E_REGEN * dt);
-    if (press('s')) setShield(s, !s.shieldOn);
-    if (press('c')) setCloak(s, !s.cloak);
+    if (inp.te && s.shield > 1 && s.energy < E_MAX) { const m = Math.min(XFER * dt, s.shield - 1, E_MAX - s.energy); s.shield -= m; s.energy += m; }
+    s.energy = Math.min(E_MAX, s.energy + E_REGEN * dt);
     if (inp.f && s.cd <= 0 && spend(s, BLAST_COST)) fire(s);
-    s.laser = inp.z && spend(s, LASER_COST * dt) ? laserBeam(s, dt) : 0;
-    if (s.laser) s.reveal = REVEAL;
-    loopSound(s.i, s.thrust, s.laser > 0, s.x);
+    if (inp.z && s.lcd <= 0 && spend(s, LASER_COST)) pulse(s);
+    if (!s.alive) continue;
+    loopSound(s.i, s.thrust, false, s.x);
+    if (s.shield <= LOW_SHIELD) { s.warnT -= dt; if (s.warnT <= 0) { s.warnT = 0.8; if (mode === 2 || s.i === 0) sfx.warn(); } }
     const jumpNow = press('h') && s.hyperCd <= 0 && spend(s, TELE_COST);
     for (const k of EDGE) s.prev[k] = !!inp[k];
     if (jumpNow) { jump(s); loopSound(s.i, false, false, s.x); continue; }
@@ -652,7 +625,15 @@ function update(dt) {
     if (v > MAXV) { s.vx *= MAXV / v; s.vy *= MAXV / v; }
     s.x += s.vx * dt; s.y += s.vy * dt;
     if (wrapEdges(s, 0.6)) shake = Math.max(shake, 2);
-    if (opts.sun && Math.hypot(s.x - CX, s.y - CY) < SUN_R + 5) explode(s);
+    // Touching the star drains shields and shoves the ship back out
+    const sdx = s.x - CX, sdy = s.y - CY, sd = Math.hypot(sdx, sdy) || 1;
+    if (opts.sun && sd < SUN_R + 8) {
+      const nx = sdx / sd, ny = sdy / sd, vin = s.vx * nx + s.vy * ny;
+      s.vx += (STAR_KICK - vin) * nx; s.vy += (STAR_KICK - vin) * ny;
+      s.x = CX + nx * (SUN_R + 8); s.y = CY + ny * (SUN_R + 8);
+      spark(s.x, s.y, '#e08a12', 10); shake = Math.max(shake, 4);
+      damage(s, STAR_DMG);
+    }
   }
   // blaster bolts
   for (const p of bolts) {
@@ -678,10 +659,10 @@ function update(dt) {
   const [A, B] = ships;
   if (A.alive && B.alive && !A.hyper && !B.hyper) {
     const [dx, dy] = off(A.x, A.y, B.x, B.y), d = Math.hypot(dx, dy);
-    const ra = A.shieldOn ? SHIELD_R : SHIP_R * 0.85, rb = B.shieldOn ? SHIELD_R : SHIP_R * 0.85;
+    const ra = A.shieldOn ? SHIELD_R : SHIP_R, rb = B.shieldOn ? SHIELD_R : SHIP_R;
     if (d < ra + rb) {
       const nx = dx / (d || 1), ny = dy / (d || 1), rel = (B.vx - A.vx) * nx + (B.vy - A.vy) * ny;
-      for (const s of [A, B]) if (!(s.shieldOn && s.shield >= 25)) explode(s); else { s.shield -= 25; s.hitT = 0.25; sfx.shieldHit(s.x); }
+      if (rel < -20) { damage(A, RAM_DMG); damage(B, RAM_DMG); }
       if (rel < 0) { A.vx += rel * nx; A.vy += rel * ny; B.vx -= rel * nx; B.vy -= rel * ny; }
       const push = (ra + rb - d) / 2 + 0.5;
       A.x -= nx * push; A.y -= ny * push; B.x += nx * push; B.y += ny * push;
@@ -740,7 +721,7 @@ function draw() {
     ctx.globalAlpha = 1; ctx.fillStyle = c;
     ctx.beginPath(); ctx.arc(p.x, p.y, 2.6, 0, 6.283); ctx.fill();
   }
-  for (const s of ships) if (s.alive && !s.hyper && s.laser) drawLaser(s);
+  for (const s of ships) if (s.alive && !s.hyper && s.laserT > 0) drawLaser(s);
   for (const s of ships) if (s.alive && !s.hyper) {
     drawShip(s, s.x, s.y);
     if (opts.edges === 'wrap') {
@@ -771,7 +752,6 @@ function draw() {
   ctx.globalAlpha = 1;
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
   if (state !== 'menu') drawHud();
-  padLights();
 }
 function drawSun() {
   if (!opts.sun) {
@@ -797,7 +777,7 @@ function drawLaser(s) {
   const c = Math.cos(s.a), n = Math.sin(s.a), x0 = s.x + c * 14, y0 = s.y + n * 14;
   const x1 = x0 + c * s.laser, y1 = y0 + n * s.laser;
   ctx.lineCap = 'round';
-  ctx.strokeStyle = COLORS[s.i]; ctx.globalAlpha = 0.35 + Math.random() * 0.25; ctx.lineWidth = 5;
+  ctx.strokeStyle = COLORS[s.i]; ctx.globalAlpha = 0.5; ctx.lineWidth = 5;
   ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
   ctx.globalAlpha = 1; ctx.strokeStyle = '#fffaf0'; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
@@ -849,8 +829,9 @@ function drawHud() {
       ctx.font = '600 10px system-ui,sans-serif'; ctx.fillStyle = 'rgba(43,42,39,.55)';
       ctx.textAlign = right ? 'right' : 'left'; ctx.fillText(tag, x + dir * (bw + 6) - (right ? 0 : 0), y - 2);
     };
-    bar(38, s.energy, E_MAX, s.energy < 20 ? '#d0611a' : COLORS[i], 'ENERGY');
-    bar(50, s.shield, S_MAX, SHIELD_C, 'SHIELD');
+    const low = s.shield <= LOW_SHIELD && Math.sin(time * 14) > 0;
+    bar(38, s.energy, E_MAX, s.energy < 8 ? '#d0611a' : COLORS[i], `ENERGY ${Math.floor(s.energy)}`);
+    bar(50, s.shield, S_MAX, low ? '#d0611a' : SHIELD_C, `SHIELD ${Math.ceil(s.shield)}`);
     const tags = [];
     if (s.shieldOn) tags.push(['SHIELD UP', SHIELD_C]);
     if (s.cloak) tags.push(['CLOAKED', COLORS[i]]);
