@@ -116,6 +116,8 @@ section h3:not(:first-child){margin-top:12px}
         <button type="button" data-gift="book">Book</button>
         <button type="button" data-gift="record">Record</button>
         <button type="button" data-gift="tonic">Tonic</button>
+        <button type="button" data-gift="cigs">Cigarettes</button>
+        <button type="button" data-gift="rakia">Rakia</button>
       </div>
       <p class="stock" id="stock"></p>
       <h3>Options</h3>
@@ -156,22 +158,24 @@ function shade(hex, k) {
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // ---------- the tenant: everything about them comes from one seed ----------
-const NAMES = ['Pavel','Jana','Tomáš','Olga','Mirek','Zdena','Vlado','Ilona','Bohdan','Věra','Lenka','Igor','Míla','Saša','Boris','Dana','Kamil','Irena','Oleg','Marta','Radek','Hana','Ivan','Nadia','Luboš','Eva','Petr','Zora'];
-const DOGS = ['Rex','Bobík','Ťapka','Alík','Punťa','Žolík','Šarik','Lajka','Míša','Brok','Azor','Fifinka'];
+const NAMES = ['Georgi','Ivan','Dimitar','Petar','Nikolay','Stoyan','Todor','Hristo','Vasil','Krasimir','Boyan','Zhivko','Maria','Elena','Yordanka','Rumyana','Tsvetana','Desislava','Galina','Vesela','Stefka','Kalina','Radka','Neli'];
+const DOGS = ['Sharo','Balkan','Mecho','Chara','Bobi','Lisa','Pufi','Topcho','Rex','Zhoro','Belcho','Murdzho'];
+const NB_M = ['Ivan','Stoyan','Todor','Georgi','Petko','Dimitar','Kiro','Spas'], NB_F = ['Penka','Stefka','Radka','Tsveta','Mariyka','Vela','Gina','Donka'], NB_Y = ['Mitko','Gosho','Pesho','Ani','Vanya','Tsetso'];
 const SKIN = ['#f3d3b5','#e8b48e','#c98e66','#a26a45','#7a4b2e','#f7e0cc'];
 const HAIR = ['#2b1d14','#5a3a22','#8a5a2b','#c98f3e','#e2c26a','#b23a1f','#7a7a7a','#ebe5d3','#1c1c2a'];
 const SHIRT = ['#d9534f','#3e7cb1','#4caf7a','#e6a23c','#8e5bb5','#e46aa0','#2f9c95','#e7c63f','#6c7a89'];
 const PANTS = ['#33415c','#5b4636','#3a3a3a','#6b7d4a','#7b5e9a','#3c5a78'];
 const STYLES = ['short','long','bald','curly','pony','cap','spiky'];
-const FOODS = ['borscht','pierogi','goulash','potato pancakes','stuffed cabbage','dumplings','buckwheat kasha','schnitzel','palačinky','lecsó'];
+const FOODS = ['banitsa','shopska salad','kebapcheta','musaka','tarator','sarmi','kavarma','lyutenitsa on toast','mekitsi','bob chorba'];
 const DOGCOL = ['#c8935a','#eee5d5','#5a4032','#2e2a28','#d9b26f','#a35b33'];
 const ADJ = ['Quiet','Velvet','Paper','Copper','Midnight','Sleepy','Little','Crooked','Golden','Rainy','Upside-down','Humming','Lost','Silver'];
 const NOUN = ['Kettle','Lighthouse','Teaspoon','Comet','Umbrella','Garden','Staircase','Radio','Pebble','Orchard','Sock','Tortoise','Clock','Moon'];
-const TRAITS = ['music','books','fitness','tv','social','appetite','sleepy','tidy'];
+const TRAITS = ['music','books','fitness','tv','social','appetite','sleepy','tidy','smoker','drinker','seeds'];
 const HOBBY = {
   music: 'tinkling away at the piano', books: 'curling up with a good book', fitness: 'jumping jacks before breakfast',
   tv: 'a good programme on the telly', social: 'writing letters and chatting on the phone', appetite: 'cooking big dinners',
-  sleepy: 'long, long naps', tidy: 'a clean flat and a hot shower, when there is hot water'
+  sleepy: 'long, long naps', smoker: 'a quiet cigarette on the loggia', drinker: 'a glass of rakia with a shopska salad',
+  seeds: 'a bag of sunflower seeds and a good gossip', tidy: 'a clean flat and a hot shower, when there is hot water'
 };
 
 function makeTenant(seed) {
@@ -197,6 +201,12 @@ function makeTenant(seed) {
   t.rail = pick(['#d9534f','#e6a23c','#3e7cb1','#4caf7a','#e7c63f'], r); t.oil = pick(['#8fb59a','#8aaabf','#cdb878','#a9bd8f','#b7a6c4'], r);
   t.padded = pick(['#7a3b2e','#4a3a5a','#6a5032','#2f4f4f'], r); t.padded2 = pick(['#7a3b2e','#4a3a5a','#6a5032','#2f4f4f'], r);
   t.carpet = pick(['#9c2f2f','#7a2a4a','#8a4b1f','#2f4f7a'], r); t.flat = 10 + Math.floor(r() * 80);
+  t.npcs = [2, 3, 0, 2, 3, 3, 2, 3, 0].map((home, i) => {
+    const kind = r(), name = pick(kind < .4 ? NB_M : kind < .8 ? NB_F : NB_Y, r);
+    return { home, name, title: kind < .4 ? `bay ${name}` : kind < .8 ? `lelya ${name}` : name, smoker: r() < .65, seeds: r() < .5,
+      look: { skin: pick(SKIN, r), hair: kind < .8 ? pick(['#7a7a7a', '#ebe5d3', '#5a3a22', '#2b1d14', '#b0a090'], r) : pick(HAIR, r), style: pick(STYLES, r), shirt: pick(SHIRT, r),
+        pants: pick(PANTS, r), glasses: r() < .4, height: 16 + Math.floor(r() * 4), cap: pick(PANTS, r) } };
+  });
   t.win = Array.from({ length: 13 }, () => ({ curtain: hsl(r() * 360, 45, 70), box: r() < .3, rail: pick(['#d9534f','#e6a23c','#3e7cb1','#4caf7a','#e7c63f','#f4efe6'], r) }));
   return t;
 }
@@ -216,7 +226,7 @@ const OBJ = {
   stenka: { f: 1, x: 128 }, sofa: { f: 1, x: 164, dy: -4 }, dogbed: { f: 1, x: 183 }, piano: { f: 1, x: 202, dy: -3 },
   fridge: { f: 1, x: 231 }, stove: { f: 1, x: 248 }, ksink: { f: 1, x: 266 }, table: { f: 1, x: 283, dy: -3 },
   bath: { f: 1, x: 303 }, phone: { f: 1, x: 318 }, bowl: { f: 1, x: 322 }, door: { f: 1, x: 329 },
-  entrance: { f: 0, x: 40 }, mailboxes: { f: 0, x: 100 }
+  entrance: { f: 0, x: 40 }, mailboxes: { f: 0, x: 100 }, stairs: { f: 1, x: 362 }, outside: { f: 0, x: 6 }
 };
 const ROOMS = [[1, 16, 38], [1, 38, 112], [1, 112, 222], [1, 222, 290], [1, 290, 312], [1, 312, 336]]; // loggia, bedroom, living room, kitchen, bathroom, hall
 const WINDOWS = [{ f: 1, x: 27, face: 0 }, { f: 1, x: 60, face: 2 }, { f: 1, x: 266, face: 2 }];
@@ -224,8 +234,12 @@ const STAIR = f => f % 2 === 0 ? [342, 378] : [378, 342]; // [bottom x, top x] o
 const floorOf = y => { let b = 0; for (let i = 1; i < FY.length; i++) if (Math.abs(FY[i] - y) < Math.abs(FY[b] - y)) b = i; return b; };
 const onFloor = y => FY.some(v => Math.abs(v - y) < .01);
 
-function route(x, y, f2, x2) {
+const LIFTX = 366, LIFT = { f: 0, open: -1, until: 0 };
+const liftWorks = () => !S.liftBroken;
+function route(x, y, f2, x2, stairsOnly) {
   const pts = []; let f = floorOf(y);
+  // the lift, when it works and you don't fancy the stairs
+  if (f !== f2 && liftWorks() && !stairsOnly && Math.random() < .85) return [{ x: LIFTX, y: FY[f] }, { x: LIFTX, y: FY[f2], lift: 1 }, { x: x2, y: FY[f2] }];
   while (f !== f2) {
     if (f2 > f) { const [b, t] = STAIR(f); pts.push({ x: b, y: FY[f] }, { x: t, y: FY[f + 1], climb: 1 }); f++; }
     else { const [b, t] = STAIR(f - 1); pts.push({ x: t, y: FY[f] }, { x: b, y: FY[f - 1], climb: 1 }); f--; }
@@ -235,7 +249,7 @@ function route(x, y, f2, x2) {
 }
 
 // ---------- state ----------
-const SAVE = 'tinytenant-v2';
+const SAVE = 'tinytenant-v3';
 let T, S, cur = null, queued = null, CARDS = null, speed = 1;
 const P = { x: 40, y: FY[0], face: 0, pose: 'stand', arms: 'down', frame: 0, dist: 0, walking: false };
 const DOG = { x: 30, y: FY[0], face: 1, state: 'sit', tx: 30, t: 5, dist: 0, follow: false };
@@ -243,7 +257,7 @@ let parts = [], bubble = { text: '', until: 0 }, ringing = null, toast = '';
 
 function fresh(seed) {
   return {
-    v: 2, seed, t: 9 * 60, arrived: false, dogWalk: .2, drill: 0,
+    v: 3, seed, t: 9 * 60, arrived: false, liftBroken: 9 * 60 + 300, dogWalk: .2, drill: 0, cigs: 20, shots: 8, lastSmoke: 8 * 60, drunk: 0, shells: 0,
     needs: { food: 75, water: 75, energy: 85, fun: 65, clean: 80, social: 55, health: 100 },
     fridge: 4, dogFood: 6, bowl: 1, tonic: 1, dogHunger: .2,
     books: [bookTitle(), bookTitle(), bookTitle()], newBooks: [], records: 1, skill: 0, song: 0,
@@ -256,7 +270,7 @@ function load() {
   let s = null;
   try { s = JSON.parse(localStorage.getItem(SAVE)); } catch (e) {}
   if (q.has('seed')) s = fresh(parseInt(q.get('seed'), 10) >>> 0);
-  if (!s || s.v !== 2) s = fresh((Math.random() * 2 ** 32) >>> 0);
+  if (!s || s.v !== 3) s = fresh((Math.random() * 2 ** 32) >>> 0);
   S = s; T = makeTenant(S.seed);
   P.x = S.pos.x; P.y = onFloor(S.pos.y) ? S.pos.y : FY[floorOf(S.pos.y)];
   DOG.x = P.x + 12; DOG.y = S.arrived ? FY[1] : P.y; if (S.arrived && floorOf(P.y) !== 1) { P.x = OBJ.door.x - 6; P.y = FY[1]; DOG.x = P.x - 10; }
@@ -318,6 +332,19 @@ const ACTS = {
       { at: 'door', dx: -4, t: 1, face: 0, label: 'coming home' }] },
   checkMail: { est: { fun: 3, social: 3 }, quips: () => ['Anything in the post box?'],
     steps: [{ at: 'mailboxes', t: 3, face: 2, gain: { fun: 3, social: 3 }, label: 'checking the post box downstairs' }] },
+  smoke: { ok: () => S.cigs > 0, no: "I'm out of cigarettes.", est: { fun: 8, energy: 3, health: -2 }, aff: 'smoker', quips: () => ['Just one cigarette.', 'Smoke break.', 'Where are my matches…'],
+    steps: [{ pickAt: ['ksink', 'loggia', 'stairs', 'outside'], t: 7, face: 0, arms: 'smoke', gain: { fun: 8, energy: 3 },
+      label: () => ({ ksink: 'smoking at the kitchen window', loggia: 'smoking on the loggia', stairs: 'smoking on the stairs', outside: 'smoking outside the entrance' }[cur.pick]),
+      begin: () => { S.cigs--; S.lastSmoke = S.t; if (cur.pick === 'ksink') P.face = 2; }, end: () => { bump('health', -1.5); log('smoke'); } }] },
+  booze: { ok: () => S.shots > 0, no: 'The bottle is empty.', est: { fun: 16, social: 4, energy: -4 }, aff: 'drinker', quips: () => ['Nazdrave!', 'A little rakia never hurt anyone.', 'A cold beer, I think.'],
+    steps: [{ pickAt: ['table', 'table', 'loggia', 'sofa'], t: 22, face: 0, arms: 'glass', gain: { fun: 16, social: 4, energy: -4 },
+      label: () => cur.pick === 'table' ? 'having a rakia with a shopska salad' : cur.pick === 'loggia' ? 'having a beer on the loggia' : 'having a beer in front of the TV',
+      begin: () => { S.shots--; if (cur.pick !== 'loggia') P.pose = 'sit'; P.arms = cur.pick === 'table' ? 'glass' : 'bottle'; if (cur.pick === 'sofa') setLoop('tv'); },
+      end: () => { S.drunk = clamp(S.drunk + .35, 0, 1); bump('health', -1); log('drink'); if (S.drunk > .6) say(pick(['*hic*', 'I love this block!', 'Is the floor moving?'])); } }] },
+  seeds: { est: { fun: 10, food: 3, social: 2 }, aff: 'seeds', quips: () => ['Semki time.', 'Crack, crack, crack…'],
+    steps: [{ pickAt: ['sofa', 'loggia', 'outside'], t: 25, face: 0, arms: 'seeds', fx: 'seeds', gain: { fun: 10, food: 3, social: 2 },
+      label: () => `cracking sunflower seeds ${{ sofa: 'on the sofa', loggia: 'on the loggia', outside: 'outside the entrance' }[cur.pick]}`,
+      begin: () => { if (cur.pick === 'sofa') P.pose = 'sit'; }, end: () => { S.shells++; log('seeds'); } }] },
   window: { est: { fun: 6 }, quips: () => [isNight() ? 'Look at all those lit windows.' : 'Nice day out there.'],
     steps: [{ at: 'window', t: 10, face: 2, gain: { fun: 6 }, label: 'looking out at the estate' }] },
   greet: { est: { social: 8 }, quips: () => ['Hello? Anyone out there?'],
@@ -343,7 +370,7 @@ const ACTS = {
 };
 const COMMANDS = [
   [/piano/, 'piano'], [/\btv\b|telly|television/, 'tv'], [/\bread|book/, 'read'], [/\bnap\b/, 'nap'], [/sleep|\bbed\b|rest/, 'sleep'],
-  [/\beat|food|hungry|dinner|lunch|breakfast|cook|snack/, 'eat'], [/drink|water|thirst/, 'drink'], [/shower|bath|wash|clean/, 'shower'],
+  [/\beat|food|hungry|dinner|lunch|breakfast|cook|snack/, 'eat'], [/rakia|beer|alcohol|vodka|wine|booze|nazdrave|cheers/, 'booze'], [/smok|cigar|fag/, 'smoke'], [/seed|semki/, 'seeds'], [/drink|water|thirst/, 'drink'], [/shower|bath|wash|clean/, 'shower'],
   [/exercise|work ?out|gym|jumping|sport|stretch|\bfit/, 'exercise'], [/danc|music|record|song/, 'records'], [/write|letter|\btype/, 'type'],
   [/feed/, 'feedDog'], [/walk/, 'walkDog'], [/\bdog|\bpet\b/, 'petDog'], [/phone|\bcall|\bring\b/, 'call'], [/\bpost|mailbox/, 'checkMail'],
   [/window|outside|view|loggia|balcony/, 'window'], [/tonic|medicine/, 'tonic']
@@ -376,6 +403,8 @@ function score(id) {
   if (id === 'idle') s = .7;
   if (id === 'tonic') s += 2;
   if (isNight() && !['sleep', 'drink', 'eat', 'bedrest', 'tonic'].includes(id)) s -= 1.2;
+  if (id === 'smoke') s = Math.min(4, (S.t - S.lastSmoke) / 80) * T.tr.smoker - (isNight() ? 1 : 0);
+  if (id === 'booze') s += (hour() >= 17 ? .8 : -3) - S.drunk * 5;
   if (S.request && S.request.id === id) s += 8;
   if (S.recent.includes(id)) s -= S.recent[S.recent.length - 1] === id ? 1.5 : .6;
   return s + Math.random() * .8;
@@ -388,7 +417,7 @@ function choose() {
   if (Math.random() < .22) say(pick(ACTS[best].quips()));
   startAct(best);
 }
-const climbing = () => !onFloor(P.y);
+const climbing = () => !onFloor(P.y) || !!P.ride;
 function startAct(id) {
   if (climbing()) { queued = id; return; }
   if (cur && ACTS[cur.id].cancel) ACTS[cur.id].cancel();
@@ -398,6 +427,7 @@ function startAct(id) {
 }
 function step() { return cur.steps ? cur.steps[cur.i] : ACTS[cur.id].steps[cur.i]; }
 function target(st) {
+  if (st.pickAt) { cur.pick = cur.pick || pick(st.pickAt); const o = OBJ[cur.pick]; return { f: o.f, x: o.x }; }
   if (st.at === 'here') return { f: floorOf(P.y), x: P.x };
   if (st.at === 'dog') return { f: 1, x: clamp(DOG.x + (P.x > DOG.x ? 9 : -9), 20, 334) };
   if (st.at === 'window') { const w = cur.win || (cur.win = pick(WINDOWS)); return { f: w.f, x: w.x }; }
@@ -441,11 +471,26 @@ function runAct(dt) {
     if (cur.i >= ACTS[cur.id].steps.length) finishAct(); else startStep();
   }
 }
+function ride(dt, p) {
+  if (!P.ride) {
+    if (!liftWorks()) { P.ride = null; cur.path = route(P.x, P.y, floorOf(p.y), cur.path[1].x, true); return; }
+    P.ride = { t: 1 + Math.abs(floorOf(p.y) - floorOf(P.y)) * 1.5, stuck: Math.random() < .05 };
+    liftDoor(floorOf(P.y)); P.inLift = true; P.walking = false;
+    if (P.ride.stuck) { P.ride.t += 40; setTimeout(() => say(pick(["Help! I'm stuck in the lift!", 'Hello? HELLO? The lift is stuck!'])), 600); bump('fun', -10); log('stuck'); }
+  }
+  P.ride.t -= dt;
+  if (P.ride.t > 0) return;
+  if (P.ride.stuck) { S.liftBroken = S.t + rnd(240, 1200); say('Finally! I’m taking the stairs from now on.'); }
+  P.ride = null; P.inLift = false; P.y = p.y; P.x = p.x; cur.path.shift(); liftDoor(floorOf(p.y));
+  if (queued) { const q = queued; queued = null; startAct(q); }
+}
+function liftDoor(f) { LIFT.f = f; LIFT.open = f; LIFT.until = S.t + 1.5; }
 function walk(dt) {
-  const sick = S.needs.health < 35 ? .6 : 1;
+  const sick = (S.needs.health < 35 ? .6 : 1) * (S.drunk > .5 ? .75 : 1);
   let budget = dt * 24 * sick;
   while (budget > 0 && cur.path.length) {
     const p = cur.path[0], dx = p.x - P.x, dy = p.y - P.y, d = Math.hypot(dx, dy);
+    if (p.lift) { ride(dt, p); return; }
     const sp = p.climb ? .6 : 1;
     if (Math.abs(dx) > .1) P.face = dx > 0 ? 1 : -1;
     P.walking = true;
@@ -463,6 +508,7 @@ function walk(dt) {
 
 // ---------- needs, dog, time ----------
 function decay(dt) {
+  S.drunk = Math.max(0, S.drunk - dt * .004);
   const n = S.needs, z = asleep(), tr = T.tr;
   bump('food', -dt * (z ? .03 : .075 * Math.sqrt(tr.appetite)));
   bump('water', -dt * (z ? .04 : .11));
@@ -512,6 +558,8 @@ function dogUpdate(dt) {
 // Panel walls are thin: the neighbours drill by day and bang on the ceiling if the music goes on too late.
 function neighbours(dt) {
   if (S.drill && S.t > S.drill) S.drill = 0;
+  if (S.liftBroken && S.t > S.liftBroken && !P.ride) { S.liftBroken = 0; log('liftFixed'); toast = 'The lift has been repaired.'; }
+  if (!S.liftBroken && Math.random() < dt * .0005) { S.liftBroken = S.t + rnd(300, 2000); log('liftBroke'); toast = 'The lift has broken down again.'; if (!asleep() && Math.random() < .5) say(pick(['The lift is broken again. Of course.', 'Out of order. Again.'])); }
   const h = hour();
   if (!S.drill && h > 9 && h < 19 && Math.random() < dt * .0015) {
     S.drill = S.t + 8; log('drill');
@@ -526,9 +574,85 @@ function sim(dt) {
   while (dt > 0) {
     const s = Math.min(dt, .5); dt -= s;
     S.t += s;
-    decay(s); dogUpdate(s); neighbours(s);
+    decay(s); dogUpdate(s); neighbours(s); npcUpdate(s);
     if (!cur) choose(); else runAct(s);
     if (ringing && S.t > ringing.until && !(cur && cur.id === 'answer')) { ringing = null; if (!asleep()) log('missed-call'); }
+  }
+}
+
+// ---------- neighbours: they come and go through the lobby, smoke on the stairs and lean on their loggias ----------
+let NPCS = [];
+function initNpcs() {
+  NPCS = T.npcs.map((n, i) => ({ n, i, state: 'home', vis: false, x: 0, y: 0, face: 0, frame: 0, dist: 0, path: [], arms: 'down', t: rnd(2, 60), greet: -999 }));
+}
+function npcDoor(n) { return n.home === 0 ? { f: 0, x: 302 } : n.home === 2 ? { f: 2, x: 342 } : { f: 3, x: 378 }; }
+function npcGo(p, f, x, then) { p.path = route(p.x, p.y, f, x); p.state = 'walk'; p.then = then; p.vis = true; p.arms = 'down'; }
+function npcAppear(p, at) { p.x = at.x; p.y = FY[at.f]; p.vis = true; }
+function npcHome(p) { p.state = 'home'; p.vis = false; p.t = rnd(20, 120); }
+function npcDecide(p) {
+  const n = p.n, h = hour(), late = h >= 23 || h < 6, door = npcDoor(n);
+  if (p.state === 'away') {
+    if (late && Math.random() < .7) { p.t = 60; return; }
+    npcAppear(p, { f: 0, x: 4 }); return npcGo(p, door.f, door.x, () => npcHome(p));
+  }
+  if (late && Math.random() < .8) { p.t = 60; return; }
+  const r = Math.random();
+  if (r < .3) { npcAppear(p, door); return npcGo(p, 0, 4, () => { p.state = 'away'; p.vis = false; p.t = rnd(60, 240); }); }
+  if (r < .55 && n.smoker) { // a cigarette on the landing, or outside the entrance for the ground-floor flat
+    npcAppear(p, door);
+    const spot = n.home === 0 ? { f: 0, x: 8 } : { f: door.f, x: door.x === 342 ? 350 : 370 };
+    return npcGo(p, spot.f, spot.x, () => { p.state = 'stand'; p.arms = 'smoke'; p.face = 0; p.t = rnd(8, 16); p.after = () => npcGo(p, door.f, door.x, () => npcHome(p)); });
+  }
+  if (r < .8 && n.home !== 0) { p.state = 'loggia'; p.vis = false; p.arms = n.smoker && Math.random() < .6 ? 'smoke' : Math.random() < .5 ? 'seeds' : 'down'; p.t = rnd(15, 40); return; }
+  npcAppear(p, door); // a chat by the post boxes
+  npcGo(p, 0, rnd(70, 250), () => { p.state = 'stand'; p.arms = n.seeds ? 'seeds' : 'down'; p.face = 0; p.t = rnd(8, 20); p.after = () => npcGo(p, door.f, door.x, () => npcHome(p)); });
+}
+function npcUpdate(dt) {
+  for (const p of NPCS) {
+    if (p.state === 'walk') {
+      let budget = dt * 20;
+      while (budget > 0 && p.path.length) {
+        const q = p.path[0], dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy), sp = q.climb ? .6 : 1;
+        if (q.lift) {
+          if (!liftWorks() && p.ride === undefined) { p.path = route(p.x, p.y, floorOf(q.y), p.path[1].x, true); break; }
+          if (p.ride === undefined) { p.ride = 2; p.vis = false; liftDoor(floorOf(p.y)); }
+          p.ride -= dt; budget = 0;
+          if (p.ride <= 0) { p.ride = undefined; p.vis = true; p.x = q.x; p.y = q.y; p.path.shift(); liftDoor(floorOf(q.y)); }
+          break;
+        }
+        if (Math.abs(dx) > .1) p.face = dx > 0 ? 1 : -1;
+        const m = Math.min(d, budget * sp);
+        if (d > 0) { p.x += dx / d * m; p.y += dy / d * m; }
+        budget -= m / sp; p.dist += m;
+        if (m >= d - 1e-6) { p.x = q.x; p.y = q.y; p.path.shift(); }
+      }
+      p.frame = Math.floor(p.dist / 3);
+      if (!p.path.length) p.then();
+      continue;
+    }
+    p.t -= dt;
+    if (p.t > 0) continue;
+    if (p.state === 'stand') p.after();
+    else if (p.state === 'loggia') npcHome(p);
+    else npcDecide(p);
+  }
+  // say hello to neighbours you pass
+  if (cur && cur.phase === 'walk' && !asleep()) for (const p of NPCS) {
+    if (p.vis && Math.abs(p.y - P.y) < 4 && Math.abs(p.x - P.x) < 14 && S.t - p.greet > 120) {
+      p.greet = S.t; bump('social', 3); say(pick([`Zdrasti, ${p.n.title}!`, `Dobar den, ${p.n.title}!`, `Kak si, ${p.n.title}?`]));
+    }
+  }
+}
+function drawNpcs(tick) {
+  for (const p of NPCS) if (p.vis && p.state !== 'loggia') {
+    drawPerson(p.x, p.y, { L: p.n.look, pose: 'stand', arms: p.arms, face: p.state === 'walk' ? p.face : 0, frame: p.frame, walking: p.state === 'walk', tick });
+    if (p.arms === 'smoke' && Math.random() < .05) parts.push({ x: p.x + 2, y: p.y - p.n.look.height - 1, vx: rnd(-1, 2), vy: -5, life: 2, k: 'puff' });
+  }
+}
+function drawLoggiaNpc(f, bot, tick) {
+  for (const p of NPCS) if (p.state === 'loggia' && p.n.home === f) {
+    drawPerson(27, bot, { L: p.n.look, pose: 'stand', arms: p.arms, face: 0, frame: 0, walking: false, tick });
+    if (p.arms === 'smoke' && Math.random() < .05) parts.push({ x: 29, y: bot - p.n.look.height - 1, vx: rnd(-1, 2), vy: -5, life: 2, k: 'puff' });
   }
 }
 
@@ -638,7 +762,7 @@ function pat() {
   say(pick(['Hehe!', 'That tickles!', ':)', 'Aww.']));
 }
 const GIFTS = {
-  food: { name: 'Groceries' }, dogfood: { name: 'Dog food' }, book: { name: 'A book' }, record: { name: 'A record' }, tonic: { name: 'Tonic' }
+  food: { name: 'Groceries' }, dogfood: { name: 'Dog food' }, book: { name: 'A book' }, record: { name: 'A record' }, tonic: { name: 'Tonic' }, cigs: { name: 'Cigarettes' }, rakia: { name: 'A bottle of rakia' }
 };
 function gift(kind) {
   audioOn();
@@ -656,6 +780,8 @@ function openParcels() {
     if (k === 'book') { const b = bookTitle(); S.books.push(b); S.newBooks.push(b); lines.push(`A new book! “${b}”.`); log('gift-book', b); continue; }
     if (k === 'record') { S.records++; lines.push('A new record!'); }
     if (k === 'tonic') { S.tonic++; lines.push('Tonic. Thoughtful.'); }
+    if (k === 'cigs') { S.cigs += 20; lines.push('Cigarettes! You shouldn’t have.'); }
+    if (k === 'rakia') { S.shots += 8; lines.push('Homemade rakia! Nazdrave!'); }
     log('gift-' + k);
   }
   bump('fun', 6 * got.length); bump('social', 5 * got.length);
@@ -700,8 +826,14 @@ function writeLetter(kind) {
         nice: () => 'You said something nice to me today. It made me smile all afternoon.',
         exercise: () => { const k = 20 + Math.floor(Math.random() * 60); return `I did ${k} jumping jacks today. Well, ${k - 9}, and then I sat down.`; },
         dance: () => `I danced around the living room until ${dog} started barking at me.`,
-        walk: () => `I took ${dog} round the block. ${pick(['The caretaker was complaining about the bins again.', 'The kiosk by the bus stop had fresh rolls.', "A neighbour's cat stared us down from a parked Škoda."])}`,
+        walk: () => `I took ${dog} round the block. ${pick(['The caretaker was complaining about the bins again.', 'The kiosk by the bus stop had fresh rolls.', "A neighbour's cat stared us down from the roof of a parked Lada."])}`,
+        smoke: () => pick(["I'm trying to cut down on cigarettes. Trying.", 'Had a smoke on the stairs and caught up on all the gossip.']),
+        drink: () => pick(['Had a rakia with a shopska salad last night. Maybe two.', 'A cold beer on the loggia in the evening. That’s the life.']),
+        seeds: () => `I cracked a whole bag of sunflower seeds. ${S.shells > 3 ? 'There are shells everywhere.' : 'Don’t tell the caretaker about the shells.'}`,
         thump: () => 'The neighbours banged on the ceiling when I played music late. Fair enough, I suppose.',
+        stuck: () => 'I got stuck in the lift for nearly an hour. The emergency button just buzzes.',
+        liftBroke: () => pick(['The lift is out of order again. My legs are getting very strong.', 'Somebody taped an "out of order" sign on the lift. In biro. Again.']),
+        liftFixed: () => 'Good news: the repairman finally came and the lift works. For now.',
         drill: () => "Somebody upstairs has been drilling again. What are they building up there, a metro station?",
         sick: () => "I haven't been well. I spent a long time in bed.",
         'missed-call': () => 'I think the phone rang, but I didn\'t get there in time. Was it you?',
@@ -711,6 +843,8 @@ function writeLetter(kind) {
     }
     if (!S.fridge) out.push('The fridge is empty. If you happen to pass a shop, I would love some groceries.');
     else if (S.fridge < 2) out.push("I'm running low on food. Some groceries would be nice.");
+    if (!S.cigs && T.tr.smoker > 1) out.push("I've run out of cigarettes. I'm not saying send some, but…");
+    if (!S.shots && T.tr.drinker > 1) out.push('The rakia bottle is empty. Purely medicinal, of course.');
     if (!S.dogFood) out.push(`${dog} has run out of food and keeps staring at me. Could you send some?`);
     if (n.health < 50) out.push(S.tonic ? 'I feel a bit poorly, but I still have some tonic.' : "I've been feeling poorly. A bottle of tonic would help.");
     if (n.fun < 40) out.push('It has been a bit dull around here. A new book or record would cheer me up.');
@@ -843,6 +977,7 @@ const LOOPS = {
   cook(at) { hiss(.25, { vol: .02, freq: 5000, type: 'highpass', at }); return rnd(.1, .25); },
   talk(at) { const k = 2 + Math.floor(Math.random() * 4); for (let j = 0; j < k; j++) tone(T.voice * rnd(.85, 1.2), .045, { type: 'square', vol: .025, at: at + j * .08 }); return rnd(.6, 1.4); },
   fridge(at) { tone(60, .4, { type: 'sine', vol: .03, at }); return .45; },
+  seeds(at) { hiss(.015, { vol: .05, freq: 3500, at }); return rnd(.4, 1.1); },
   eat(at) { hiss(.03, { vol: .04, freq: 900, at }); return rnd(.4, .9); }
 };
 function tickLoop() {
@@ -916,14 +1051,20 @@ function facadeRow(f, s, tick) {
   const lg = T.win[(f * 5) % T.win.length];
   R(18, top + 8, 18, 26, night && lg.box ? '#f3d27c' : shade(T.panel, .7));
   if (lg.box) { R(19, top + 22, 3, 6, '#fff'); R(23, top + 21, 4, 7, T.stripe); R(28, top + 22, 3, 5, '#e7c63f'); }
+  drawLoggiaNpc(f, bot, tick);
   R(16, bot - 14, 22, 14, lg.rail); for (let xx = 18; xx < 38; xx += 3) R(xx, bot - 14, 1, 14, shade(lg.rail, .8));
 }
 function stairwell(s, tick) {
   for (let f = 0; f < 4; f++) {
     const bot = FY[f], top = bot - 46;
     R(336, top, 48, 46, '#eceae2'); R(336, bot - 20, 48, 20, T.oil); R(336, bot - 21, 48, 1, shade(T.oil, .7));
-    glass(356, top + 8, 8, 10, s);
-    R(360, top, 1, 3, '#555'); R(358, top + 3, 5, 2, '#f2e7b5');
+    R(358, top + 3, 1, 3, '#555'); R(356, top + 6, 5, 2, '#f2e7b5');
+    const open = LIFT.open === f && S.t < LIFT.until;
+    R(LIFTX - 8, bot - 26, 16, 26, '#6f7479'); R(LIFTX - 7, bot - 25, 14, 25, open ? '#3a3328' : '#a7adb2');
+    if (open) R(LIFTX - 6, bot - 24, 12, 24, '#d8cfa8'); else R(LIFTX, bot - 25, 1, 25, '#6f7479');
+    R(LIFTX - 3, bot - 30, 6, 3, '#333'); R(LIFTX - 2 + Math.min(LIFT.f, 3), bot - 29, 1, 1, liftWorks() ? '#ff5a3a' : '#555');
+    R(LIFTX + 9, bot - 15, 2, 3, '#d8d0b8'); R(LIFTX + 9, bot - 14, 2, 1, '#c33');
+    if (!liftWorks()) { R(LIFTX - 5, bot - 20, 10, 7, '#fff'); R(LIFTX - 4, bot - 18, 8, 1, '#c33'); R(LIFTX - 4, bot - 16, 6, 1, '#555'); }
   }
   for (let f = 0; f < 3; f++) {
     const [b, tt] = STAIR(f), n = 12;
@@ -990,7 +1131,7 @@ function drawHouse(t) {
   clockFace(OBJ.table.x, top + 13);
   furniture(tick);
   // slabs, with the stairwell opening on the upper storeys
-  for (let f = 0; f < 4; f++) { const y = FY[f]; if (f === 0) R(12, y, 376, 2, CONC); else { R(12, y, 332, 2, CONC); R(376, y, 12, 2, CONC); } }
+  for (let f = 0; f < 4; f++) R(12, FY[f], 376, 2, CONC);
   R(12, 0, 4, 188, shade(T.panel, .8)); R(384, 0, 4, 188, shade(T.panel, .8)); R(336, 0, 1, 188, shade(T.panel, .7));
   // parcels at the flat door
   S.parcel.forEach((p, i) => { const px = 318 + (i % 2) * 7, py = fy - 5 - Math.floor(i / 2) * 5; R(px, py, 6, 5, '#c9995b'); R(px, py + 2, 6, 1, '#8b6a3a'); R(px + 2, py, 1, 5, '#8b6a3a'); });
@@ -1082,14 +1223,14 @@ function chair(x, fy) { R(x - 5, fy - 7, 10, 2, '#6b4a2f'); R(x - 4, fy - 5, 1, 
 
 function drawPerson(x, y, o) {
   x = Math.round(x); y = Math.round(y);
-  const sk = skin(), hc = T.hair, sh = T.shirt, pa = T.pants, t = o.tick, f = o.face;
+  const Lk = o.L || T, sk = o.L ? o.L.skin : skin(), hc = Lk.hair, sh = Lk.shirt, pa = Lk.pants, t = o.tick, f = o.face;
   if (o.pose === 'lie') return drawLying(x, y, sk);
   let hop = 0, spread = 0, sway = 0;
   const jacks = o.arms === 'jacks' && t % 2 === 0;
   if (o.pose === 'jump' && jacks) { hop = 2; spread = 1; }
   if (o.arms === 'dance') sway = (t % 4 < 2) ? 1 : -1;
   x += sway;
-  const sit = o.pose === 'sit', yb = y - hop, legH = sit ? 3 : 6, hip = yb - legH, torso = T.height - 11, s0 = hip - torso, hy = s0 - 5;
+  const sit = o.pose === 'sit', yb = y - hop, legH = sit ? 3 : 6, hip = yb - legH, torso = Lk.height - 11, s0 = hip - torso, hy = s0 - 5;
   const side = f === 1 || f === -1;
   // legs
   if (sit) { R(x - 3, hip, 6, 2, pa); R(x - 3, yb - 1, 2, 1, SHOE); R(x + 1, yb - 1, 2, 1, SHOE); }
@@ -1121,6 +1262,14 @@ function drawPerson(x, y, o) {
     else if (a === 'ear') { down(L); R(Rt, s0, 1, 2, sh); R(Rt, hy + 2, 1, 3, sk); R(Rt + 1, hy + 1, 1, 5, '#c43c3c'); }
     else if (a === 'mouth') { down(L); if (t % 3 === 0) { R(Rt, s0, 1, 2, sh); R(x + 1, hy + 4, 1, 1, sk); R(x + 2, hy + 5, 1, 1, sk); } else down(Rt); }
     else if (a === 'book') { R(L, s0, 1, 3, sh); R(Rt, s0, 1, 3, sh); R(x - 3, s0 + 2, 6, 4, T.spines[(cur && cur.book ? cur.book.length : 0) % 40]); R(x, s0 + 2, 1, 4, '#f4efe6'); R(L + 1, s0 + 3, 1, 1, sk); R(Rt - 1, s0 + 3, 1, 1, sk); }
+    else if (a === 'smoke' || a === 'bottle' || a === 'glass' || a === 'seeds') {
+      const item = a === 'smoke' ? ['#fff', 2, 1] : a === 'bottle' ? ['#5a7a2a', 1, 4] : a === 'glass' ? ['#e8f2f6', 2, 2] : null;
+      const hi = a === 'seeds' ? t % 2 === 0 : t % 4 === 0;
+      if (a === 'seeds') { R(L, s0, 1, 3, sh); R(L + 1, s0 + 2, 2, 3, '#e8d36a'); } else down(L);
+      if (hi) { R(Rt, s0, 1, 2, sh); R(x + 1, hy + 4, 1, 1, sk); if (item) R(x + 2, hy + 5 - item[2], item[1], item[2], item[0]); }
+      else { down(Rt); if (item) R(Rt + 1, s0 + al + 1 - item[2], item[1], item[2], item[0]); }
+      if (a === 'smoke') R(hi ? x + 4 : Rt + 3, hi ? hy + 4 : s0 + al, 1, 1, '#ff7a2a');
+    }
     else if (a === 'dance') { if (t % 4 < 2) { up(L); down(Rt); } else { down(L); up(Rt); } }
     else { down(L); down(Rt); }
   }
@@ -1130,14 +1279,14 @@ function drawPerson(x, y, o) {
     const blink = (performance.now() / 120 | 0) % 31 === 0;
     const eye = '#2a2420';
     if (!blink) { if (f === 0) { R(x - 1, hy + 2, 1, 1, eye); R(x + 1, hy + 2, 1, 1, eye); } else R(x + f, hy + 2, 1, 1, eye); }
-    if (T.glasses) { if (f === 0) { R(x - 2, hy + 2, 2, 1, '#333'); R(x + 1, hy + 2, 2, 1, '#333'); } else R(x + (f > 0 ? 0 : -2), hy + 2, 3, 1, '#333'); }
-    if (performance.now() < bubble.until && t % 2) R(x + (f === 0 ? 0 : f), hy + 4, 1, 1, '#a33');
+    if (Lk.glasses) { if (f === 0) { R(x - 2, hy + 2, 2, 1, '#333'); R(x + 1, hy + 2, 2, 1, '#333'); } else R(x + (f > 0 ? 0 : -2), hy + 2, 3, 1, '#333'); }
+    if (!o.L && performance.now() < bubble.until && t % 2) R(x + (f === 0 ? 0 : f), hy + 4, 1, 1, '#a33');
   }
-  hair(x, hy, f, hc);
+  hair(x, hy, f, hc, Lk);
 }
-function hair(x, hy, f, hc) {
-  const st = T.style;
-  if (st === 'cap') { R(x - 2, hy - 1, 5, 2, T.cap); if (f === 0) R(x - 3, hy + 1, 7, 1, T.cap); else if (f !== 2) R(x + (f > 0 ? 1 : -4), hy + 1, 4, 1, T.cap); else R(x - 2, hy + 1, 5, 2, hc); return; }
+function hair(x, hy, f, hc, Lk) {
+  const st = Lk.style;
+  if (st === 'cap') { R(x - 2, hy - 1, 5, 2, Lk.cap); if (f === 0) R(x - 3, hy + 1, 7, 1, Lk.cap); else if (f !== 2) R(x + (f > 0 ? 1 : -4), hy + 1, 4, 1, Lk.cap); else R(x - 2, hy + 1, 5, 2, hc); return; }
   if (st === 'bald') { if (f === 2) R(x - 2, hy + 1, 5, 2, hc); else if (f === 0) { R(x - 3, hy + 1, 1, 2, hc); R(x + 3, hy + 1, 1, 2, hc); } else R(x - 2 * f, hy + 1, 1, 2, hc); return; }
   if (f === 2) { R(x - 2, hy - 1, 5, 5, hc); }
   else R(x - 2, hy - 1, 5, 2, hc);
@@ -1180,9 +1329,12 @@ function particlesStep(dtr, tick) {
   if (fx === 'records' && Math.random() < dtr * 2) parts.push({ x: OBJ.stenka.x + 8, y: fy - 24, vx: rnd(-4, 4), vy: -6, life: 1.6, k: 'note' });
   if (fx === 'cook' && Math.random() < dtr * 4) parts.push({ x: OBJ.stove.x - 4 + rnd(0, 4), y: fy - 20, vx: rnd(-1, 1), vy: -6, life: 1.2, k: 'steam' });
   if (fx === 'shower') for (let i = 0; i < 3; i++) if (Math.random() < dtr * 18) parts.push({ x: OBJ.bath.x + rnd(-1, 9), y: fy - 31, vx: 0, vy: 40, life: .7, k: 'drop' });
+  const arms = cur && cur.phase === 'do' ? P.arms : '';
+  if (arms === 'smoke' && Math.random() < dtr * 3) parts.push({ x: P.x + 3, y: P.y - T.height - 1 + (P.pose === 'sit' ? 4 : 0), vx: rnd(-1, 2), vy: -5, life: 2, k: 'puff' });
+  if (arms === 'seeds' && Math.random() < dtr * 3) parts.push({ x: P.x + rnd(-2, 3), y: P.y - 12, vx: rnd(-3, 3), vy: 14, life: .8, k: 'shell' });
   if (S.drill && Math.random() < dtr * 10) parts.push({ x: rnd(40, 330), y: FY[2] + 3, vx: rnd(-1, 1), vy: 12, life: 1.5, k: 'dust' });
   for (const p of parts) { p.x += p.vx * dtr; p.y += p.vy * dtr; p.life -= dtr; }
-  parts = parts.filter(p => p.life > 0 && p.y < (p.k === 'drop' ? fy - 9 : 999));
+  parts = parts.filter(p => p.life > 0 && p.y < (p.k === 'drop' ? fy - 9 : p.k === 'shell' ? Math.round(p.y) >= FY[floorOf(p.y)] ? -1 : 999 : 999));
   for (const p of parts) {
     const x = Math.round(p.x), y = Math.round(p.y);
     if (p.k === 'z') { R(x, y, 3, 1, '#5a6bd6'); R(x + 1, y + 1, 1, 1, '#5a6bd6'); R(x, y + 2, 3, 1, '#5a6bd6'); }
@@ -1190,6 +1342,8 @@ function particlesStep(dtr, tick) {
     if (p.k === 'steam') R(x, y, 1, 1, 'rgba(255,255,255,.8)');
     if (p.k === 'drop') R(x, y, 1, 2, '#6fb3e0');
     if (p.k === 'dust') R(x, y, 1, 1, '#9a948a');
+    if (p.k === 'puff') R(x, y, p.life > 1 ? 1 : 2, 1, 'rgba(200,200,200,.75)');
+    if (p.k === 'shell') R(x, y, 1, 1, '#333');
     if (p.k === 'heart') { R(x, y, 1, 1, '#e0436b'); R(x + 2, y, 1, 1, '#e0436b'); R(x, y + 1, 3, 1, '#e0436b'); R(x + 1, y + 2, 1, 1, '#e0436b'); }
   }
 }
@@ -1200,12 +1354,14 @@ function draw(dtr) {
   drawHouse(tick);
   const st = cur && cur.phase === 'do' ? step() : null;
   const inBed = st && st.pose === 'lie' && st.at === 'bed';
-  const seat = st && OBJ[st.at] ? (OBJ[st.at].dy || 0) : 0;
+  const at = st && (st.pickAt ? cur.pick : st.at), seat = at && OBJ[at] ? (OBJ[at].dy || 0) : 0;
   const y = P.pose === 'lie' ? (inBed ? fy - 11 : fy - 8) : P.y + (P.pose === 'sit' ? seat : 0);
   const hidden = st && st.hidden;
   chair(OBJ.desk.x, fy);
-  if (!(hidden && DOG.follow)) drawDog(tick);
-  if (!hidden) drawPerson(P.x, y, { pose: P.pose, arms: P.arms, face: P.face, frame: P.frame, walking: P.walking && cur && cur.phase === 'walk', tick });
+  if (!((hidden || P.inLift) && DOG.follow)) drawDog(tick);
+  drawNpcs(tick);
+  for (let k = 0; k < Math.min(S.shells, 12) * 2; k++) R(150 + (k * 37) % 40, fy - 1, 1, 1, '#333');
+  if (!hidden && !P.inLift) drawPerson(P.x + (S.drunk > .5 && P.walking ? Math.round(Math.sin(performance.now() / 250)) : 0), y, { pose: P.pose, arms: P.arms, face: P.face, frame: P.frame, walking: P.walking && cur && cur.phase === 'walk', tick });
   foreground();
   const bx = OBJ.bed.x;
   R(bx - 9, fy - (inBed ? 13 : 12), 26, inBed ? 5 : 3, T.blanket); R(bx - 9, fy - (inBed ? 13 : 12), 26, 1, shade(T.blanket, 1.2));
@@ -1234,7 +1390,7 @@ function updateUI(now) {
   $('doing').innerHTML = toast ? `<b>${esc(toast)}</b>` : `<b>${esc(T.name)}</b> is ${esc(label || 'thinking')}.`;
   const u = S.letters.filter(l => !l.read).length;
   $('unread').textContent = u ? u : '';
-  $('stock').textContent = `Fridge: ${S.fridge} · Dog food: ${S.dogFood} · Tonic: ${S.tonic} · Books: ${S.books.length} · Records: ${S.records}${S.parcel.length ? ` · Waiting at the door: ${S.parcel.length}` : ''}`;
+  $('stock').textContent = `Fridge: ${S.fridge} · Dog food: ${S.dogFood} · Tonic: ${S.tonic} · Cigarettes: ${S.cigs} · Rakia: ${S.shots} shots · Books: ${S.books.length} · Records: ${S.records}${S.parcel.length ? ` · Waiting at the door: ${S.parcel.length}` : ''}`;
   $('needsTitle').textContent = `How ${T.name} feels`;
   $('say').placeholder = `Type to ${T.name}, e.g. please play the piano`;
 }
@@ -1282,7 +1438,7 @@ $('mcard').addEventListener('click', e => {
   if (m === 'close') hideModal();
   if (m === 'mail') showMail();
   if (m === 'start') { audioOn(); hideModal(); started = true; }
-  if (m === 'reset') { cur = null; queued = null; CARDS = null; S = fresh((Math.random() * 2 ** 32) >>> 0); T = makeTenant(S.seed); P.x = 40; P.y = FY[0]; DOG.x = 30; DOG.y = FY[0]; DOG.follow = false; parts = []; save(); showIntro(); started = false; }
+  if (m === 'reset') { cur = null; queued = null; CARDS = null; S = fresh((Math.random() * 2 ** 32) >>> 0); T = makeTenant(S.seed); initNpcs(); P.x = 40; P.y = FY[0]; DOG.x = 30; DOG.y = FY[0]; DOG.follow = false; parts = []; save(); showIntro(); started = false; }
   if (c === 'hit') hit(); if (c === 'stand') stand(); if (c === 'deal') deal(); if (c === 'leave') closeCards();
 });
 $('modal').addEventListener('click', e => { if (e.target === $('modal') && modalClose && started) modalClose(); });
@@ -1324,7 +1480,7 @@ function frame(now) {
   if (started && now - saveAt > 10000) { saveAt = now; save(); }
   requestAnimationFrame(frame);
 }
-load(); buildNeeds(); setSpeed(1); setSound();
+load(); initNpcs(); buildNeeds(); setSpeed(1); setSound();
 if (!S.arrived && !S.letters.length) showIntro(); else started = true;
 if (S.arrived) { P.y = FY[floorOf(P.y)]; }
 window.__tt = { get S() { return S; }, get T() { return T; }, get cur() { return cur; }, sim, hear, gift, knock, phone, act: id => startAct(id), DOG, P, start: () => { hideModal(); started = true; } };
