@@ -1,0 +1,1237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tiny Tenant</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f1e7">
+<style>
+/* Layout: header with clock and mail, pixel house canvas with speech bubble, talk box, needs panel and action buttons */
+:root{
+  --paper:#f6f1e7; --panel:#fffdf8; --ink:#2b2622; --muted:#6f655b; --line:#ddd2c2;
+  --accent:#d0603a; --good:#4f9d5d; --warn:#d9a13b; --bad:#c9483b;
+  --ui:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --type:"Courier New",Courier,monospace;
+  color-scheme: light;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink)}
+body{font-family:var(--ui);font-size:16px;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:1000px;margin:0 auto;padding-block:16px 28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:12px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 20px}
+h1{font-family:var(--type);font-weight:700;font-size:clamp(26px,5vw,38px);line-height:1;margin:0;letter-spacing:-.02em}
+h1 span{color:var(--accent)}
+.tag{margin:6px 0 0;color:var(--muted);max-width:60ch}
+.hud{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.chip{font-variant-numeric:tabular-nums;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-weight:600;white-space:nowrap}
+button{font:inherit;font-weight:600;border:1.5px solid var(--ink);background:var(--panel);color:var(--ink);border-radius:6px;padding:6px 12px;cursor:pointer;touch-action:manipulation}
+button:hover{background:#fbeee4}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.4;cursor:not-allowed;background:var(--panel)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.on{background:var(--ink);color:#fff}
+#mailBtn b{display:inline-block;min-width:1.4em;margin-left:4px;padding:0 5px;border-radius:9px;background:var(--accent);color:#fff;font-size:13px}
+#mailBtn b:empty{display:none}
+.stage{position:relative;border:3px solid var(--ink);border-radius:8px;overflow:hidden;background:#cfe6f2;aspect-ratio:320/200;user-select:none;-webkit-user-select:none}
+#c{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;cursor:pointer;touch-action:manipulation}
+.bubble{position:absolute;transform:translate(-50%,-100%);background:#fff;border:2px solid var(--ink);border-radius:10px;padding:4px 9px;font-size:clamp(12px,1.8vw,15px);font-weight:600;max-width:46%;width:max-content;text-align:center;pointer-events:none;box-shadow:0 2px 0 rgba(0,0,0,.15)}
+.bubble::after{content:"";position:absolute;left:50%;bottom:-8px;margin-left:-6px;border:6px solid transparent;border-top-color:var(--ink);border-bottom:0}
+.bubble[hidden]{display:none}
+.doing{margin:0;color:var(--muted);min-height:1.3em}
+.doing b{color:var(--ink)}
+form.talk{display:flex;gap:8px}
+form.talk input{flex:1;min-width:0;font:inherit;font-size:16px;padding:8px 10px;border:1.5px solid var(--ink);border-radius:6px;background:#fff;color:var(--ink)}
+.panels{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:12px}
+@media (max-width:700px){.panels{grid-template-columns:1fr}}
+section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+section h3{margin:0 0 8px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+section h3:not(:first-child){margin-top:12px}
+.need{display:grid;grid-template-columns:74px 1fr;align-items:center;gap:8px;margin:5px 0;font-size:14px}
+.bar{height:10px;border-radius:5px;background:#ece4d6;overflow:hidden}
+.bar i{display:block;height:100%;width:50%;background:var(--good);transition:width .3s}
+.row{display:flex;flex-wrap:wrap;gap:6px}
+.row button{font-size:15px}
+.stock{font-size:13px;color:var(--muted);margin:6px 0 0}
+.help{font-size:14px;color:var(--muted);margin:0}
+.modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(246,241,231,.82);z-index:10}
+.modal[hidden]{display:none}
+.card{background:var(--panel);border:2px solid var(--ink);border-radius:10px;padding:18px 20px;max-width:480px;width:100%;max-height:calc(100vh - 32px);overflow:auto;box-shadow:0 5px 0 rgba(43,38,34,.2)}
+.card h2{font-family:var(--type);margin:0 0 8px;font-size:22px}
+.card p{margin:0 0 12px;color:var(--muted)}
+.card .row{justify-content:flex-end;margin-top:12px}
+.letter{font-family:var(--type);white-space:pre-wrap;background:#fff;border:1px solid var(--line);padding:16px;line-height:22px;font-size:15px;color:#222;background-image:repeating-linear-gradient(transparent 0 21px,#eef1f6 21px 22px);background-position:0 16px}
+.mail{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.mail button{width:100%;text-align:left;font-weight:400;display:flex;justify-content:space-between;gap:10px}
+.mail button.unread{font-weight:700;border-color:var(--accent)}
+.mail small{color:var(--muted);white-space:nowrap}
+.hand{display:flex;gap:6px;margin:6px 0 12px;min-height:62px;flex-wrap:wrap}
+.pc{width:42px;height:60px;border:1.5px solid var(--ink);border-radius:5px;background:#fff;display:flex;flex-direction:column;justify-content:space-between;padding:3px 5px;font-weight:700;font-size:16px}
+.pc.red{color:#c0392b}
+.pc span:last-child{align-self:flex-end}
+.pc.back{background:repeating-linear-gradient(45deg,var(--accent) 0 4px,#f3c8b4 4px 8px)}
+.say{font-weight:600;color:var(--ink);min-height:1.4em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Tiny<span>Tenant</span></h1>
+      <p class="tag">Someone lives in your computer. Watch them, talk to them, send parcels and read their letters.</p>
+    </div>
+    <div class="hud">
+      <span class="chip" id="clock">Day 1 · 09:00</span>
+      <span class="chip" id="mood">Content</span>
+      <button id="mailBtn" type="button">Mail<b id="unread"></b></button>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="c" width="320" height="200" aria-label="The house"></canvas>
+    <div class="bubble" id="bubble" hidden></div>
+  </div>
+  <p class="doing" id="doing"></p>
+
+  <form class="talk" id="talk" autocomplete="off">
+    <input id="say" maxlength="80" placeholder="Type something, e.g. please play the piano" aria-label="Say something">
+    <button class="primary" type="submit">Say</button>
+  </form>
+
+  <div class="panels">
+    <section>
+      <h3 id="needsTitle">How they feel</h3>
+      <div id="needs"></div>
+    </section>
+    <section>
+      <h3>Visit</h3>
+      <div class="row">
+        <button type="button" data-do="knock">Knock</button>
+        <button type="button" data-do="phone">Phone</button>
+        <button type="button" data-do="cards">Play 21</button>
+      </div>
+      <h3>Send a parcel</h3>
+      <div class="row">
+        <button type="button" data-gift="food">Groceries</button>
+        <button type="button" data-gift="dogfood">Dog food</button>
+        <button type="button" data-gift="book">Book</button>
+        <button type="button" data-gift="record">Record</button>
+        <button type="button" data-gift="tonic">Tonic</button>
+      </div>
+      <p class="stock" id="stock"></p>
+      <h3>Options</h3>
+      <div class="row">
+        <button type="button" data-speed="0">Pause</button>
+        <button type="button" data-speed="1">1×</button>
+        <button type="button" data-speed="4">4×</button>
+        <button type="button" data-speed="15">15×</button>
+        <button type="button" id="soundBtn">Sound on</button>
+        <button type="button" id="newBtn">New tenant</button>
+      </div>
+      <p class="help" style="margin-top:10px">Tap the tenant to give them a pat. Asking nicely works better.</p>
+    </section>
+  </div>
+</div>
+
+<div class="modal" id="modal" hidden><div class="card" id="mcard" role="dialog" aria-modal="true"></div></div>
+
+<script>
+'use strict';
+// ---------- helpers ----------
+const W = 320, H = 200;
+const cv = document.getElementById('c'), g = cv.getContext('2d');
+g.imageSmoothingEnabled = false;
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = (arr, r = Math.random) => arr[Math.floor(r() * arr.length)];
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function R(x, y, w, h, c) { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w, h); }
+const hsl = (h, s, l) => `hsl(${h|0},${s|0}%,${l|0}%)`;
+function shade(hex, k) {
+  const n = parseInt(hex.slice(1), 16);
+  const f = v => clamp(Math.round(v * k), 0, 255);
+  return '#' + ((1 << 24) + (f(n >> 16) << 16) + (f(n >> 8 & 255) << 8) + f(n & 255)).toString(16).slice(1);
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ---------- the tenant: everything about them comes from one seed ----------
+const NAMES = ['Sam','Robin','Alex','Jamie','Morgan','Casey','Jules','Charlie','Frankie','Kit','Remy','Toby','Ash','Pip','Noel','Billie','Rory','Sasha','Max','Lou','Andy','Ziggy','Tess','Hugo','Ida','Otto','Mina','Felix','Nell','Arlo','Wren','Bea'];
+const DOGS = ['Biscuit','Pepper','Noodle','Waffle','Pickle','Mochi','Bean','Turnip','Scout','Pretzel','Domino','Crumpet','Fig','Socks'];
+const SKIN = ['#f3d3b5','#e8b48e','#c98e66','#a26a45','#7a4b2e','#f7e0cc'];
+const HAIR = ['#2b1d14','#5a3a22','#8a5a2b','#c98f3e','#e2c26a','#b23a1f','#7a7a7a','#ebe5d3','#1c1c2a'];
+const SHIRT = ['#d9534f','#3e7cb1','#4caf7a','#e6a23c','#8e5bb5','#e46aa0','#2f9c95','#e7c63f','#6c7a89'];
+const PANTS = ['#33415c','#5b4636','#3a3a3a','#6b7d4a','#7b5e9a','#3c5a78'];
+const STYLES = ['short','long','bald','curly','pony','cap','spiky'];
+const FOODS = ['pancakes','soup','noodles','cheese toast','curry','an omelette','stew','pie','dumplings','a sandwich'];
+const DOGCOL = ['#c8935a','#eee5d5','#5a4032','#2e2a28','#d9b26f','#a35b33'];
+const ADJ = ['Quiet','Velvet','Paper','Copper','Midnight','Sleepy','Little','Crooked','Golden','Rainy','Upside-down','Humming','Lost','Silver'];
+const NOUN = ['Kettle','Lighthouse','Teaspoon','Comet','Umbrella','Garden','Staircase','Radio','Pebble','Orchard','Sock','Tortoise','Clock','Moon'];
+const TRAITS = ['music','books','fitness','tv','social','appetite','sleepy','tidy'];
+const HOBBY = {
+  music: 'tinkling away at the piano', books: 'curling up with a good book', fitness: 'jumping jacks before breakfast',
+  tv: 'a good programme on the telly', social: 'writing letters and chatting on the phone', appetite: 'cooking big dinners',
+  sleepy: 'long, long naps', tidy: 'a clean bathroom and a hot shower'
+};
+
+function makeTenant(seed) {
+  const r = mulberry(seed);
+  const t = {
+    seed, name: pick(NAMES, r), dog: pick(DOGS, r), skin: pick(SKIN, r), hair: pick(HAIR, r), style: pick(STYLES, r),
+    shirt: pick(SHIRT, r), pants: pick(PANTS, r), glasses: r() < .3, height: 17 + Math.floor(r() * 3),
+    voice: 170 + r() * 230, food: pick(FOODS, r), dogCol: pick(DOGCOL, r), tr: {}
+  };
+  for (const k of TRAITS) t.tr[k] = +(0.5 + r() * 0.9).toFixed(2);
+  t.fav = pick(TRAITS, r); t.tr[t.fav] = 1.8;
+  t.cap = shade(t.shirt, .7);
+  // house: wallpaper per room, sofa, blanket, book spines, wall pictures
+  t.rooms = Array.from({ length: 8 }, () => ({ h: r() * 360, s: 30 + r() * 30, l: 82 + r() * 7, p: Math.floor(r() * 4) }));
+  t.rooms[7] = { h: 35, s: 25, l: 84, p: 0 };
+  t.outside = pick(['#c97a5b','#d9ae6c','#93b7cc','#a9c38c','#e2cfaa','#bba3cc'], r);
+  t.roof = pick(['#7d3b2e','#4a5a6b','#5b4a3c','#3e5b49'], r);
+  t.sofa = pick(SHIRT, r); t.blanket = pick(SHIRT, r);
+  t.spines = Array.from({ length: 40 }, () => hsl(r() * 360, 45, 45));
+  t.art = Array.from({ length: 8 }, () => [hsl(r() * 360, 50, 60), hsl(r() * 360, 50, 45), r()]);
+  t.songR = Math.floor(r() * 1e9);
+  return t;
+}
+function songName(i) {
+  const r = mulberry(T.songR + i * 7919);
+  return `${pick(['Waltz','Ballad','Rag','Nocturne','March','Lullaby','Polka','Song'], r)} of the ${pick(ADJ, r)} ${pick(NOUN, r)}`;
+}
+function bookTitle() {
+  const a = pick(ADJ), n = pick(NOUN), n2 = pick(NOUN);
+  return pick([`The ${a} ${n}`, `${n}s at Midnight`, `A Field Guide to ${n}s`, `The ${n} and the ${n2}`, `Notes from a ${a} ${n}`, `Forty ${n}s`]);
+}
+
+// ---------- house layout ----------
+const FY = [186, 138, 90]; // feet line per floor: ground, middle, top
+const OBJ = {
+  door: { f: 0, x: 28 }, sofa: { f: 0, x: 62, dy: -4 }, tv: { f: 0, x: 100 }, dogbed: { f: 0, x: 122 }, bowl: { f: 0, x: 134 },
+  table: { f: 0, x: 160, dy: -3 }, fridge: { f: 0, x: 190 }, stove: { f: 0, x: 212 }, ksink: { f: 0, x: 234 },
+  desk: { f: 1, x: 36, dy: -3 }, shelf: { f: 1, x: 64 }, armchair: { f: 1, x: 88, dy: -4 }, phone: { f: 1, x: 112 },
+  piano: { f: 1, x: 152, dy: -3 }, records: { f: 1, x: 200 },
+  bed: { f: 2, x: 44 }, wardrobe: { f: 2, x: 86 }, shower: { f: 2, x: 138 }, bsink: { f: 2, x: 164 }, mat: { f: 2, x: 214 }
+};
+const ROOMS = [[0, 16, 138], [0, 138, 250], [1, 16, 126], [1, 126, 250], [2, 16, 118], [2, 118, 182], [2, 182, 250]];
+const WINDOWS = [{ f: 0, x: 120, w: 14 }, { f: 0, x: 234, w: 12 }, { f: 1, x: 112, w: 14 }, { f: 1, x: 176, w: 14 }, { f: 2, x: 44, w: 16 }, { f: 2, x: 236, w: 12 }];
+const STAIR = f => f % 2 === 0 ? [256, 292] : [292, 256]; // [bottom x, top x] of the flight from floor f up to f+1
+const floorOf = y => { let b = 0; for (let i = 1; i < 3; i++) if (Math.abs(FY[i] - y) < Math.abs(FY[b] - y)) b = i; return b; };
+const onFloor = y => FY.some(v => Math.abs(v - y) < .01);
+
+function route(x, y, f2, x2) {
+  const pts = []; let f = floorOf(y);
+  while (f !== f2) {
+    if (f2 > f) { const [b, t] = STAIR(f); pts.push({ x: b, y: FY[f] }, { x: t, y: FY[f + 1], climb: 1 }); f++; }
+    else { const [b, t] = STAIR(f - 1); pts.push({ x: t, y: FY[f] }, { x: b, y: FY[f - 1], climb: 1 }); f--; }
+  }
+  pts.push({ x: x2, y: FY[f2] });
+  return pts;
+}
+
+// ---------- state ----------
+const SAVE = 'tinytenant-v1';
+let T, S, cur = null, queued = null, CARDS = null, speed = 1;
+const P = { x: 28, y: FY[0], face: 0, pose: 'stand', arms: 'down', frame: 0, dist: 0, walking: false };
+const DOG = { x: 40, face: 1, state: 'sit', tx: 40, t: 5, dist: 0 };
+let parts = [], bubble = { text: '', until: 0 }, ringing = null, toast = '';
+
+function fresh(seed) {
+  return {
+    v: 1, seed, t: 9 * 60, arrived: false,
+    needs: { food: 75, water: 75, energy: 85, fun: 65, clean: 80, social: 55, health: 100 },
+    fridge: 4, dogFood: 6, bowl: 1, tonic: 1, dogHunger: .2,
+    books: [bookTitle(), bookTitle(), bookTitle()], newBooks: [], records: 1, skill: 0, song: 0,
+    parcel: [], letters: [], log: [], reqs: [], pets: [], knocks: [], player: '', wins: { you: 0, them: 0 },
+    lastLetter: 0, recent: [], pos: { x: 28, y: FY[0] }
+  };
+}
+function load() {
+  const q = new URLSearchParams(location.search);
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(SAVE)); } catch (e) {}
+  if (q.has('seed')) s = fresh(parseInt(q.get('seed'), 10) >>> 0);
+  if (!s || s.v !== 1) s = fresh((Math.random() * 2 ** 32) >>> 0);
+  S = s; T = makeTenant(S.seed);
+  P.x = S.pos.x; P.y = onFloor(S.pos.y) ? S.pos.y : FY[floorOf(S.pos.y)];
+  DOG.x = P.x + 12;
+}
+function save() {
+  S.pos = { x: P.x, y: onFloor(P.y) ? P.y : FY[floorOf(P.y)] };
+  try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch (e) {}
+}
+const hour = () => (S.t % 1440) / 60;
+const isNight = () => { const h = hour(); return h >= 22 || h < 6.5; };
+const asleep = () => cur && (cur.id === 'sleep' || cur.id === 'nap') && cur.phase === 'do';
+function mood() { const n = S.needs; return (n.food + n.water + n.energy + n.fun + n.clean + n.social) / 6 * .7 + n.health * .3; }
+function bump(k, v) { S.needs[k] = clamp(S.needs[k] + v, 0, 100); }
+function log(k, d) { S.log.push({ t: S.t, k, d }); if (S.log.length > 40) S.log.shift(); }
+
+// ---------- activities ----------
+// Each activity is a list of steps: walk to a spot, hold a pose for t game minutes, apply needs gains spread over that time.
+const ACTS = {
+  eat: { ok: () => S.fridge > 0, no: 'The fridge is empty!', est: { food: 65, fun: 4 }, aff: 'appetite', quips: () => [`Time for ${T.food}.`, 'My tummy is rumbling.'],
+    steps: [
+      { at: 'fridge', t: 3, face: 2, fx: 'fridge', label: 'raiding the fridge', begin: () => { S.fridge--; } },
+      { at: 'stove', t: 14, face: 2, fx: 'cook', label: () => `cooking ${T.food}` },
+      { at: 'table', t: 18, pose: 'sit', arms: 'mouth', fx: 'eat', gain: { food: 65, fun: 4 }, label: () => `eating ${T.food}` }] },
+  drink: { est: { water: 55 }, quips: () => ['Thirsty work, all this.'],
+    steps: [{ at: 'ksink', t: 4, face: 0, arms: 'mouth', gain: { water: 55 }, label: 'having a glass of water' }] },
+  sleep: { est: () => ({ energy: 100 - S.needs.energy }), aff: 'sleepy', quips: () => ['Bedtime.', '*yawn*'],
+    steps: [{ at: 'bsink', t: 4, face: 2, gain: { clean: 8 }, label: 'brushing their teeth' },
+      { at: 'bed', t: () => clamp((100 - S.needs.energy) / .2 + 30, 40, 600), pose: 'lie', fx: 'sleep', rate: { energy: .2, health: .02 }, label: 'asleep',
+        until: () => S.needs.energy > 97 && !isNight() }] },
+  nap: { est: { energy: 18 }, aff: 'sleepy', quips: () => ['Just resting my eyes…'],
+    steps: [{ at: 'sofa', t: 50, pose: 'lie', fx: 'sleep', rate: { energy: .36 }, label: 'napping on the sofa' }] },
+  shower: { est: { clean: 85, fun: 3 }, aff: 'tidy', quips: () => ['I could do with a wash.'],
+    steps: [{ at: 'shower', t: 14, face: 0, fx: 'shower', gain: { clean: 85, fun: 3 }, label: 'taking a shower' }] },
+  tv: { est: { fun: 30, energy: -3 }, aff: 'tv', quips: () => ['Anything good on?'],
+    steps: [{ at: 'sofa', t: 45, pose: 'sit', fx: 'tv', gain: { fun: 30, energy: -3 }, label: 'watching TV' }] },
+  piano: { est: { fun: 34 }, aff: 'music', quips: () => ['Let me practise.', 'I think I have it now…'],
+    steps: [{ at: 'piano', t: 40, pose: 'sit', face: 2, arms: 'forward', fx: 'piano', gain: { fun: 34 }, label: () => `playing “${songName(S.song)}” on the piano`,
+      end: () => { S.skill++; log('piano', songName(S.song)); if (S.skill % 5 === 0) { S.song++; say('I learned a new tune!'); } } }] },
+  records: { ok: () => S.records > 0, est: { fun: 30, energy: -6, clean: -5 }, aff: 'music', quips: () => ['Dance break!'],
+    steps: [{ at: 'records', t: 2, face: 2, label: 'putting on a record' },
+      { at: 'records', dx: -22, t: 28, face: 0, arms: 'dance', fx: 'records', gain: { fun: 30, energy: -6, clean: -5 }, label: 'dancing to a record', end: () => log('dance') }] },
+  read: { est: { fun: 26, energy: -2 }, aff: 'books', quips: () => ['Where was I…'],
+    steps: [{ at: 'shelf', t: 2, face: 2, label: 'choosing a book', begin: () => { cur.isNew = S.newBooks.length > 0; cur.book = S.newBooks.shift() || pick(S.books); } },
+      { at: 'armchair', t: 50, pose: 'sit', arms: 'book', gain: { fun: 26, energy: -2 }, label: () => `reading “${cur.book}”`, end: () => log('read', cur.book) }] },
+  type: { est: { social: 22, fun: 6 }, aff: 'social', quips: () => ['I should write to you.'],
+    steps: [{ at: 'desk', t: 30, pose: 'sit', face: 2, arms: 'forward', fx: 'type', gain: { social: 22, fun: 6 }, label: 'typing a letter to you', end: () => writeLetter() }] },
+  exercise: { est: { fun: 10, energy: -12, clean: -18, health: 4 }, aff: 'fitness', quips: () => ["Let's get moving!"],
+    steps: [{ at: 'mat', t: 25, pose: 'jump', arms: 'jacks', gain: { fun: 10, energy: -12, clean: -18, health: 4 }, label: 'doing jumping jacks', end: () => log('exercise') }] },
+  call: { est: { social: 26 }, aff: 'social', quips: () => ['I should ring someone.'],
+    steps: [{ at: 'phone', t: 14, face: 0, arms: 'ear', fx: 'talk', gain: { social: 26 }, label: 'phoning a friend', lines: ['Hello? It\'s me!', 'Oh, the usual…', 'Ha ha ha!', 'Talk soon, bye!'] }] },
+  feedDog: { ok: () => S.dogFood > 0, no: 'There\'s no dog food left.', est: {}, quips: () => [`Dinner time, ${T.dog}!`],
+    steps: [{ at: 'bowl', dx: 6, t: 4, face: -1, arms: 'down', label: () => `feeding ${T.dog}`, end: () => { S.dogFood--; S.bowl = 1; } }] },
+  petDog: { est: { fun: 8, social: 10 }, quips: () => [`Here, ${T.dog}!`],
+    steps: [{ at: 'dog', t: 6, arms: 'down', gain: { fun: 8, social: 10 }, label: () => `playing with ${T.dog}`,
+      begin: () => { DOG.state = 'held'; DOG.t = 6; DOG.face = P.x > DOG.x ? 1 : -1; P.face = -DOG.face; heart(DOG.x, FY[0] - 8); } }] },
+  window: { est: { fun: 6 }, quips: () => [isNight() ? 'Look at all those stars.' : 'Nice day out there.'],
+    steps: [{ at: 'window', t: 10, face: 2, gain: { fun: 6 }, label: 'looking out of the window' }] },
+  greet: { est: { social: 8 }, quips: () => ['Hello? Anyone out there?'],
+    steps: [{ at: 'here', t: 6, face: 0, arms: 'wave', gain: { social: 8 }, label: 'waving at you' }] },
+  collect: { ok: () => S.parcel.length > 0, est: {}, quips: () => ['A parcel!'],
+    steps: [{ at: 'door', dx: 10, t: 4, face: 0, label: 'opening a parcel', end: () => openParcels() }] },
+  tonic: { ok: () => S.tonic > 0 && S.needs.health < 70, est: { health: 45 }, quips: () => ['Medicine time. Yuck.'],
+    steps: [{ at: 'ksink', t: 3, arms: 'mouth', label: 'drinking tonic', end: () => { S.tonic--; bump('health', 45); log('tonic'); } }] },
+  bedrest: { ok: () => S.needs.health < 35, est: { health: 20 }, quips: () => ["I don't feel well…"],
+    steps: [{ at: 'bed', t: 120, pose: 'lie', fx: 'sleep', rate: { health: .12, energy: .15 }, label: 'resting in bed, feeling poorly' }] },
+  idle: { est: {}, quips: () => ['Hmm, hm-hmm.', 'What to do…'],
+    steps: [{ at: 'random', t: 8, face: 0, label: 'pottering about' }] },
+  cards: { manual: 1, steps: [{ at: 'table', t: 9999, pose: 'sit', label: 'playing 21 with you', until: () => !CARDS, begin: () => openCards() }] },
+  answer: { manual: 1, steps: [{ at: 'phone', t: 10, face: 0, arms: 'ear', fx: 'talk', gain: { social: 25, fun: 5 }, label: 'on the phone with you',
+    begin: () => { ringing = null; }, lines: () => ['Hello?', `Oh, ${S.player || 'it\'s you'}!`, statusLine(), 'Thanks for calling!'] }] },
+  arrive: { manual: 1, steps: [
+    { at: 'door', dx: 4, t: 2, face: 0, label: 'moving in', say: 'So this is the place!' },
+    { at: 'sofa', t: 2, face: 0, label: 'moving in' },
+    { at: 'fridge', t: 3, face: 2, fx: 'fridge', label: 'moving in', say: 'Ooh, snacks.' },
+    { at: 'piano', t: 3, face: 2, label: 'moving in', say: 'A piano!' },
+    { at: 'bed', dx: 10, t: 3, face: 0, label: 'moving in', say: 'Comfy.' },
+    { at: 'desk', t: 20, pose: 'sit', face: 2, arms: 'forward', fx: 'type', label: 'typing you a hello letter', end: () => { S.arrived = true; writeLetter('intro'); } }] }
+};
+const COMMANDS = [
+  [/piano/, 'piano'], [/\btv\b|telly|television/, 'tv'], [/\bread|book/, 'read'], [/\bnap\b/, 'nap'], [/sleep|\bbed\b|rest/, 'sleep'],
+  [/\beat|food|hungry|dinner|lunch|breakfast|cook|snack/, 'eat'], [/drink|water|thirst/, 'drink'], [/shower|bath|wash|clean/, 'shower'],
+  [/exercise|work ?out|gym|jumping|sport|stretch|\bfit/, 'exercise'], [/danc|music|record|song/, 'records'], [/write|letter|\btype/, 'type'],
+  [/feed/, 'feedDog'], [/\bdog|\bpet\b|\bwalk/, 'petDog'], [/phone|\bcall|\bring\b/, 'call'], [/window|outside|stars/, 'window'], [/tonic|medicine/, 'tonic']
+];
+
+const Wt = v => .25 + 3 * ((100 - v) / 100) ** 2;
+function aff(a) { return a.aff ? T.tr[a.aff] : 1; }
+function score(id) {
+  const a = ACTS[id], n = S.needs;
+  if (a.manual || (a.ok && !a.ok())) return -1e9;
+  const sick = n.health < 30;
+  if (sick && !['bedrest', 'tonic', 'eat', 'drink', 'collect'].includes(id)) return -1e9;
+  const est = typeof a.est === 'function' ? a.est() : a.est;
+  let s = 0;
+  for (const k in est) {
+    let gain = est[k];
+    if (k === 'fun' || k === 'social') gain *= aff(a);
+    const room = gain > 0 ? Math.min(gain, 100 - n[k]) : Math.max(gain, -n[k]);
+    s += Wt(n[k]) * room / 10;
+  }
+  if (id === 'sleep') s *= isNight() ? 2.4 : hour() >= 20 ? 1.4 : (n.energy < 20 ? 1 : .35);
+  if (id === 'nap' && (isNight() || n.energy > 40)) s *= .2;
+  if (a.aff && !((id === 'sleep' || id === 'nap') && n.energy > 60)) s += (aff(a) - 1) * 1.2;
+  if (id === 'feedDog') s = S.bowl < .3 && S.dogHunger > .35 ? 4 : -1e9;
+  if (id === 'collect') s = 5;
+  if (id === 'type') s += (S.t - S.lastLetter > 720 ? 1.5 : -4);
+  if (id === 'greet') s += n.social < 40 ? .5 : -1;
+  if (id === 'idle') s = .7;
+  if (id === 'tonic') s += 2;
+  if (isNight() && !['sleep', 'drink', 'eat', 'bedrest', 'tonic'].includes(id)) s -= 1.2;
+  if (S.request && S.request.id === id) s += 8;
+  if (S.recent.includes(id)) s -= S.recent[S.recent.length - 1] === id ? 1.5 : .6;
+  return s + Math.random() * .8;
+}
+function choose() {
+  if (S.request && S.t > S.request.until) S.request = null;
+  if (!S.arrived) return startAct('arrive');
+  let best = 'idle', bs = -1e9;
+  for (const id in ACTS) { const s = score(id); if (s > bs) { bs = s; best = id; } }
+  if (Math.random() < .22) say(pick(ACTS[best].quips()));
+  startAct(best);
+}
+const climbing = () => !onFloor(P.y);
+function startAct(id) {
+  if (climbing()) { queued = id; return; }
+  if (cur && ACTS[cur.id].cancel) ACTS[cur.id].cancel();
+  cur = { id, i: 0, phase: 'walk', path: [], left: 0, rate: null };
+  setLoop(null);
+  startStep();
+}
+function step() { return cur.steps ? cur.steps[cur.i] : ACTS[cur.id].steps[cur.i]; }
+function target(st) {
+  if (st.at === 'here') return { f: floorOf(P.y), x: P.x };
+  if (st.at === 'dog') return { f: 0, x: clamp(DOG.x + (P.x > DOG.x ? 9 : -9), 22, 246) };
+  if (st.at === 'window') { const w = cur.win || (cur.win = pick(WINDOWS)); return { f: w.f, x: w.x }; }
+  if (st.at === 'random') { const r = cur.rnd || (cur.rnd = { f: Math.floor(Math.random() * 3), x: rnd(24, 244) }); return r; }
+  const o = OBJ[st.at]; return { f: o.f, x: o.x + (st.dx || 0) };
+}
+function startStep() {
+  const tg = target(step());
+  cur.path = route(P.x, P.y, tg.f, tg.x);
+  cur.phase = 'walk'; P.pose = 'stand'; P.arms = 'down';
+}
+function beginStep(st) {
+  cur.phase = 'do'; P.walking = false;
+  P.face = st.face ?? 0; P.pose = st.pose || 'stand'; P.arms = st.arms || 'down';
+  cur.left = typeof st.t === 'function' ? st.t() : st.t;
+  cur.rate = {};
+  if (st.gain) for (const k in st.gain) cur.rate[k] = st.gain[k] / cur.left * (k === 'fun' || k === 'social' ? aff(ACTS[cur.id]) : 1) * (cur.isNew && k === 'fun' ? 1.5 : 1);
+  if (st.rate) Object.assign(cur.rate, st.rate);
+  cur.lines = typeof st.lines === 'function' ? st.lines() : st.lines;
+  cur.total = cur.left; cur.line = -1;
+  if (st.begin) st.begin();
+  if (st.say) say(st.say);
+  setLoop(st.fx || null);
+}
+function finishAct() {
+  S.recent.push(cur.id); if (S.recent.length > 4) S.recent.shift();
+  if (S.request && S.request.id === cur.id) S.request = null;
+  cur = null; setLoop(null); P.pose = 'stand'; P.arms = 'down';
+}
+function runAct(dt) {
+  const st = step();
+  if (cur.phase === 'walk') { walk(dt); if (cur && cur.phase === 'walk' && !cur.path.length) beginStep(st); return; }
+  cur.left -= dt;
+  for (const k in cur.rate) bump(k, cur.rate[k] * dt);
+  if (cur.lines) { const li = Math.floor((1 - cur.left / cur.total) * cur.lines.length); if (li !== cur.line && li < cur.lines.length) { cur.line = li; say(cur.lines[li]); } }
+  if (st.until && st.until()) cur.left = 0;
+  if (cur.left <= 0) {
+    if (st.end) st.end();
+    if (!cur) return;
+    cur.i++;
+    if (cur.i >= ACTS[cur.id].steps.length) finishAct(); else startStep();
+  }
+}
+function walk(dt) {
+  const sick = S.needs.health < 35 ? .6 : 1;
+  let budget = dt * 24 * sick;
+  while (budget > 0 && cur.path.length) {
+    const p = cur.path[0], dx = p.x - P.x, dy = p.y - P.y, d = Math.hypot(dx, dy);
+    const sp = p.climb ? .6 : 1;
+    if (Math.abs(dx) > .1) P.face = dx > 0 ? 1 : -1;
+    P.walking = true;
+    const m = Math.min(d, budget * sp);
+    if (d > 0) { P.x += dx / d * m; P.y += dy / d * m; }
+    budget -= m / sp; P.dist += m;
+    if (m >= d - 1e-6) {
+      P.x = p.x; P.y = p.y; cur.path.shift();
+      if (queued && onFloor(P.y)) { const q = queued; queued = null; startAct(q); return; }
+    }
+  }
+  const fr = Math.floor(P.dist / 3);
+  if (fr !== P.frame) { P.frame = fr; if (fr % 2 === 0) footstep(); }
+}
+
+// ---------- needs, dog, time ----------
+function decay(dt) {
+  const n = S.needs, z = asleep(), tr = T.tr;
+  bump('food', -dt * (z ? .03 : .075 * Math.sqrt(tr.appetite)));
+  bump('water', -dt * (z ? .04 : .11));
+  if (!z) bump('energy', -dt * .065 * Math.sqrt(tr.sleepy));
+  if (!z) bump('fun', -dt * .15);
+  bump('clean', -dt * (z ? .01 : .045 * Math.sqrt(tr.tidy)));
+  if (!z) bump('social', -dt * .06 * Math.sqrt(tr.social));
+  if (n.food < 10 || n.water < 10) bump('health', -dt * .08);
+  else if (n.energy < 5) bump('health', -dt * .03);
+  else if (n.food > 40 && n.water > 40) bump('health', dt * .01);
+  if (n.health < 30 && !S.flagSick) { S.flagSick = 1; log('sick'); }
+  if (n.health > 60) S.flagSick = 0;
+}
+function dogDecide() {
+  const go = (x, state, t) => { DOG.tx = clamp(x, 22, 246); DOG.next = state; DOG.t = t; DOG.state = 'walk'; };
+  if (S.dogHunger > .5) return go(OBJ.bowl.x - 7, S.bowl > .05 ? 'eat' : 'beg', S.bowl > .05 ? 6 : 30);
+  if (isNight() || Math.random() < .2) return go(OBJ.dogbed.x, 'sleep', rnd(60, 180));
+  if (floorOf(P.y) === 0 && onFloor(P.y) && Math.random() < .5) return go(P.x + (Math.random() < .5 ? -11 : 11), 'sit', rnd(15, 40));
+  go(rnd(26, 244), 'sit', rnd(10, 40));
+}
+function dogUpdate(dt) {
+  S.dogHunger = clamp(S.dogHunger + dt * .0011, 0, 1);
+  DOG.t -= dt;
+  if (DOG.state === 'walk') {
+    const dx = DOG.tx - DOG.x, m = Math.min(Math.abs(dx), dt * 20);
+    if (Math.abs(dx) > .1) DOG.face = dx > 0 ? 1 : -1;
+    DOG.x += Math.sign(dx) * m; DOG.dist += m;
+    if (Math.abs(DOG.tx - DOG.x) < .1) DOG.state = DOG.next;
+  } else if (DOG.t <= 0) {
+    if (DOG.state === 'eat') { S.bowl = Math.max(0, S.bowl - .5); S.dogHunger = 0; }
+    if (DOG.state === 'beg' && Math.random() < .5) bark();
+    if (DOG.state === 'sleep' && isNight()) DOG.t = 30; else dogDecide();
+  }
+}
+function sim(dt) {
+  while (dt > 0) {
+    const s = Math.min(dt, .5); dt -= s;
+    S.t += s;
+    decay(s); dogUpdate(s);
+    if (!cur) choose(); else runAct(s);
+    if (ringing && S.t > ringing.until) { ringing = null; if (!asleep()) log('missed-call'); }
+  }
+}
+
+// ---------- talking ----------
+function say(text, secs = 3.2) {
+  bubble = { text, until: performance.now() + secs * 1000 + text.length * 40 };
+  voice(text);
+}
+function statusLine() {
+  const n = S.needs, worst = Object.keys(n).reduce((a, b) => n[a] < n[b] ? a : b);
+  if (n[worst] > 70) return pick(["I'm doing great, thanks!", 'Never better!', 'Pretty good, actually.']);
+  return {
+    food: S.fridge ? "I'm getting hungry." : "I'm hungry and the fridge is empty.", water: 'I could use a drink.', energy: "I'm so sleepy.",
+    fun: "I'm a bit bored.", clean: 'I really need a shower.', social: "It's been lonely here.", health: "I don't feel so good."
+  }[worst];
+}
+function hear(raw) {
+  const t = raw.toLowerCase().trim();
+  if (!t) return;
+  audioOn();
+  const polite = /\b(please|pls|plz)\b/.test(t);
+  if (!S.arrived) return say("Just a moment, I'm still moving in!");
+  if (asleep()) {
+    if (raw === raw.toUpperCase() && /[A-Z]/.test(raw)) { wake(); bump('fun', -8); say('WHAT? I was asleep!'); log('woken'); }
+    else say('Zzz…');
+    return;
+  }
+  let m;
+  if ((m = raw.match(/(?:my name is|i am|i'm|call me)\s+([a-z][a-z'-]{1,15})/i)) && !/\b(hungry|tired|sorry|bored|fine|ok|okay|good|sad|here|back)\b/i.test(m[1])) {
+    S.player = cap(m[1].toLowerCase()); bump('social', 5); return say(`Nice to meet you, ${S.player}!`);
+  }
+  if (/what'?s your name|what is your name|who are you/.test(t)) return say(`I'm ${T.name}. And this is ${T.dog}.`);
+  if (/how are you|how do you feel|you ok|how'?s it going/.test(t)) return say(statusLine());
+  if (/stupid|idiot|hate you|ugly|dumb|shut up|boring/.test(t)) { bump('fun', -15); bump('social', -10); log('rude'); return say("That wasn't very nice."); }
+  if (/love you|you'?re (great|nice|cool|lovely|the best)|good (boy|girl|job)/.test(t)) { bump('social', 8); bump('fun', 4); log('nice'); return say('Aw, shucks.'); }
+  if (/\b(cards|21|blackjack|game)\b/.test(t)) return askCards(polite);
+  for (const [re, id] of COMMANDS) if (re.test(t)) return request(id, polite);
+  if (/thank/.test(t)) { bump('social', 3); return say("You're welcome!"); }
+  if (/\b(hi|hello|hey|howdy|hiya|good (morning|afternoon|evening))\b/.test(t)) { bump('social', 4); startAct('greet'); return say(`Hello${S.player ? ', ' + S.player : ''}!`); }
+  if (/\b(bye|good ?night|see you)\b/.test(t)) return say(isNight() ? 'Night night!' : 'Bye for now!');
+  say(pick(['Hmm?', "Sorry, I don't follow.", 'Was that a word?', 'Could you say that another way?']));
+}
+function canDo(id) {
+  const a = ACTS[id], n = S.needs;
+  if (a.ok && !a.ok()) { say(a.no || "I can't do that right now."); return false; }
+  if (n.health < 30 && !['sleep', 'bedrest', 'eat', 'drink', 'tonic'].includes(id)) { say("I'm not feeling well enough."); return false; }
+  if (n.energy < 12 && !['sleep', 'nap', 'eat', 'drink'].includes(id)) { say("I'm far too tired."); return false; }
+  if (n.food < 12 && !['eat', 'drink'].includes(id)) { say("I'm starving, I can't think straight."); return false; }
+  return true;
+}
+function willing(id, polite) {
+  S.reqs = S.reqs.filter(x => S.t - x < 120); S.reqs.push(S.t);
+  const a = ACTS[id];
+  const p = .2 + mood() / 100 * .5 + (polite ? .32 : 0) - (S.reqs.length - 1) * .12 + (aff(a) - 1) * .2;
+  return Math.random() < p;
+}
+function request(id, polite) {
+  if (id === 'sleep' && !isNight() && S.needs.energy > 50) id = 'nap';
+  if (cur && cur.id === id) return say("I'm already on it!");
+  if (!canDo(id)) return;
+  if (willing(id, polite)) {
+    say(pick(polite ? ['Of course!', 'Happy to!', 'Sure thing.', 'What a nice idea.'] : ['Okay…', 'Fine, fine.', 'If I must.']));
+    S.request = { id, until: S.t + 60 };
+    startAct(id);
+  } else say(polite ? pick(['Maybe later.', 'Not right now, thanks.', "I'd rather not just now."]) : pick(['Say please!', 'Hmph. Ask nicely.', 'No thanks.']));
+}
+function wake() { if (asleep()) { finishAct(); } }
+
+// ---------- visitor actions ----------
+function knock() {
+  audioOn(); sfxKnock(); setTimeout(bark, 500);
+  if (!S.arrived) return say("Hang on, I'm still unpacking!");
+  S.knocks = S.knocks.filter(x => S.t - x < 30); S.knocks.push(S.t);
+  if (asleep()) { wake(); bump('fun', -10); log('woken'); say(isNight() ? "Wha—? It's the middle of the night!" : 'Hey, I was napping!'); return; }
+  if (S.knocks.length > 3) { bump('fun', -3); return say('Yes, yes, I heard you!'); }
+  bump('social', 6);
+  if (cur && cur.id === 'cards') return;
+  startAct('greet'); say(pick(["Who's there?", 'Oh! Hello!', 'Is someone out there?']));
+}
+function phone() {
+  audioOn();
+  if (ringing || !S.arrived) return;
+  ringing = { until: S.t + 14 };
+  if (cur && cur.id === 'cards') return;
+  if (asleep()) {
+    if (Math.random() < .5) { wake(); bump('fun', -8); log('woken'); say('Mmph… coming…'); startAct('answer'); }
+    return;
+  }
+  if (S.needs.health < 30) return;
+  setTimeout(() => { if (ringing && (!cur || cur.id !== 'answer')) { log('call'); startAct('answer'); } }, 900);
+}
+function askCards(polite) {
+  if (!S.arrived) return say("Let me unpack first!");
+  if (cur && cur.id === 'cards') return;
+  if (asleep()) return say('Zzz…');
+  if (!canDo('idle')) return;
+  if (willing('idle', polite) || polite) { say(pick(['Ooh, cards! Deal me in.', "You're on!"])); startAct('cards'); }
+  else say("Not now. Ask me nicely?");
+}
+function pat() {
+  if (asleep()) return say('Mmf…');
+  S.pets = S.pets.filter(x => S.t - x < 30); S.pets.push(S.t);
+  heart(P.x, P.y - T.height - 4);
+  if (S.pets.length > 4) { bump('fun', -2); return say(pick(['Okay, okay!', "That's enough now."])); }
+  bump('social', 6); bump('fun', 3);
+  if (S.pets.length === 1) log('pet');
+  say(pick(['Hehe!', 'That tickles!', ':)', 'Aww.']));
+}
+const GIFTS = {
+  food: { name: 'Groceries' }, dogfood: { name: 'Dog food' }, book: { name: 'A book' }, record: { name: 'A record' }, tonic: { name: 'Tonic' }
+};
+function gift(kind) {
+  audioOn();
+  if (S.parcel.length >= 6) { toast = 'The doorstep is full. Wait for them to open what’s there.'; return; }
+  S.parcel.push(kind); chime();
+  toast = `${GIFTS[kind].name} left at the door.`;
+  if (!asleep() && Math.random() < .5) say('Was that the doorbell?');
+}
+function openParcels() {
+  const got = S.parcel.splice(0);
+  const lines = [];
+  for (const k of got) {
+    if (k === 'food') { S.fridge = Math.min(12, S.fridge + 4); lines.push('Groceries! Yum.'); }
+    if (k === 'dogfood') { S.dogFood = Math.min(20, S.dogFood + 6); lines.push(`Food for ${T.dog}!`); }
+    if (k === 'book') { const b = bookTitle(); S.books.push(b); S.newBooks.push(b); lines.push(`A new book! “${b}”.`); log('gift-book', b); continue; }
+    if (k === 'record') { S.records++; lines.push('A new record!'); }
+    if (k === 'tonic') { S.tonic++; lines.push('Tonic. Thoughtful.'); }
+    log('gift-' + k);
+  }
+  bump('fun', 6 * got.length); bump('social', 5 * got.length);
+  if (lines.length) say(lines[0]);
+}
+
+// ---------- letters ----------
+function writeLetter(kind) {
+  const n = S.needs, me = T.name, dog = T.dog, you = S.player || 'friend';
+  const out = [];
+  if (kind === 'intro') {
+    out.push(`Dear ${you},`, '',
+      `Hello! I've just moved into this house inside your computer. It's lovely, and the stairs are only a little steep. My name is ${me}, and the scruffy one is ${dog}.`, '',
+      `I'm very fond of ${HOBBY[T.fav]}. If you'd like me to do something, just type it in. I'm much more agreeable when people say please.`, '',
+      `If you ever pass a shop, I could use groceries now and then, and ${dog} eats like a horse.`, '',
+      'Your new tenant,', me);
+  } else {
+    out.push(pick([`Dear ${you},`, `Hello again, ${you}!`, `Dear ${you},`, `Hi ${you},`]), '');
+    const m = mood();
+    out.push(m > 75 ? pick(['Things are wonderful in the house today.', "I'm in a terrific mood, so I thought I'd write.", 'What a day! Everything is going right.'])
+      : m > 50 ? pick(['Things are fine here, nothing to complain about.', "It's been an ordinary sort of day.", 'All is well in the little house.'])
+      : m > 30 ? pick(["I'm feeling a bit flat today.", "Today hasn't been my best.", "I'll be honest, I've had better days."])
+      : pick(["I'm feeling miserable, to be honest.", 'Everything seems to be going wrong.']));
+    const ev = S.log.filter(e => e.t > S.lastLetter);
+    const said = new Set();
+    for (const e of ev.reverse()) {
+      if (said.has(e.k) || said.size >= 3) continue;
+      const line = {
+        piano: () => `I practised “${e.d}” on the piano. ${S.skill < 6 ? 'It still sounds like a cat walking on the keys.' : 'I think I nearly have it!'}`,
+        read: () => `I read a few chapters of “${e.d}”. ${pick(['I won\'t spoil the ending.', 'Gripping stuff.', 'It sent me straight to sleep.'])}`,
+        'gift-food': () => `Thank you for the groceries! I made ${T.food} and it was the best thing I've eaten all week.`,
+        'gift-book': () => `The book you sent, “${e.d}”, is wonderful. How did you know?`,
+        'gift-record': () => `The new record is on repeat. ${dog} howls along to the chorus.`,
+        'gift-tonic': () => 'Thanks for the tonic. It tastes awful, but it does the trick.',
+        'gift-dogfood': () => `${dog} says thank you for the food. Well, ${dog} barked twice, which I think means thank you.`,
+        tonic: () => 'I took some tonic and feel much better now.',
+        'cards-win': () => `I beat you at 21! That's ${S.wins.them} wins for me now. Rematch any time.`,
+        'cards-lose': () => `You beat me at 21 again. ${S.wins.you} wins for you! I demand a rematch.`,
+        pet: () => `Thanks for the pats. Nobody else around here does that, except ${dog}, who mostly licks.`,
+        woken: () => 'Someone woke me up! I hope it was important.',
+        rude: () => "I've been thinking about what you said earlier. It wasn't very kind.",
+        nice: () => 'You said something nice to me today. It made me smile all afternoon.',
+        exercise: () => { const k = 20 + Math.floor(Math.random() * 60); return `I did ${k} jumping jacks today. Well, ${k - 9}, and then I sat down.`; },
+        dance: () => `I danced around the music room until ${dog} started barking at me.`,
+        sick: () => "I haven't been well. I spent a long time in bed.",
+        'missed-call': () => 'I think the phone rang, but I didn\'t get there in time. Was it you?',
+        call: () => 'It was lovely to hear your voice on the phone.'
+      }[e.k];
+      if (line) { said.add(e.k); out.push(line()); }
+    }
+    if (!S.fridge) out.push('The fridge is empty. If you happen to pass a shop, I would love some groceries.');
+    else if (S.fridge < 2) out.push("I'm running low on food. Some groceries would be nice.");
+    if (!S.dogFood) out.push(`${dog} has run out of food and keeps staring at me. Could you send some?`);
+    if (n.health < 50) out.push(S.tonic ? 'I feel a bit poorly, but I still have some tonic.' : "I've been feeling poorly. A bottle of tonic would help.");
+    if (n.fun < 40) out.push('It has been a bit dull around here. A new book or record would cheer me up.');
+    if (out.length < 5) out.push(pick([`Have you ever tried ${HOBBY[pick(TRAITS)]}? I think everyone should.`, `${dog} chased its tail for ten whole minutes this morning.`,
+      isNight() ? 'The moon is very bright tonight.' : 'The sun came right through the bedroom window this morning.', `I've been thinking about learning to make ${pick(FOODS)}.`]));
+    out.push('', pick(['Write back soon (well, type something!).', 'Come and visit soon.', `${dog} says woof.`]), '', pick(['Yours,', 'Love,', 'Your friend,', 'Cheerio,']), me);
+  }
+  S.letters.push({ t: S.t, text: out.join('\n'), read: false });
+  if (S.letters.length > 60) S.letters.shift();
+  S.lastLetter = S.t;
+  ding();
+  if (kind !== 'intro') say('There, a letter for you!');
+  toast = `New letter from ${me}!`;
+}
+
+// ---------- 21 ----------
+function newDeck() { const d = []; for (let s = 0; s < 4; s++) for (let r = 1; r <= 13; r++) d.push({ r, s }); for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; } return d; }
+function handVal(h) { let s = 0, a = 0; for (const c of h) { s += Math.min(10, c.r); if (c.r === 1) a++; } while (a-- > 0 && s + 10 <= 21) s += 10; return s; }
+function openCards() { CARDS = { deck: newDeck(), you: [], them: [], done: false, hands: 0, msg: '' }; deal(); }
+function draw1() { if (CARDS.deck.length < 10) CARDS.deck = newDeck(); return CARDS.deck.pop(); }
+function deal() {
+  CARDS.you = [draw1(), draw1()]; CARDS.them = [draw1(), draw1()]; CARDS.done = false; CARDS.msg = 'Your move.';
+  if (handVal(CARDS.you) === 21) return stand();
+  renderCards();
+}
+function hit() { CARDS.you.push(draw1()); if (handVal(CARDS.you) > 21) return settle(); if (handVal(CARDS.you) === 21) return stand(); renderCards(); }
+function stand() { while (handVal(CARDS.them) < 17) CARDS.them.push(draw1()); settle(); }
+function settle() {
+  const y = handVal(CARDS.you), t = handVal(CARDS.them);
+  let res = y > 21 ? 'them' : t > 21 ? 'you' : y > t ? 'you' : t > y ? 'them' : 'push';
+  CARDS.done = true; CARDS.hands++;
+  bump('social', 4); bump('fun', res === 'them' ? 7 : 4);
+  if (res === 'you') { S.wins.you++; log('cards-lose'); CARDS.msg = pick(["You're too good at this!", 'Beginner\'s luck!', 'Rematch!']); }
+  else if (res === 'them') { S.wins.them++; log('cards-win'); CARDS.msg = y > 21 ? pick(['Bust! Ha ha!', 'Too greedy!']) : pick(['Ha! The house wins!', 'Better luck next time.']); }
+  else CARDS.msg = 'A tie! Again?';
+  say(CARDS.msg);
+  renderCards();
+}
+const RANK = r => ({ 1: 'A', 11: 'J', 12: 'Q', 13: 'K' }[r] || r);
+const SUIT = ['♠', '♥', '♦', '♣'];
+const cardHtml = (c, hide) => hide ? '<div class="pc back"></div>' : `<div class="pc${c.s === 1 || c.s === 2 ? ' red' : ''}"><span>${RANK(c.r)}</span><span>${SUIT[c.s]}</span></div>`;
+function renderCards() {
+  if (!CARDS) return;
+  const C = CARDS;
+  modal(`<h2>21 with ${esc(T.name)}</h2>
+    <p>Get closer to 21 than ${esc(T.name)} without going over. Score: you ${S.wins.you}, ${esc(T.name)} ${S.wins.them}.</p>
+    <strong>${esc(T.name)}${C.done ? ` (${handVal(C.them)})` : ''}</strong>
+    <div class="hand">${C.them.map((c, i) => cardHtml(c, i === 1 && !C.done)).join('')}</div>
+    <strong>You (${handVal(C.you)})</strong>
+    <div class="hand">${C.you.map(c => cardHtml(c)).join('')}</div>
+    <p class="say">${esc(T.name)}: “${esc(C.msg)}”</p>
+    <div class="row">
+      ${C.done ? '<button class="primary" data-c="deal">Deal again</button>' : '<button class="primary" data-c="hit">Hit</button><button data-c="stand">Stand</button>'}
+      <button data-c="leave">Leave the table</button>
+    </div>`, closeCards);
+}
+function closeCards() { if (!CARDS) return; CARDS = null; hideModal(); say(pick(['Good game!', 'That was fun.'])); }
+
+// ---------- sound: everything synthesised with WebAudio ----------
+const AU = { ctx: null, out: null, nb: null, muted: false };
+try { AU.muted = localStorage.getItem('tinytenant-muted') === '1'; } catch (e) {}
+function audioOn() {
+  if (AU.ctx) { if (AU.ctx.state === 'suspended') AU.ctx.resume(); return; }
+  const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+  AU.ctx = new C(); AU.out = AU.ctx.createGain(); AU.out.gain.value = AU.muted ? 0 : .55; AU.out.connect(AU.ctx.destination);
+  const n = AU.ctx.sampleRate, b = AU.ctx.createBuffer(1, n, n), d = b.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  AU.nb = b;
+}
+const live = () => AU.ctx && !AU.muted && AU.ctx.state === 'running';
+function tone(f, dur, o = {}) {
+  if (!live()) return;
+  const t = AU.ctx.currentTime + (o.at || 0), a = o.attack || .005;
+  const os = AU.ctx.createOscillator(), gn = AU.ctx.createGain();
+  os.type = o.type || 'triangle'; os.frequency.setValueAtTime(f, t);
+  if (o.slide) os.frequency.exponentialRampToValueAtTime(o.slide, t + dur);
+  gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(o.vol || .15, t + a); gn.gain.exponentialRampToValueAtTime(.0001, t + a + dur);
+  os.connect(gn).connect(AU.out); os.start(t); os.stop(t + a + dur + .05);
+}
+function hiss(dur, o = {}) {
+  if (!live()) return;
+  const t = AU.ctx.currentTime + (o.at || 0), a = o.attack || .005;
+  const s = AU.ctx.createBufferSource(), f = AU.ctx.createBiquadFilter(), gn = AU.ctx.createGain();
+  s.buffer = AU.nb; s.loop = true; f.type = o.type || 'bandpass'; f.frequency.value = o.freq || 2000; f.Q.value = o.q || 1;
+  gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(o.vol || .1, t + a); gn.gain.exponentialRampToValueAtTime(.0001, t + a + dur);
+  s.connect(f).connect(gn).connect(AU.out); s.start(t, Math.random() * .9); s.stop(t + a + dur + .05);
+}
+let lastStep = 0;
+function footstep() { const n = performance.now(); if (n - lastStep < 140) return; lastStep = n; hiss(.03, { vol: .05, freq: 400, type: 'lowpass' }); }
+function voice(text) { const k = Math.min(9, Math.ceil(text.length / 4)); for (let i = 0; i < k; i++) tone(T.voice * (.85 + Math.random() * .35), .045, { type: 'square', vol: .035, at: i * .075 }); }
+function bark() { tone(720, .08, { type: 'square', vol: .08, slide: 380 }); tone(760, .08, { type: 'square', vol: .08, slide: 400, at: .16 }); }
+function chime() { tone(988, .35, { type: 'sine', vol: .14 }); tone(784, .6, { type: 'sine', vol: .14, at: .22 }); }
+function ding() { tone(1760, .7, { type: 'sine', vol: .1 }); }
+function sfxKnock() { for (let i = 0; i < 3; i++) { tone(120, .12, { type: 'sine', vol: .35, slide: 60, at: i * .2 }); hiss(.05, { vol: .12, freq: 600, type: 'lowpass', at: i * .2 }); } }
+function blip() { tone(1200, .03, { type: 'square', vol: .03 }); }
+
+// Looping ambience per activity, scheduled a little ahead of the audio clock.
+const LOOP = { kind: null, next: 0, i: 0 };
+function setLoop(kind) { if (LOOP.kind === kind) return; LOOP.kind = kind; LOOP.i = 0; LOOP.next = 0; }
+const SCALES = [[0, 2, 4, 7, 9, 12, 14, 16], [0, 2, 4, 5, 7, 9, 11, 12], [0, 2, 3, 5, 7, 8, 10, 12]];
+function songNotes(i) {
+  const r = mulberry(T.songR + i * 31337), sc = SCALES[Math.floor(r() * 3)], notes = []; let d = 2;
+  for (let k = 0; k < 16; k++) { d = clamp(d + Math.floor(r() * 5) - 2, 0, sc.length - 1); notes.push(r() < .15 ? null : sc[d]); }
+  notes[15] = 0;
+  return { sc, notes, root: 220 * 2 ** (Math.floor(r() * 5) / 12), tempo: 96 + Math.floor(r() * 50) };
+}
+const LOOPS = {
+  piano(at, i) {
+    const s = songNotes(S.song), n = s.notes[i % 16], beat = 60 / s.tempo / 2;
+    if (n !== null) {
+      let semi = n; if (Math.random() < Math.max(.02, .3 - S.skill * .03)) semi += Math.random() < .5 ? -1 : 1;
+      const f = s.root * 2 ** (semi / 12); tone(f, .5, { type: 'triangle', vol: .11, at }); tone(f * 2, .25, { type: 'sine', vol: .03, at });
+    }
+    if (i % 4 === 0) tone(s.root / 2 * 2 ** ((i % 8 ? 7 : 0) / 12), .7, { type: 'sine', vol: .08, at });
+    return beat;
+  },
+  records(at, i) {
+    const k = i % 16, r = mulberry(T.songR + S.records * 101), bass = [0, 0, 7, 5, 3, 3, 10, 7].map(x => x + (r() < .5 ? 0 : 2));
+    if (k % 4 === 0) tone(110, .12, { type: 'sine', vol: .25, slide: 40, at });
+    if (k % 2 === 1) hiss(.03, { vol: .04, freq: 8000, type: 'highpass', at });
+    if (k % 8 === 4) hiss(.1, { vol: .06, freq: 1500, at });
+    if (k % 2 === 0) tone(55 * 2 ** (bass[k / 2 % 8] / 12), .18, { type: 'sawtooth', vol: .05, at });
+    return 60 / 116 / 2;
+  },
+  tv(at) { hiss(rnd(.08, .3), { vol: .025, freq: rnd(500, 1300), q: 3, at }); if (Math.random() < .3) tone(rnd(150, 260), .12, { type: 'square', vol: .015, at }); return rnd(.12, .35); },
+  shower(at) { hiss(.6, { vol: .035, freq: 4000, type: 'highpass', attack: .2, at }); return .4; },
+  type(at, i) { if (i % 30 === 29) { tone(1760, .5, { type: 'sine', vol: .07, at }); return .6; } hiss(.02, { vol: .09, freq: 3000, at }); tone(1600, .01, { type: 'square', vol: .02, at }); return rnd(.07, .2); },
+  sleep(at) { hiss(1.3, { vol: .03, freq: 280, type: 'lowpass', attack: .8, at }); return 3.4; },
+  cook(at) { hiss(.25, { vol: .02, freq: 5000, type: 'highpass', at }); return rnd(.1, .25); },
+  talk(at) { const k = 2 + Math.floor(Math.random() * 4); for (let j = 0; j < k; j++) tone(T.voice * rnd(.85, 1.2), .045, { type: 'square', vol: .025, at: at + j * .08 }); return rnd(.6, 1.4); },
+  fridge(at) { tone(60, .4, { type: 'sine', vol: .03, at }); return .45; },
+  eat(at) { hiss(.03, { vol: .04, freq: 900, at }); return rnd(.4, .9); }
+};
+function tickLoop() {
+  if (!live()) return;
+  const now = AU.ctx.currentTime;
+  if (ringing) { if (!tickLoop.ring || now > tickLoop.ring) { for (let j = 0; j < 8; j++) tone(j % 2 ? 480 : 440, .05, { type: 'sine', vol: .07, at: j * .055 }); tickLoop.ring = now + 2; } }
+  if (!LOOP.kind || !LOOPS[LOOP.kind] || speed === 0) return;
+  if (LOOP.next < now) LOOP.next = now + .03;
+  while (LOOP.next < now + .2) LOOP.next += LOOPS[LOOP.kind](LOOP.next - now, LOOP.i++);
+}
+
+// ---------- drawing ----------
+const SHOE = '#2a2420';
+function skin() { const h = S.needs.health; return h < 40 ? '#b7c79a' : T.skin; }
+function wallpaper(i, x0, x1, top, bot) {
+  const r = T.rooms[i], base = hsl(r.h, r.s, r.l), dark = hsl(r.h, r.s, r.l - 7);
+  R(x0, top, x1 - x0, bot - top, base);
+  if (r.p === 1) for (let x = x0 + 3; x < x1; x += 7) R(x, top, 2, bot - top, dark);
+  if (r.p === 2) for (let y = top + 4; y < bot - 2; y += 7) for (let x = x0 + 3 + (y % 2 ? 3 : 0); x < x1 - 1; x += 7) R(x, y, 1, 1, dark);
+  if (r.p === 3) { R(x0, bot - 15, x1 - x0, 15, dark); R(x0, bot - 16, x1 - x0, 1, hsl(r.h, r.s, r.l - 15)); }
+  R(x0, bot - 2, x1 - x0, 2, hsl(r.h, r.s, r.l - 20));
+}
+function sky() {
+  const h = hour();
+  const day = h < 5 ? 0 : h < 7.5 ? (h - 5) / 2.5 : h < 18 ? 1 : h < 21 ? 1 - (h - 18) / 3 : 0;
+  const dusk = Math.max(0, 1 - Math.abs(h - 19) / 1.6, 1 - Math.abs(h - 6.3) / 1.2);
+  const mix = (a, b, k) => a.map((v, i) => v + (b[i] - v) * k);
+  let c = mix([31, 42, 85], [191, 228, 246], day); c = mix(c, [242, 176, 128], dusk * .6);
+  return { col: `rgb(${c.map(v => v | 0).join(',')})`, day };
+}
+function drawWindow(w, skyCol, day, top) {
+  const x = w.x - w.w / 2, y = top + 9, hh = 15;
+  R(x - 1, y - 1, w.w + 2, hh + 2, '#f4efe6');
+  R(x, y, w.w, hh, skyCol);
+  if (day < .5) { R(x + 2, y + 3, 1, 1, '#fff'); R(x + w.w - 4, y + 7, 1, 1, '#fff'); }
+  else { R(x + 2, y + hh - 3, w.w - 4, 2, '#9cc98f'); }
+  R(x + w.w / 2, y, 1, hh, '#f4efe6'); R(x, y + hh / 2, w.w, 1, '#f4efe6');
+  R(x - 2, y - 2, 2, hh + 4, T.blanket); R(x + w.w, y - 2, 2, hh + 4, T.blanket);
+}
+function picture(x, top, k) { const [a, b, r] = T.art[k]; R(x - 5, top + 10, 10, 8, '#7a5230'); R(x - 4, top + 11, 8, 6, a); R(x - 4 + Math.floor(r * 5), top + 13, 3, 4, b); }
+
+function drawHouse(t) {
+  const s = sky(), tick = t;
+  R(0, 0, W, H, s.col);
+  if (s.day < .4) for (let i = 0; i < 26; i++) { const sx = (i * 73) % W, sy = (i * 37) % 60; if ((i + (tick >> 3)) % 9) R(sx, sy, 1, 1, '#f6f2d8'); }
+  // ground and garden
+  R(0, 188, W, 12, '#7fb069'); R(0, 188, W, 1, '#6a9a57');
+  for (let x = 2; x < W; x += 9) R(x, 190 + (x % 4), 1, 2, '#6a9a57');
+  // roof and chimney
+  g.fillStyle = T.roof; g.beginPath(); g.moveTo(4, 46); g.lineTo(156, 8); g.lineTo(308, 46); g.closePath(); g.fill();
+  R(232, 14, 12, 18, shade(T.outside, .8)); R(230, 12, 16, 3, shade(T.outside, .6));
+  if (S.needs && cur && cur.fx === 'cook') { /* chimney smoke handled by particles */ }
+  R(140, 26, 32, 14, '#f4efe6'); R(142, 28, 28, 10, s.col); // attic window
+  R(155, 28, 1, 10, '#f4efe6');
+  // exterior walls
+  R(12, 44, 288, 144, T.outside);
+  // rooms
+  for (let f = 0; f < 3; f++) {
+    const top = FY[f] - 46;
+    ROOMS.forEach((rm, i) => { if (rm[0] === f) wallpaper(i, rm[1], rm[2], top, FY[f]); });
+    wallpaper(7, 250, 296, top, FY[f]);
+    for (const w of WINDOWS) if (w.f === f) drawWindow(w, s.col, s.day, top);
+    // ceiling lamp
+    for (const rm of ROOMS) if (rm[0] === f) { const lx = (rm[1] + rm[2]) / 2; R(lx, top, 1, 4, '#555'); R(lx - 2, top + 4, 5, 2, '#f2d67a'); }
+  }
+  // seams between rooms
+  for (const rm of ROOMS) if (rm[1] > 16) R(rm[1], FY[rm[0]] - 46, 1, 46, 'rgba(0,0,0,.12)');
+  R(250, 44, 1, 142, 'rgba(0,0,0,.15)');
+  // pictures and clock
+  picture(62, FY[0] - 46, 0); picture(88, FY[1] - 46, 1); picture(226, FY[1] - 46, 2); picture(106, FY[2] - 46, 3); picture(200, FY[2] - 46, 4);
+  clockFace(160, FY[0] - 34);
+  furniture(tick);
+  // floor slabs, with the stairwell opening on the upper floors
+  for (let f = 0; f < 3; f++) {
+    const y = FY[f];
+    if (f === 0) R(12, y, 288, 2, '#7a5a3a');
+    else { R(12, y, 246, 2, '#7a5a3a'); R(290, y, 10, 2, '#7a5a3a'); }
+  }
+  R(12, 42, 288, 4, '#7a5a3a');
+  // stairs
+  for (let f = 0; f < 2; f++) {
+    const [b, tt] = STAIR(f), n = 12;
+    for (let i = 0; i < n; i++) {
+      const x = b + (tt - b) * (i + .5) / n, y = FY[f] - 48 * (i + 1) / n;
+      R(x - 2, y, 5, 2, '#9b6b43'); R(x - 2, y + 2, 5, 48 / n - 1, '#7a5230');
+    }
+  }
+  // outer walls on top
+  R(12, 44, 4, 144, shade(T.outside, .85)); R(296, 44, 4, 144, shade(T.outside, .85));
+  // mailbox
+  const unread = S.letters.some(l => !l.read);
+  R(310, 170, 2, 18, '#6b4a2f'); R(304, 163, 13, 8, '#3e7cb1'); R(304, 163, 13, 1, '#2d5c85');
+  if (unread) { R(316, 156, 1, 9, '#333'); R(314, 156, 3, 3, '#d9534f'); }
+  // parcels by the door
+  S.parcel.forEach((p, i) => { const px = 34 + (i % 3) * 6, py = FY[0] - 5 - Math.floor(i / 3) * 5; R(px, py, 6, 5, '#c9995b'); R(px, py + 2, 6, 1, '#8b6a3a'); R(px + 2, py, 1, 5, '#8b6a3a'); });
+}
+function clockFace(x, y) {
+  R(x - 4, y - 4, 9, 9, '#5a4032'); R(x - 3, y - 3, 7, 7, '#fff');
+  const h = hour(), a1 = (h % 12) / 12 * Math.PI * 2, a2 = (h % 1) * Math.PI * 2;
+  R(x + Math.round(Math.sin(a1) * 2), y - Math.round(Math.cos(a1) * 2), 1, 1, '#222');
+  R(x + Math.round(Math.sin(a2) * 3), y - Math.round(Math.cos(a2) * 3), 1, 1, '#c33');
+  R(x, y, 1, 1, '#222');
+}
+function furniture(tick) {
+  const fx = cur && cur.phase === 'do' ? step().fx : null;
+  const fy0 = FY[0], fy1 = FY[1], fy2 = FY[2];
+  // door
+  let x = OBJ.door.x; R(x - 8, fy0 - 28, 16, 28, '#5a4032'); R(x - 7, fy0 - 27, 14, 27, '#9b6b43'); R(x - 5, fy0 - 24, 4, 9, '#8a5a34'); R(x + 1, fy0 - 24, 4, 9, '#8a5a34'); R(x - 5, fy0 - 12, 10, 8, '#8a5a34'); R(x + 4, fy0 - 14, 1, 2, '#e2c26a');
+  // sofa
+  x = OBJ.sofa.x; const sc = T.sofa, sd = shade(sc, .75);
+  R(x - 14, fy0 - 15, 28, 8, sd); R(x - 14, fy0 - 8, 28, 6, sc); R(x - 16, fy0 - 11, 3, 9, sd); R(x + 13, fy0 - 11, 3, 9, sd); R(x - 13, fy0 - 2, 2, 2, '#4a3426'); R(x + 11, fy0 - 2, 2, 2, '#4a3426');
+  // tv
+  x = OBJ.tv.x; R(x - 8, fy0 - 9, 16, 9, '#7a5230'); R(x - 7, fy0 - 7, 6, 5, '#6b4a2f'); R(x - 9, fy0 - 21, 18, 12, '#3a3a3a');
+  R(x - 7, fy0 - 19, 14, 8, fx === 'tv' ? hsl((tick * 47) % 360, 45, 60 + (tick % 3) * 6) : '#5d6670');
+  if (fx === 'tv') { R(x - 7, fy0 - 15 + (tick % 4), 14, 1, 'rgba(255,255,255,.35)'); }
+  R(x - 4, fy0 - 25, 1, 4, '#555'); R(x + 3, fy0 - 26, 1, 5, '#555');
+  // dog bed and bowl
+  x = OBJ.dogbed.x; R(x - 8, fy0 - 4, 16, 4, '#b5523b'); R(x - 6, fy0 - 3, 12, 2, '#e9c9a1');
+  x = OBJ.bowl.x; R(x - 3, fy0 - 2, 6, 2, '#3e7cb1'); if (S.bowl > .05) R(x - 2, fy0 - 3, 4, 1, '#8b5a2b');
+  // fridge
+  x = OBJ.fridge.x; const open = fx === 'fridge';
+  R(x - 8, fy0 - 31, 16, 31, '#9aa7ad'); R(x - 7, fy0 - 30, 14, 29, open ? '#fff7d6' : '#e9eff2');
+  if (open) { R(x - 7, fy0 - 20, 14, 1, '#ccc'); R(x - 7, fy0 - 11, 14, 1, '#ccc'); for (let i = 0; i < Math.min(S.fridge, 8); i++) R(x - 6 + (i % 4) * 3, fy0 - 23 - (i >> 2) * 9, 2, 3, SHIRT[i % 9]); R(x + 8, fy0 - 30, 4, 29, '#dfe6ea'); }
+  else { R(x - 7, fy0 - 21, 14, 1, '#9aa7ad'); R(x + 4, fy0 - 27, 1, 4, '#777'); R(x + 4, fy0 - 18, 1, 6, '#777'); }
+  // stove with hood
+  x = OBJ.stove.x; R(x - 8, fy0 - 14, 16, 14, '#e4e4e4'); R(x - 6, fy0 - 10, 12, 7, '#555'); R(x - 5, fy0 - 9, 10, 5, fx === 'cook' ? '#a8452c' : '#3a3a3a');
+  R(x - 8, fy0 - 15, 16, 1, '#999'); R(x - 6, fy0 - 16, 4, 1, '#333'); R(x + 2, fy0 - 16, 4, 1, '#333');
+  if (fx === 'cook') { R(x - 7, fy0 - 18, 7, 2, '#444'); R(x, fy0 - 17, 4, 1, '#444'); if (tick % 2) R(x - 6, fy0 - 17, 1, 1, '#ff9a3c'); }
+  R(x - 7, fy0 - 40, 14, 5, '#bbb'); R(x - 2, fy0 - 46, 4, 6, '#bbb');
+  // kitchen sink
+  x = OBJ.ksink.x; R(x - 9, fy0 - 12, 18, 12, '#b98b5a'); R(x - 10, fy0 - 13, 20, 2, '#d9d9d9'); R(x - 1, fy0 - 17, 1, 4, '#999'); R(x - 1, fy0 - 17, 4, 1, '#999');
+  R(x - 8, fy0 - 9, 7, 7, '#a67a4c'); R(x + 1, fy0 - 9, 7, 7, '#a67a4c');
+  // desk with typewriter
+  x = OBJ.desk.x; R(x - 13, fy1 - 13, 26, 2, '#8b5e3c'); R(x - 12, fy1 - 11, 2, 11, '#6b4a2f'); R(x + 10, fy1 - 11, 2, 11, '#6b4a2f'); R(x + 3, fy1 - 11, 7, 8, '#7a5230');
+  R(x - 5, fy1 - 17, 10, 4, '#2f4f4f'); R(x - 6, fy1 - 18, 12, 1, '#222');
+  const paper = fx === 'type' ? 2 + Math.floor((1 - cur.left / cur.total) * 6) : 2;
+  R(x - 3, fy1 - 18 - paper, 6, paper, '#fff');
+  // bookshelf
+  x = OBJ.shelf.x; R(x - 10, fy1 - 36, 20, 36, '#7a5230');
+  const nb = Math.min(40, S.books.length * 3 + 6);
+  for (let sh = 0; sh < 4; sh++) { R(x - 9, fy1 - 27 + sh * 8, 18, 1, '#5a3a22'); for (let b = 0; b < 8; b++) { const k = sh * 8 + b; if (k < nb) R(x - 9 + b * 2 + (b > 3 ? 1 : 0), fy1 - 34 + sh * 8, 2, 7, T.spines[k]); } }
+  // armchair
+  x = OBJ.armchair.x; R(x - 8, fy1 - 15, 16, 8, sd); R(x - 8, fy1 - 8, 16, 6, sc); R(x - 10, fy1 - 11, 3, 9, sd); R(x + 7, fy1 - 11, 3, 9, sd); R(x - 7, fy1 - 2, 2, 2, '#4a3426'); R(x + 5, fy1 - 2, 2, 2, '#4a3426');
+  // phone table
+  x = OBJ.phone.x; R(x - 5, fy1 - 13, 10, 2, '#8b5e3c'); R(x - 4, fy1 - 11, 1, 11, '#6b4a2f'); R(x + 3, fy1 - 11, 1, 11, '#6b4a2f');
+  const shake = ringing && tick % 2 ? 1 : 0, inHand = cur && cur.phase === 'do' && step().arms === 'ear';
+  R(x - 3 + shake, fy1 - 16, 6, 3, '#c43c3c'); if (!inHand) R(x - 4 + shake, fy1 - 17, 8, 1, '#a12f2f');
+  if (ringing && tick % 2) { R(x - 7, fy1 - 21, 1, 3, '#c43c3c'); R(x + 6, fy1 - 21, 1, 3, '#c43c3c'); }
+  // piano
+  x = OBJ.piano.x; R(x - 14, fy1 - 26, 28, 26, '#3a2a20'); R(x - 13, fy1 - 25, 26, 10, '#4a362a'); R(x - 13, fy1 - 14, 26, 3, '#f5f0e6');
+  for (let k = 0; k < 9; k++) if (k % 3 !== 2) R(x - 12 + k * 3, fy1 - 14, 1, 2, '#222');
+  R(x - 13, fy1 - 11, 26, 2, '#2a1e16'); R(x - 6, fy1 - 7, 12, 2, '#5a4032'); R(x - 5, fy1 - 5, 1, 5, '#3a2a20'); R(x + 4, fy1 - 5, 1, 5, '#3a2a20');
+  R(x - 9, fy1 - 29, 3, 3, '#e2c26a'); R(x + 5, fy1 - 30, 4, 4, T.art[5][0]);
+  // record player
+  x = OBJ.records.x; R(x - 8, fy1 - 12, 16, 12, '#9b6b43'); R(x - 7, fy1 - 10, 6, 8, '#7a5230'); R(x + 1, fy1 - 10, 6, 8, '#7a5230');
+  R(x - 7, fy1 - 14, 14, 2, '#333'); R(x - 4, fy1 - 15, 8, 1, '#111'); if (fx === 'records') R(x - 4 + tick % 8, fy1 - 15, 1, 1, '#e2c26a');
+  R(x - 14, fy1 - 18, 5, 18, '#444'); R(x - 13, fy1 - 15, 3, 3, '#777'); R(x - 13, fy1 - 8, 3, 3, '#777');
+  for (let i = 0; i < Math.min(S.records, 6); i++) R(x + 9 + (i % 2) * 3, fy1 - 4 - (i >> 1) * 1, 3, 4, SHIRT[(i * 3) % 9]);
+  // bed (blanket is drawn over the sleeper later)
+  x = OBJ.bed.x; R(x - 20, fy2 - 17, 3, 17, '#6b4a2f'); R(x + 17, fy2 - 12, 3, 12, '#6b4a2f'); R(x - 17, fy2 - 9, 34, 5, '#8b5e3c'); R(x - 17, fy2 - 11, 34, 2, '#f7f3ea');
+  R(x - 16, fy2 - 13, 7, 2, '#e8eef7'); R(x - 16, fy2 - 4, 2, 4, '#6b4a2f'); R(x + 14, fy2 - 4, 2, 4, '#6b4a2f');
+  // wardrobe
+  x = OBJ.wardrobe.x; R(x - 9, fy2 - 34, 18, 34, '#a9744f'); R(x - 8, fy2 - 33, 8, 31, '#b9845f'); R(x, fy2 - 33, 8, 31, '#b9845f'); R(x - 1, fy2 - 20, 1, 3, '#e2c26a'); R(x + 1, fy2 - 20, 1, 3, '#e2c26a');
+  // shower
+  x = OBJ.shower.x; R(x - 10, fy2 - 40, 20, 40, '#d7eef5');
+  for (let yy = fy2 - 38; yy < fy2; yy += 5) R(x - 10, yy, 20, 1, '#bcdbe6');
+  for (let xx = x - 6; xx < x + 10; xx += 5) R(xx, fy2 - 40, 1, 40, '#bcdbe6');
+  R(x - 10, fy2 - 2, 20, 2, '#c8d0d6'); R(x - 1, fy2 - 40, 1, 7, '#999'); R(x - 3, fy2 - 33, 5, 2, '#999');
+  // sink and mirror
+  x = OBJ.bsink.x; R(x - 2, fy2 - 10, 4, 10, '#eee'); R(x - 6, fy2 - 13, 12, 3, '#f4f4f4'); R(x - 5, fy2 - 30, 10, 12, '#9aa'); R(x - 4, fy2 - 29, 8, 10, '#d6eef7');
+  // exercise mat and weights
+  x = OBJ.mat.x; R(x - 13, fy2 - 1, 26, 1, '#4caf7a'); R(x + 16, fy2 - 3, 6, 1, '#555'); R(x + 15, fy2 - 4, 2, 3, '#333'); R(x + 21, fy2 - 4, 2, 3, '#333');
+  // table drawn last on the ground floor so a seated eater sits behind it
+}
+function tableFront() {
+  const x = OBJ.table.x, fy = FY[0];
+  R(x - 5, fy - 7, 10, 2, '#7a5230'); // chair seat behind
+  R(x - 13, fy - 12, 26, 2, '#a0703c'); R(x - 12, fy - 10, 2, 10, '#7a5230'); R(x + 10, fy - 10, 2, 10, '#7a5230');
+  if (cur && cur.phase === 'do' && step().fx === 'eat') { R(x - 3, fy - 13, 6, 1, '#fff'); R(x - 2, fy - 14, 4, 1, '#c77b3a'); }
+  if (CARDS) { R(x - 9, fy - 13, 3, 1, '#fff'); R(x - 6, fy - 13, 3, 1, '#fff'); R(x + 5, fy - 13, 3, 1, '#fff'); R(x + 1, fy - 13, 3, 1, '#c33'); }
+}
+function chair(x, fy) { R(x - 5, fy - 7, 10, 2, '#6b4a2f'); R(x - 4, fy - 5, 1, 5, '#5a3a22'); R(x + 3, fy - 5, 1, 5, '#5a3a22'); }
+
+function drawPerson(x, y, o) {
+  x = Math.round(x); y = Math.round(y);
+  const sk = skin(), hc = T.hair, sh = T.shirt, pa = T.pants, t = o.tick, f = o.face;
+  if (o.pose === 'lie') return drawLying(x, y, sk);
+  let hop = 0, spread = 0, sway = 0;
+  const jacks = o.arms === 'jacks' && t % 2 === 0;
+  if (o.pose === 'jump' && jacks) { hop = 2; spread = 1; }
+  if (o.arms === 'dance') sway = (t % 4 < 2) ? 1 : -1;
+  x += sway;
+  const sit = o.pose === 'sit', yb = y - hop, legH = sit ? 3 : 6, hip = yb - legH, torso = T.height - 11, s0 = hip - torso, hy = s0 - 5;
+  const side = f === 1 || f === -1;
+  // legs
+  if (sit) { R(x - 3, hip, 6, 2, pa); R(x - 3, yb - 1, 2, 1, SHOE); R(x + 1, yb - 1, 2, 1, SHOE); }
+  else if (side) {
+    const k = o.walking ? [0, 1, 0, -1][o.frame % 4] : 0;
+    R(x - 1 - k, hip, 2, legH - 1, shade(pa, .8)); R(x - 1 + k, hip, 2, legH - 1, pa);
+    R(x - 1 - k + (f > 0 ? 1 : -1), yb - 1, 2, 1, SHOE); R(x - 1 + k + (f > 0 ? 1 : -1), yb - 1, 2, 1, SHOE);
+  } else {
+    const k = o.walking ? (o.frame % 2) : 0;
+    R(x - 3 - spread, hip, 2, legH - 1 - k, pa); R(x + 1 + spread, hip, 2, legH - 1, pa);
+    R(x - 3 - spread, yb - 1 - k, 2, 1, SHOE); R(x + 1 + spread, yb - 1, 2, 1, SHOE);
+  }
+  // torso
+  if (side) R(x - 2, s0, 4, torso, sh); else R(x - 3, s0, 6, torso, sh);
+  // arms
+  const L = x - 4, Rt = x + 3, al = torso - 1;
+  const down = ax => { R(ax, s0, 1, al, sh); R(ax, s0 + al, 1, 1, sk); };
+  const up = ax => { R(ax, s0 - 4, 1, 5, sh); R(ax, s0 - 5, 1, 1, sk); };
+  if (side) {
+    const k = o.walking ? [0, 1, 0, -1][o.frame % 4] : 0;
+    const ax = x + (f > 0 ? -1 : 0) + k;
+    if (o.arms === 'ear') { R(x + f, s0, 1, 2, sh); R(x + f, hy + 2, 1, 2, '#c43c3c'); }
+    else { R(ax, s0 + 1, 1, al - 1, shade(sh, .8)); R(ax, s0 + al, 1, 1, sk); }
+  } else {
+    const a = o.arms;
+    if (a === 'up' || (a === 'jacks' && jacks)) { up(L); up(Rt); }
+    else if (a === 'forward') { R(L, s0, 1, 3, sh); R(Rt, s0, 1, 3, sh); if (f !== 2) { R(L + 1 + (t % 2), s0 + 3, 1, 1, sk); R(Rt - 1 - ((t + 1) % 2), s0 + 3, 1, 1, sk); } else { R(L, s0 + 2 + (t % 2), 1, 1, sh); R(Rt, s0 + 2 + ((t + 1) % 2), 1, 1, sh); } }
+    else if (a === 'wave') { down(L); R(Rt + (t % 2), s0 - 4, 1, 5, sh); R(Rt + (t % 2), s0 - 5, 1, 1, sk); }
+    else if (a === 'ear') { down(L); R(Rt, s0, 1, 2, sh); R(Rt, hy + 2, 1, 3, sk); R(Rt + 1, hy + 1, 1, 5, '#c43c3c'); }
+    else if (a === 'mouth') { down(L); if (t % 3 === 0) { R(Rt, s0, 1, 2, sh); R(x + 1, hy + 4, 1, 1, sk); R(x + 2, hy + 5, 1, 1, sk); } else down(Rt); }
+    else if (a === 'book') { R(L, s0, 1, 3, sh); R(Rt, s0, 1, 3, sh); R(x - 3, s0 + 2, 6, 4, T.spines[(cur && cur.book ? cur.book.length : 0) % 40]); R(x, s0 + 2, 1, 4, '#f4efe6'); R(L + 1, s0 + 3, 1, 1, sk); R(Rt - 1, s0 + 3, 1, 1, sk); }
+    else if (a === 'dance') { if (t % 4 < 2) { up(L); down(Rt); } else { down(L); up(Rt); } }
+    else { down(L); down(Rt); }
+  }
+  // head
+  R(x - 2, hy, 5, 5, sk);
+  if (f !== 2) {
+    const blink = (performance.now() / 120 | 0) % 31 === 0;
+    const eye = '#2a2420';
+    if (!blink) { if (f === 0) { R(x - 1, hy + 2, 1, 1, eye); R(x + 1, hy + 2, 1, 1, eye); } else R(x + f, hy + 2, 1, 1, eye); }
+    if (T.glasses) { if (f === 0) { R(x - 2, hy + 2, 2, 1, '#333'); R(x + 1, hy + 2, 2, 1, '#333'); } else R(x + (f > 0 ? 0 : -2), hy + 2, 3, 1, '#333'); }
+    if (performance.now() < bubble.until && t % 2) R(x + (f === 0 ? 0 : f), hy + 4, 1, 1, '#a33');
+  }
+  hair(x, hy, f, hc);
+}
+function hair(x, hy, f, hc) {
+  const st = T.style;
+  if (st === 'cap') { R(x - 2, hy - 1, 5, 2, T.cap); if (f === 0) R(x - 3, hy + 1, 7, 1, T.cap); else if (f !== 2) R(x + (f > 0 ? 1 : -4), hy + 1, 4, 1, T.cap); else R(x - 2, hy + 1, 5, 2, hc); return; }
+  if (st === 'bald') { if (f === 2) R(x - 2, hy + 1, 5, 2, hc); else if (f === 0) { R(x - 3, hy + 1, 1, 2, hc); R(x + 3, hy + 1, 1, 2, hc); } else R(x - 2 * f, hy + 1, 1, 2, hc); return; }
+  if (f === 2) { R(x - 2, hy - 1, 5, 5, hc); }
+  else R(x - 2, hy - 1, 5, 2, hc);
+  if (f === 1 || f === -1) R(x - 2 * f, hy, 1, 3, hc);
+  if (st === 'long') { if (f === 0) { R(x - 3, hy - 1, 1, 7, hc); R(x + 3, hy - 1, 1, 7, hc); } else if (f === 2) R(x - 3, hy, 7, 6, hc); else R(x - 2 * f - (f > 0 ? 1 : 0), hy, 2, 6, hc); }
+  if (st === 'curly') { R(x - 3, hy - 2, 7, 3, hc); R(x - 3, hy + 1, 1, 2, hc); R(x + 3, hy + 1, 1, 2, hc); }
+  if (st === 'pony') { if (f === 0) R(x + 3, hy, 1, 3, hc); else R(f === 2 ? x : x - 3 * f, hy + 1, 1, 4, hc); }
+  if (st === 'spiky') { R(x - 2, hy - 2, 1, 1, hc); R(x, hy - 2, 1, 1, hc); R(x + 2, hy - 2, 1, 1, hc); }
+}
+function drawLying(x, y, sk) {
+  const top = y;
+  R(x - 14, top - 5, 5, 5, sk);
+  if (T.style !== 'bald') R(x - 15, top - 5, 2, 5, T.style === 'cap' ? T.cap : T.hair);
+  R(x - 12, top - 3, 2, 1, '#6b4a3a');
+  R(x - 9, top - 4, 16, 4, T.shirt); R(x + 7, top - 3, 8, 3, T.pants); R(x + 15, top - 3, 1, 3, SHOE);
+}
+function drawDog(tick) {
+  const x = Math.round(DOG.x), y = FY[0], c = T.dogCol, d = shade(c, .7), f = DOG.face;
+  if (DOG.state === 'sleep') {
+    R(x - 5, y - 3, 10, 3, c); R(x + (f > 0 ? 3 : -6), y - 4, 3, 3, c); R(x + (f > 0 ? 4 : -6), y - 4, 1, 1, d);
+    return;
+  }
+  const walking = DOG.state === 'walk', k = walking ? Math.floor(DOG.dist / 2) % 2 : 0;
+  const sitting = DOG.state === 'sit' || DOG.state === 'beg' || DOG.state === 'held';
+  const hx = f > 0 ? x + 4 : x - 7;
+  if (sitting) { R(x - 3, y - 6, 6, 4, c); R(x - 3, y - 2, 2, 2, c); R(x + 1, y - 2, 2, 2, c); }
+  else { R(x - 4, y - 6, 8, 3, c); R(x - 4 + k, y - 3, 1, 3, d); R(x - 2 - k, y - 3, 1, 3, c); R(x + 1 + k, y - 3, 1, 3, d); R(x + 3 - k, y - 3, 1, 3, c); }
+  const eat = DOG.state === 'eat';
+  R(hx, y - (eat ? 5 : 9), 3, 3, c); R(hx + (f > 0 ? 3 : -1), y - (eat ? 4 : 8), 1, 2, c);
+  R(f > 0 ? hx : hx + 2, y - (eat ? 6 : 10), 1, 2, d);
+  if (!eat) R(hx + (f > 0 ? 2 : 0), y - 8, 1, 1, '#111');
+  const wag = (DOG.state === 'held' || walking || DOG.state === 'beg') && tick % 2;
+  R(f > 0 ? x - 5 : x + 4, y - (wag ? 9 : 8), 1, 3, d);
+}
+function particlesStep(dtr, tick) {
+  const fx = cur && cur.phase === 'do' ? step().fx : null;
+  if (fx === 'sleep' && Math.random() < dtr * 1.2) parts.push({ x: P.x - 10, y: P.y - 8, vx: 4, vy: -6, life: 2.2, k: 'z' });
+  if (fx === 'piano' && Math.random() < dtr * 2) parts.push({ x: P.x + rnd(-6, 6), y: P.y - 22, vx: rnd(-3, 3), vy: -7, life: 1.6, k: 'note' });
+  if (fx === 'records' && Math.random() < dtr * 2) parts.push({ x: OBJ.records.x - 11, y: FY[1] - 18, vx: rnd(-4, 4), vy: -6, life: 1.6, k: 'note' });
+  if (fx === 'cook' && Math.random() < dtr * 4) parts.push({ x: OBJ.stove.x - 4 + rnd(0, 4), y: FY[0] - 19, vx: rnd(-1, 1), vy: -6, life: 1.2, k: 'steam' });
+  if (fx === 'shower') for (let i = 0; i < 3; i++) if (Math.random() < dtr * 18) parts.push({ x: OBJ.shower.x + rnd(-4, 4), y: FY[2] - 31, vx: 0, vy: 40, life: .7, k: 'drop' });
+  if (cur && cur.id === 'eat' && Math.random() < dtr * .8) parts.push({ x: 238, y: 12, vx: 2, vy: -4, life: 3, k: 'smoke' });
+  for (const p of parts) { p.x += p.vx * dtr; p.y += p.vy * dtr; p.life -= dtr; }
+  parts = parts.filter(p => p.life > 0 && p.y < (p.k === 'drop' ? FY[2] - 2 : 999));
+  for (const p of parts) {
+    const x = Math.round(p.x), y = Math.round(p.y);
+    if (p.k === 'z') { R(x, y, 3, 1, '#5a6bd6'); R(x + 1, y + 1, 1, 1, '#5a6bd6'); R(x, y + 2, 3, 1, '#5a6bd6'); }
+    if (p.k === 'note') { R(x, y + 2, 2, 2, '#333'); R(x + 1, y - 1, 1, 3, '#333'); R(x + 2, y - 1, 1, 1, '#333'); }
+    if (p.k === 'steam') R(x, y, 1, 1, 'rgba(255,255,255,.8)');
+    if (p.k === 'drop') R(x, y, 1, 2, '#6fb3e0');
+    if (p.k === 'smoke') R(x, y, 2, 2, 'rgba(240,240,240,.7)');
+    if (p.k === 'heart') { R(x, y, 1, 1, '#e0436b'); R(x + 2, y, 1, 1, '#e0436b'); R(x, y + 1, 3, 1, '#e0436b'); R(x + 1, y + 2, 1, 1, '#e0436b'); }
+  }
+}
+function heart(x, y) { for (let i = 0; i < 3; i++) parts.push({ x: x + rnd(-4, 3), y: y - i * 3, vx: rnd(-2, 2), vy: -8, life: 1.4, k: 'heart' }); }
+
+function draw(dtr) {
+  const tick = Math.floor(performance.now() / 250);
+  drawHouse(tick);
+  const inBed = cur && cur.phase === 'do' && step().pose === 'lie' && step().at === 'bed';
+  const seat = cur && cur.phase === 'do' && OBJ[step().at] ? (OBJ[step().at].dy || 0) : 0;
+  const y = P.pose === 'lie' ? (inBed ? FY[2] - 11 : FY[0] - 8) : P.y + (P.pose === 'sit' ? seat : 0);
+  // chairs that sit in front of furniture
+  chair(OBJ.desk.x, FY[1]);
+  if (floorOf(P.y) !== 0 || climbing()) drawDog(tick);
+  drawPerson(P.x, y, { pose: P.pose, arms: P.arms, face: P.face, frame: P.frame, walking: P.walking && cur && cur.phase === 'walk', tick });
+  if (floorOf(P.y) === 0 && !climbing()) drawDog(tick);
+  tableFront();
+  // blanket over the bed
+  const bx = OBJ.bed.x;
+  R(bx - 9, FY[2] - (inBed ? 13 : 12), 26, inBed ? 5 : 3, T.blanket); R(bx - 9, FY[2] - (inBed ? 13 : 12), 26, 1, shade(T.blanket, 1.2));
+  if (cur && cur.phase === 'do' && step().fx === 'shower') { R(OBJ.shower.x + 6, FY[2] - 34, 4, 32, 'rgba(255,255,255,.55)'); }
+  particlesStep(dtr, tick);
+  // night: lights off while the tenant sleeps
+  const s = sky(), dark = (1 - s.day) * (asleep() && cur.id === 'sleep' ? .55 : .12);
+  if (dark > .01) { g.fillStyle = `rgba(20,24,60,${dark})`; g.fillRect(16, 44, 280, 144); }
+  if (dark > .2 && !asleep()) for (const rm of ROOMS) { g.fillStyle = 'rgba(255,230,150,.08)'; g.fillRect(rm[1], FY[rm[0]] - 46, rm[2] - rm[1], 46); }
+}
+
+// ---------- UI ----------
+const NEEDS = [['food', 'Food'], ['water', 'Water'], ['energy', 'Energy'], ['fun', 'Fun'], ['clean', 'Clean'], ['social', 'Company'], ['health', 'Health']];
+function buildNeeds() {
+  $('needs').innerHTML = NEEDS.map(([k, l]) => `<div class="need"><span>${l}</span><div class="bar"><i id="n-${k}"></i></div></div>`).join('');
+}
+let uiAt = 0;
+function updateUI(now) {
+  if (now - uiAt < 200) return; uiAt = now;
+  const d = Math.floor(S.t / 1440) + 1, h = Math.floor(hour()), m = Math.floor(S.t % 60);
+  $('clock').textContent = `Day ${d} · ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  const md = mood();
+  $('mood').textContent = md > 80 ? 'Cheerful' : md > 62 ? 'Content' : md > 45 ? 'So-so' : md > 28 ? 'Glum' : 'Miserable';
+  for (const [k] of NEEDS) { const el = $('n-' + k), v = S.needs[k]; el.style.width = v + '%'; el.style.background = v > 55 ? 'var(--good)' : v > 28 ? 'var(--warn)' : 'var(--bad)'; }
+  let label = '';
+  if (cur) { const st = step(), l = typeof st.label === 'function' ? st.label() : st.label; label = l || ''; }
+  $('doing').innerHTML = toast ? `<b>${esc(toast)}</b>` : `<b>${esc(T.name)}</b> is ${esc(label || 'thinking')}.`;
+  const u = S.letters.filter(l => !l.read).length;
+  $('unread').textContent = u ? u : '';
+  $('stock').textContent = `Fridge: ${S.fridge} · Dog food: ${S.dogFood} · Tonic: ${S.tonic} · Books: ${S.books.length} · Records: ${S.records}${S.parcel.length ? ` · Waiting at the door: ${S.parcel.length}` : ''}`;
+  $('needsTitle').textContent = `How ${T.name} feels`;
+  $('say').placeholder = `Type to ${T.name}, e.g. please play the piano`;
+}
+let toastAt = 0;
+function updateBubble(now) {
+  const b = $('bubble');
+  if (now > bubble.until) { b.hidden = true; return; }
+  if (b.textContent !== bubble.text) b.textContent = bubble.text;
+  b.hidden = false;
+  const lying = P.pose === 'lie';
+  const px = lying ? P.x - 12 : P.x, py = (lying ? (OBJ.bed.f === floorOf(P.y) ? FY[2] - 18 : FY[0] - 16) : P.y - T.height - 4);
+  b.style.left = clamp(px / W * 100, 14, 86) + '%';
+  b.style.top = Math.max(py / H * 100, 12) + '%';
+}
+
+let modalClose = null;
+function modal(html, onClose) { $('mcard').innerHTML = html; $('modal').hidden = false; modalClose = onClose || hideModal; const b = $('mcard').querySelector('button.primary, button'); if (b && document.activeElement?.closest?.('#mcard') == null) b.focus({ preventScroll: true }); }
+function hideModal() { $('modal').hidden = true; modalClose = null; }
+function showMail() {
+  const L = S.letters.map((l, i) => ({ l, i })).reverse();
+  modal(`<h2>Letters from ${esc(T.name)}</h2>
+    ${L.length ? `<ul class="mail">${L.map(({ l, i }) => `<li><button data-letter="${i}" class="${l.read ? '' : 'unread'}"><span>${esc(l.text.split('\n').find((s, k) => k > 1 && s) || 'A letter').slice(0, 48)}…</span><small>Day ${Math.floor(l.t / 1440) + 1}</small></button></li>`).join('')}</ul>` : '<p>No letters yet. They write when they feel like it.</p>'}
+    <div class="row"><button data-m="close">Close</button></div>`);
+}
+function showLetter(i) {
+  const l = S.letters[i]; if (!l) return;
+  l.read = true;
+  modal(`<div class="letter">${esc(l.text)}</div><div class="row"><button data-m="mail">All letters</button><button class="primary" data-m="close">Close</button></div>`);
+}
+function showIntro() {
+  modal(`<h2>Someone is moving in</h2>
+    <p><b>${esc(T.name)}</b> and their dog <b>${esc(T.dog)}</b> are moving into the little house inside your computer. They have their own habits and moods, and they love ${esc(HOBBY[T.fav])}.</p>
+    <p>Watch what they get up to, type requests, send parcels when the fridge runs low, and check the mailbox for letters.</p>
+    <div class="row"><button class="primary" id="startBtn" data-m="start">Let them in</button></div>`, () => {});
+}
+function confirmNew() {
+  modal(`<h2>New tenant?</h2><p>${esc(T.name)} and ${esc(T.dog)} will move out, and someone new moves in. Their letters go with them.</p>
+    <div class="row"><button data-m="close">Keep ${esc(T.name)}</button><button class="primary" data-m="reset">Move someone new in</button></div>`);
+}
+$('mcard').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.letter) return showLetter(+b.dataset.letter);
+  const m = b.dataset.m, c = b.dataset.c;
+  if (m === 'close') hideModal();
+  if (m === 'mail') showMail();
+  if (m === 'start') { audioOn(); hideModal(); started = true; }
+  if (m === 'reset') { cur = null; queued = null; CARDS = null; S = fresh((Math.random() * 2 ** 32) >>> 0); T = makeTenant(S.seed); P.x = 28; P.y = FY[0]; DOG.x = 40; parts = []; save(); showIntro(); started = false; }
+  if (c === 'hit') hit(); if (c === 'stand') stand(); if (c === 'deal') deal(); if (c === 'leave') closeCards();
+});
+$('modal').addEventListener('click', e => { if (e.target === $('modal') && modalClose && started) modalClose(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('modal').hidden && started && modalClose) modalClose(); });
+$('mailBtn').onclick = () => { audioOn(); showMail(); };
+$('newBtn').onclick = confirmNew;
+$('talk').addEventListener('submit', e => { e.preventDefault(); const v = $('say').value; $('say').value = ''; if (!started) return; hear(v); });
+document.querySelectorAll('[data-do]').forEach(b => b.onclick = () => { if (!started) return; const k = b.dataset.do; if (k === 'knock') knock(); if (k === 'phone') phone(); if (k === 'cards') askCards(true); });
+document.querySelectorAll('[data-gift]').forEach(b => b.onclick = () => { if (started) gift(b.dataset.gift); });
+document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => setSpeed(+b.dataset.speed));
+function setSpeed(v) { speed = v; document.querySelectorAll('[data-speed]').forEach(b => b.classList.toggle('on', +b.dataset.speed === v)); }
+function setSound() { $('soundBtn').textContent = AU.muted ? 'Sound off' : 'Sound on'; $('soundBtn').classList.toggle('on', !AU.muted); if (AU.out) AU.out.gain.value = AU.muted ? 0 : .55; }
+$('soundBtn').onclick = () => { AU.muted = !AU.muted; try { localStorage.setItem('tinytenant-muted', AU.muted ? '1' : '0'); } catch (e) {} audioOn(); setSound(); };
+cv.addEventListener('pointerdown', e => {
+  if (!started) return;
+  audioOn();
+  const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
+  if (x > 302 && y > 150 && y < 190) return showMail();
+  const lying = P.pose === 'lie', px = lying ? P.x - 4 : P.x, top = lying ? P.y - 30 : P.y - T.height - 2;
+  if (Math.abs(x - px) < (lying ? 14 : 6) && y > top - 2 && y < (lying ? P.y + 2 : P.y + 1) + (lying ? 0 : 0) + 2) return pat();
+  if (Math.abs(x - DOG.x) < 7 && y > FY[0] - 12 && y < FY[0] + 2) { bark(); heart(DOG.x, FY[0] - 10); if (DOG.state !== 'walk') { DOG.state = 'held'; DOG.t = 2; } return; }
+  if (Math.abs(x - OBJ.door.x) < 9 && y > FY[0] - 28 && y < FY[0]) return knock();
+  if (Math.abs(x - OBJ.phone.x) < 6 && y > FY[1] - 18 && y < FY[1] - 10) return phone();
+});
+document.addEventListener('pointerdown', () => audioOn(), { once: true });
+addEventListener('pagehide', save);
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+
+// ---------- main loop ----------
+let started = false, last = performance.now(), saveAt = 0, toastSet = '';
+function frame(now) {
+  const dtr = Math.min(.25, (now - last) / 1000); last = now;
+  if (started && speed > 0 && !(CARDS && speed > 1)) sim(dtr * speed);
+  draw(dtr);
+  tickLoop();
+  if (toast !== toastSet) { toastSet = toast; toastAt = now; }
+  if (toast && now - toastAt > 3500) { toast = ''; toastSet = ''; }
+  updateUI(now); updateBubble(now);
+  if (started && now - saveAt > 10000) { saveAt = now; save(); }
+  requestAnimationFrame(frame);
+}
+load(); buildNeeds(); setSpeed(1); setSound();
+if (!S.arrived && !S.letters.length) showIntro(); else started = true;
+if (S.arrived) { P.y = FY[floorOf(P.y)]; }
+window.__tt = { get S() { return S; }, get T() { return T; }, get cur() { return cur; }, sim, hear, gift, knock, phone, act: id => startAct(id), DOG, P, start: () => { hideModal(); started = true; } };
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

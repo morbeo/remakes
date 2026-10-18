@@ -49,13 +49,21 @@ def arctic_adventure(pg):
     return "#c"
 
 
+def little_computer_people(pg):
+    pg.click("#startBtn")
+    pg.evaluate("__tt.S.arrived = true; __tt.act('piano'); __tt.sim(25)")
+    pg.wait_for_timeout(1200)
+    return "#c"
+
+
 def default(pg):
     pg.wait_for_timeout(1000)
     return "canvas"
 
 
 RECIPES = {"elasto-mania": elasto_mania, "clockwerx": clockwerx,
-           "excitebike": excitebike, "arctic-adventure": arctic_adventure}
+           "excitebike": excitebike, "arctic-adventure": arctic_adventure,
+           "little-computer-people": little_computer_people}
 
 # Scale the element shot down in the page and encode it as WebP there, so no image library is needed.
 ENCODE = """async ([src, w]) => {
