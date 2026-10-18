@@ -757,7 +757,7 @@ function updateMonk(g, m, dt) {
     m.trapT -= dt;
     const [x, y] = cellOf(m), h = g.holes[y * W + x];
     if (!h) { m.st = "ok"; return; }
-    if (m.trapT <= 0 && h.st === "open" && !solid(g, x, y - 1) && !monkAt(g, x, y - 1, m)) {
+    if (m.trapT <= 0 && h.st === "open" && !solid(g, x, y - 1) && !monkAt(g, x, y - 1, m) && !playerAt(g, x, y - 1)) { // held down while anyone stands on its head
       m.st = "ok"; startMove(m, x, y - 1, "v"); m.hover = 0.8; m.escape = true;
     } else return;
   }
