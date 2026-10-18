@@ -49,13 +49,23 @@ def arctic_adventure(pg):
     return "#c"
 
 
+def lode_runner(pg):
+    pg.click("text=Solo")
+    pg.click("#panel [data-i='0']")
+    pg.wait_for_timeout(1500)
+    pg.keyboard.down("ArrowRight"); pg.wait_for_timeout(500); pg.keyboard.up("ArrowRight")
+    pg.keyboard.press("KeyX"); pg.wait_for_timeout(150)
+    return "#c"
+
+
 def default(pg):
     pg.wait_for_timeout(1000)
     return "canvas"
 
 
 RECIPES = {"elasto-mania": elasto_mania, "clockwerx": clockwerx,
-           "excitebike": excitebike, "arctic-adventure": arctic_adventure}
+           "excitebike": excitebike, "arctic-adventure": arctic_adventure,
+           "lode-runner": lode_runner}
 
 # Scale the element shot down in the page and encode it as WebP there, so no image library is needed.
 ENCODE = """async ([src, w]) => {
