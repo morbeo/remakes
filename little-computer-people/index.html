@@ -32,7 +32,7 @@ button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 button.on{background:var(--ink);color:#fff}
 #mailBtn b{display:inline-block;min-width:1.4em;margin-left:4px;padding:0 5px;border-radius:9px;background:var(--accent);color:#fff;font-size:13px}
 #mailBtn b:empty{display:none}
-.stage{position:relative;border:3px solid var(--ink);border-radius:8px;overflow:hidden;background:#cfe6f2;aspect-ratio:320/200;user-select:none;-webkit-user-select:none}
+.stage{position:relative;border:3px solid var(--ink);border-radius:8px;overflow:hidden;background:#cfe6f2;aspect-ratio:400/200;user-select:none;-webkit-user-select:none}
 #c{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;cursor:pointer;touch-action:manipulation}
 .bubble{position:absolute;transform:translate(-50%,-100%);background:#fff;border:2px solid var(--ink);border-radius:10px;padding:4px 9px;font-size:clamp(12px,1.8vw,15px);font-weight:600;max-width:46%;width:max-content;text-align:center;pointer-events:none;box-shadow:0 2px 0 rgba(0,0,0,.15)}
 .bubble::after{content:"";position:absolute;left:50%;bottom:-8px;margin-left:-6px;border:6px solid transparent;border-top-color:var(--ink);border-bottom:0}
@@ -77,7 +77,7 @@ section h3:not(:first-child){margin-top:12px}
   <header>
     <div>
       <h1>Tiny<span>Tenant</span></h1>
-      <p class="tag">Someone lives in your computer. Watch them, talk to them, send parcels and read their letters.</p>
+      <p class="tag">Someone lives in a panel block inside your computer. Watch them, talk to them, send parcels and read their letters.</p>
     </div>
     <div class="hud">
       <span class="chip" id="clock">Day 1 · 09:00</span>
@@ -87,7 +87,7 @@ section h3:not(:first-child){margin-top:12px}
   </header>
 
   <div class="stage" id="stage">
-    <canvas id="c" width="320" height="200" aria-label="The house"></canvas>
+    <canvas id="c" width="400" height="200" aria-label="The panel block"></canvas>
     <div class="bubble" id="bubble" hidden></div>
   </div>
   <p class="doing" id="doing"></p>
@@ -137,7 +137,7 @@ section h3:not(:first-child){margin-top:12px}
 <script>
 'use strict';
 // ---------- helpers ----------
-const W = 320, H = 200;
+const W = 400, H = 200;
 const cv = document.getElementById('c'), g = cv.getContext('2d');
 g.imageSmoothingEnabled = false;
 const $ = id => document.getElementById(id);
@@ -156,14 +156,14 @@ function shade(hex, k) {
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // ---------- the tenant: everything about them comes from one seed ----------
-const NAMES = ['Sam','Robin','Alex','Jamie','Morgan','Casey','Jules','Charlie','Frankie','Kit','Remy','Toby','Ash','Pip','Noel','Billie','Rory','Sasha','Max','Lou','Andy','Ziggy','Tess','Hugo','Ida','Otto','Mina','Felix','Nell','Arlo','Wren','Bea'];
-const DOGS = ['Biscuit','Pepper','Noodle','Waffle','Pickle','Mochi','Bean','Turnip','Scout','Pretzel','Domino','Crumpet','Fig','Socks'];
+const NAMES = ['Pavel','Jana','Tomáš','Olga','Mirek','Zdena','Vlado','Ilona','Bohdan','Věra','Lenka','Igor','Míla','Saša','Boris','Dana','Kamil','Irena','Oleg','Marta','Radek','Hana','Ivan','Nadia','Luboš','Eva','Petr','Zora'];
+const DOGS = ['Rex','Bobík','Ťapka','Alík','Punťa','Žolík','Šarik','Lajka','Míša','Brok','Azor','Fifinka'];
 const SKIN = ['#f3d3b5','#e8b48e','#c98e66','#a26a45','#7a4b2e','#f7e0cc'];
 const HAIR = ['#2b1d14','#5a3a22','#8a5a2b','#c98f3e','#e2c26a','#b23a1f','#7a7a7a','#ebe5d3','#1c1c2a'];
 const SHIRT = ['#d9534f','#3e7cb1','#4caf7a','#e6a23c','#8e5bb5','#e46aa0','#2f9c95','#e7c63f','#6c7a89'];
 const PANTS = ['#33415c','#5b4636','#3a3a3a','#6b7d4a','#7b5e9a','#3c5a78'];
 const STYLES = ['short','long','bald','curly','pony','cap','spiky'];
-const FOODS = ['pancakes','soup','noodles','cheese toast','curry','an omelette','stew','pie','dumplings','a sandwich'];
+const FOODS = ['borscht','pierogi','goulash','potato pancakes','stuffed cabbage','dumplings','buckwheat kasha','schnitzel','palačinky','lecsó'];
 const DOGCOL = ['#c8935a','#eee5d5','#5a4032','#2e2a28','#d9b26f','#a35b33'];
 const ADJ = ['Quiet','Velvet','Paper','Copper','Midnight','Sleepy','Little','Crooked','Golden','Rainy','Upside-down','Humming','Lost','Silver'];
 const NOUN = ['Kettle','Lighthouse','Teaspoon','Comet','Umbrella','Garden','Staircase','Radio','Pebble','Orchard','Sock','Tortoise','Clock','Moon'];
@@ -171,7 +171,7 @@ const TRAITS = ['music','books','fitness','tv','social','appetite','sleepy','tid
 const HOBBY = {
   music: 'tinkling away at the piano', books: 'curling up with a good book', fitness: 'jumping jacks before breakfast',
   tv: 'a good programme on the telly', social: 'writing letters and chatting on the phone', appetite: 'cooking big dinners',
-  sleepy: 'long, long naps', tidy: 'a clean bathroom and a hot shower'
+  sleepy: 'long, long naps', tidy: 'a clean flat and a hot shower, when there is hot water'
 };
 
 function makeTenant(seed) {
@@ -193,6 +193,11 @@ function makeTenant(seed) {
   t.spines = Array.from({ length: 40 }, () => hsl(r() * 360, 45, 45));
   t.art = Array.from({ length: 8 }, () => [hsl(r() * 360, 50, 60), hsl(r() * 360, 50, 45), r()]);
   t.songR = Math.floor(r() * 1e9);
+  t.panel = pick(['#c9c4b8','#bdb8ad','#d4cdbd','#c2c6c4','#cfc6b0'], r); t.stripe = pick(['#d9534f','#e6a23c','#3e7cb1','#4caf7a','#e7c63f','#8e5bb5'], r);
+  t.rail = pick(['#d9534f','#e6a23c','#3e7cb1','#4caf7a','#e7c63f'], r); t.oil = pick(['#8fb59a','#8aaabf','#cdb878','#a9bd8f','#b7a6c4'], r);
+  t.padded = pick(['#7a3b2e','#4a3a5a','#6a5032','#2f4f4f'], r); t.padded2 = pick(['#7a3b2e','#4a3a5a','#6a5032','#2f4f4f'], r);
+  t.carpet = pick(['#9c2f2f','#7a2a4a','#8a4b1f','#2f4f7a'], r); t.flat = 10 + Math.floor(r() * 80);
+  t.win = Array.from({ length: 13 }, () => ({ curtain: hsl(r() * 360, 45, 70), box: r() < .3, rail: pick(['#d9534f','#e6a23c','#3e7cb1','#4caf7a','#e7c63f','#f4efe6'], r) }));
   return t;
 }
 function songName(i) {
@@ -204,19 +209,19 @@ function bookTitle() {
   return pick([`The ${a} ${n}`, `${n}s at Midnight`, `A Field Guide to ${n}s`, `The ${n} and the ${n2}`, `Notes from a ${a} ${n}`, `Forty ${n}s`]);
 }
 
-// ---------- house layout ----------
-const FY = [186, 138, 90]; // feet line per floor: ground, middle, top
+// ---------- the block: one flat above the lobby, neighbours' floors above, a stairwell on the right ----------
+const FY = [186, 138, 90, 42]; // feet line per storey: lobby, the flat, neighbours above
 const OBJ = {
-  door: { f: 0, x: 28 }, sofa: { f: 0, x: 62, dy: -4 }, tv: { f: 0, x: 100 }, dogbed: { f: 0, x: 122 }, bowl: { f: 0, x: 134 },
-  table: { f: 0, x: 160, dy: -3 }, fridge: { f: 0, x: 190 }, stove: { f: 0, x: 212 }, ksink: { f: 0, x: 234 },
-  desk: { f: 1, x: 36, dy: -3 }, shelf: { f: 1, x: 64 }, armchair: { f: 1, x: 88, dy: -4 }, phone: { f: 1, x: 112 },
-  piano: { f: 1, x: 152, dy: -3 }, records: { f: 1, x: 200 },
-  bed: { f: 2, x: 44 }, wardrobe: { f: 2, x: 86 }, shower: { f: 2, x: 138 }, bsink: { f: 2, x: 164 }, mat: { f: 2, x: 214 }
+  loggia: { f: 1, x: 27 }, bed: { f: 1, x: 60 }, desk: { f: 1, x: 98, dy: -3 },
+  stenka: { f: 1, x: 128 }, sofa: { f: 1, x: 164, dy: -4 }, dogbed: { f: 1, x: 183 }, piano: { f: 1, x: 202, dy: -3 },
+  fridge: { f: 1, x: 231 }, stove: { f: 1, x: 248 }, ksink: { f: 1, x: 266 }, table: { f: 1, x: 283, dy: -3 },
+  bath: { f: 1, x: 303 }, phone: { f: 1, x: 318 }, bowl: { f: 1, x: 322 }, door: { f: 1, x: 329 },
+  entrance: { f: 0, x: 40 }, mailboxes: { f: 0, x: 100 }
 };
-const ROOMS = [[0, 16, 138], [0, 138, 250], [1, 16, 126], [1, 126, 250], [2, 16, 118], [2, 118, 182], [2, 182, 250]];
-const WINDOWS = [{ f: 0, x: 120, w: 14 }, { f: 0, x: 234, w: 12 }, { f: 1, x: 112, w: 14 }, { f: 1, x: 176, w: 14 }, { f: 2, x: 44, w: 16 }, { f: 2, x: 236, w: 12 }];
-const STAIR = f => f % 2 === 0 ? [256, 292] : [292, 256]; // [bottom x, top x] of the flight from floor f up to f+1
-const floorOf = y => { let b = 0; for (let i = 1; i < 3; i++) if (Math.abs(FY[i] - y) < Math.abs(FY[b] - y)) b = i; return b; };
+const ROOMS = [[1, 16, 38], [1, 38, 112], [1, 112, 222], [1, 222, 290], [1, 290, 312], [1, 312, 336]]; // loggia, bedroom, living room, kitchen, bathroom, hall
+const WINDOWS = [{ f: 1, x: 27, face: 0 }, { f: 1, x: 60, face: 2 }, { f: 1, x: 266, face: 2 }];
+const STAIR = f => f % 2 === 0 ? [342, 378] : [378, 342]; // [bottom x, top x] of the flight from storey f up to f+1
+const floorOf = y => { let b = 0; for (let i = 1; i < FY.length; i++) if (Math.abs(FY[i] - y) < Math.abs(FY[b] - y)) b = i; return b; };
 const onFloor = y => FY.some(v => Math.abs(v - y) < .01);
 
 function route(x, y, f2, x2) {
@@ -230,20 +235,20 @@ function route(x, y, f2, x2) {
 }
 
 // ---------- state ----------
-const SAVE = 'tinytenant-v1';
+const SAVE = 'tinytenant-v2';
 let T, S, cur = null, queued = null, CARDS = null, speed = 1;
-const P = { x: 28, y: FY[0], face: 0, pose: 'stand', arms: 'down', frame: 0, dist: 0, walking: false };
-const DOG = { x: 40, face: 1, state: 'sit', tx: 40, t: 5, dist: 0 };
+const P = { x: 40, y: FY[0], face: 0, pose: 'stand', arms: 'down', frame: 0, dist: 0, walking: false };
+const DOG = { x: 30, y: FY[0], face: 1, state: 'sit', tx: 30, t: 5, dist: 0, follow: false };
 let parts = [], bubble = { text: '', until: 0 }, ringing = null, toast = '';
 
 function fresh(seed) {
   return {
-    v: 1, seed, t: 9 * 60, arrived: false,
+    v: 2, seed, t: 9 * 60, arrived: false, dogWalk: .2, drill: 0,
     needs: { food: 75, water: 75, energy: 85, fun: 65, clean: 80, social: 55, health: 100 },
     fridge: 4, dogFood: 6, bowl: 1, tonic: 1, dogHunger: .2,
     books: [bookTitle(), bookTitle(), bookTitle()], newBooks: [], records: 1, skill: 0, song: 0,
     parcel: [], letters: [], log: [], reqs: [], pets: [], knocks: [], player: '', wins: { you: 0, them: 0 },
-    lastLetter: 0, recent: [], pos: { x: 28, y: FY[0] }
+    lastLetter: 0, recent: [], pos: { x: 40, y: FY[0] }
   };
 }
 function load() {
@@ -251,10 +256,10 @@ function load() {
   let s = null;
   try { s = JSON.parse(localStorage.getItem(SAVE)); } catch (e) {}
   if (q.has('seed')) s = fresh(parseInt(q.get('seed'), 10) >>> 0);
-  if (!s || s.v !== 1) s = fresh((Math.random() * 2 ** 32) >>> 0);
+  if (!s || s.v !== 2) s = fresh((Math.random() * 2 ** 32) >>> 0);
   S = s; T = makeTenant(S.seed);
   P.x = S.pos.x; P.y = onFloor(S.pos.y) ? S.pos.y : FY[floorOf(S.pos.y)];
-  DOG.x = P.x + 12;
+  DOG.x = P.x + 12; DOG.y = S.arrived ? FY[1] : P.y; if (S.arrived && floorOf(P.y) !== 1) { P.x = OBJ.door.x - 6; P.y = FY[1]; DOG.x = P.x - 10; }
 }
 function save() {
   S.pos = { x: P.x, y: onFloor(P.y) ? P.y : FY[floorOf(P.y)] };
@@ -278,41 +283,47 @@ const ACTS = {
   drink: { est: { water: 55 }, quips: () => ['Thirsty work, all this.'],
     steps: [{ at: 'ksink', t: 4, face: 0, arms: 'mouth', gain: { water: 55 }, label: 'having a glass of water' }] },
   sleep: { est: () => ({ energy: 100 - S.needs.energy }), aff: 'sleepy', quips: () => ['Bedtime.', '*yawn*'],
-    steps: [{ at: 'bsink', t: 4, face: 2, gain: { clean: 8 }, label: 'brushing their teeth' },
+    steps: [{ at: 'bath', dx: 6, t: 4, face: 2, gain: { clean: 8 }, label: 'brushing their teeth' },
       { at: 'bed', t: () => clamp((100 - S.needs.energy) / .2 + 30, 40, 600), pose: 'lie', fx: 'sleep', rate: { energy: .2, health: .02 }, label: 'asleep',
         until: () => S.needs.energy > 97 && !isNight() }] },
   nap: { est: { energy: 18 }, aff: 'sleepy', quips: () => ['Just resting my eyes…'],
     steps: [{ at: 'sofa', t: 50, pose: 'lie', fx: 'sleep', rate: { energy: .36 }, label: 'napping on the sofa' }] },
-  shower: { est: { clean: 85, fun: 3 }, aff: 'tidy', quips: () => ['I could do with a wash.'],
-    steps: [{ at: 'shower', t: 14, face: 0, fx: 'shower', gain: { clean: 85, fun: 3 }, label: 'taking a shower' }] },
+  shower: { est: { clean: 85, fun: 3 }, aff: 'tidy', quips: () => ['I could do with a wash.', 'Let’s hope there’s hot water today.'],
+    steps: [{ at: 'bath', t: 14, face: 0, fx: 'shower', gain: { clean: 85, fun: 3 }, label: 'having a shower in the tub' }] },
   tv: { est: { fun: 30, energy: -3 }, aff: 'tv', quips: () => ['Anything good on?'],
     steps: [{ at: 'sofa', t: 45, pose: 'sit', fx: 'tv', gain: { fun: 30, energy: -3 }, label: 'watching TV' }] },
   piano: { est: { fun: 34 }, aff: 'music', quips: () => ['Let me practise.', 'I think I have it now…'],
     steps: [{ at: 'piano', t: 40, pose: 'sit', face: 2, arms: 'forward', fx: 'piano', gain: { fun: 34 }, label: () => `playing “${songName(S.song)}” on the piano`,
       end: () => { S.skill++; log('piano', songName(S.song)); if (S.skill % 5 === 0) { S.song++; say('I learned a new tune!'); } } }] },
   records: { ok: () => S.records > 0, est: { fun: 30, energy: -6, clean: -5 }, aff: 'music', quips: () => ['Dance break!'],
-    steps: [{ at: 'records', t: 2, face: 2, label: 'putting on a record' },
-      { at: 'records', dx: -22, t: 28, face: 0, arms: 'dance', fx: 'records', gain: { fun: 30, energy: -6, clean: -5 }, label: 'dancing to a record', end: () => log('dance') }] },
+    steps: [{ at: 'stenka', dx: 8, t: 2, face: 2, label: 'putting on a record' },
+      { at: 'stenka', dx: 34, t: 28, face: 0, arms: 'dance', fx: 'records', gain: { fun: 30, energy: -6, clean: -5 }, label: 'dancing to a record', end: () => log('dance') }] },
   read: { est: { fun: 26, energy: -2 }, aff: 'books', quips: () => ['Where was I…'],
-    steps: [{ at: 'shelf', t: 2, face: 2, label: 'choosing a book', begin: () => { cur.isNew = S.newBooks.length > 0; cur.book = S.newBooks.shift() || pick(S.books); } },
-      { at: 'armchair', t: 50, pose: 'sit', arms: 'book', gain: { fun: 26, energy: -2 }, label: () => `reading “${cur.book}”`, end: () => log('read', cur.book) }] },
+    steps: [{ at: 'stenka', dx: -6, t: 2, face: 2, label: 'choosing a book', begin: () => { cur.isNew = S.newBooks.length > 0; cur.book = S.newBooks.shift() || pick(S.books); } },
+      { at: 'sofa', t: 50, pose: 'sit', arms: 'book', gain: { fun: 26, energy: -2 }, label: () => `reading “${cur.book}”`, end: () => log('read', cur.book) }] },
   type: { est: { social: 22, fun: 6 }, aff: 'social', quips: () => ['I should write to you.'],
     steps: [{ at: 'desk', t: 30, pose: 'sit', face: 2, arms: 'forward', fx: 'type', gain: { social: 22, fun: 6 }, label: 'typing a letter to you', end: () => writeLetter() }] },
-  exercise: { est: { fun: 10, energy: -12, clean: -18, health: 4 }, aff: 'fitness', quips: () => ["Let's get moving!"],
-    steps: [{ at: 'mat', t: 25, pose: 'jump', arms: 'jacks', gain: { fun: 10, energy: -12, clean: -18, health: 4 }, label: 'doing jumping jacks', end: () => log('exercise') }] },
+  exercise: { est: { fun: 10, energy: -12, clean: -18, health: 4 }, aff: 'fitness', quips: () => ["Let's get moving!", 'Morning exercises!'],
+    steps: [{ at: 'loggia', t: 25, pose: 'jump', arms: 'jacks', gain: { fun: 10, energy: -12, clean: -18, health: 4 }, label: 'doing jumping jacks on the loggia', end: () => log('exercise') }] },
   call: { est: { social: 26 }, aff: 'social', quips: () => ['I should ring someone.'],
     steps: [{ at: 'phone', t: 14, face: 0, arms: 'ear', fx: 'talk', gain: { social: 26 }, label: 'phoning a friend', lines: ['Hello? It\'s me!', 'Oh, the usual…', 'Ha ha ha!', 'Talk soon, bye!'] }] },
   feedDog: { ok: () => S.dogFood > 0, no: 'There\'s no dog food left.', est: {}, quips: () => [`Dinner time, ${T.dog}!`],
-    steps: [{ at: 'bowl', dx: 6, t: 4, face: -1, arms: 'down', label: () => `feeding ${T.dog}`, end: () => { S.dogFood--; S.bowl = 1; } }] },
+    steps: [{ at: 'bowl', dx: -7, t: 4, face: 1, arms: 'down', label: () => `feeding ${T.dog}`, end: () => { S.dogFood--; S.bowl = 1; } }] },
   petDog: { est: { fun: 8, social: 10 }, quips: () => [`Here, ${T.dog}!`],
     steps: [{ at: 'dog', t: 6, arms: 'down', gain: { fun: 8, social: 10 }, label: () => `playing with ${T.dog}`,
-      begin: () => { DOG.state = 'held'; DOG.t = 6; DOG.face = P.x > DOG.x ? 1 : -1; P.face = -DOG.face; heart(DOG.x, FY[0] - 8); } }] },
-  window: { est: { fun: 6 }, quips: () => [isNight() ? 'Look at all those stars.' : 'Nice day out there.'],
-    steps: [{ at: 'window', t: 10, face: 2, gain: { fun: 6 }, label: 'looking out of the window' }] },
+      begin: () => { DOG.state = 'held'; DOG.t = 6; DOG.face = P.x > DOG.x ? 1 : -1; P.face = -DOG.face; heart(DOG.x, DOG.y - 8); } }] },
+  walkDog: { est: { fun: 14, social: 10, energy: -8 }, quips: () => [`Walkies, ${T.dog}!`],
+    steps: [{ at: 'door', dx: -4, t: 2, face: 0, label: 'putting the lead on', begin: () => { DOG.follow = true; } },
+      { at: 'entrance', t: 45, hidden: 1, gain: { fun: 14, social: 10, energy: -8 }, label: () => `walking ${T.dog} round the block`, end: () => { S.dogWalk = 0; log('walk'); } },
+      { at: 'door', dx: -4, t: 1, face: 0, label: 'coming home' }] },
+  checkMail: { est: { fun: 3, social: 3 }, quips: () => ['Anything in the post box?'],
+    steps: [{ at: 'mailboxes', t: 3, face: 2, gain: { fun: 3, social: 3 }, label: 'checking the post box downstairs' }] },
+  window: { est: { fun: 6 }, quips: () => [isNight() ? 'Look at all those lit windows.' : 'Nice day out there.'],
+    steps: [{ at: 'window', t: 10, face: 2, gain: { fun: 6 }, label: 'looking out at the estate' }] },
   greet: { est: { social: 8 }, quips: () => ['Hello? Anyone out there?'],
     steps: [{ at: 'here', t: 6, face: 0, arms: 'wave', gain: { social: 8 }, label: 'waving at you' }] },
   collect: { ok: () => S.parcel.length > 0, est: {}, quips: () => ['A parcel!'],
-    steps: [{ at: 'door', dx: 10, t: 4, face: 0, label: 'opening a parcel', end: () => openParcels() }] },
+    steps: [{ at: 'door', dx: -6, t: 4, face: 0, label: 'opening a parcel', end: () => openParcels() }] },
   tonic: { ok: () => S.tonic > 0 && S.needs.health < 70, est: { health: 45 }, quips: () => ['Medicine time. Yuck.'],
     steps: [{ at: 'ksink', t: 3, arms: 'mouth', label: 'drinking tonic', end: () => { S.tonic--; bump('health', 45); log('tonic'); } }] },
   bedrest: { ok: () => S.needs.health < 35, est: { health: 20 }, quips: () => ["I don't feel well…"],
@@ -323,18 +334,19 @@ const ACTS = {
   answer: { manual: 1, steps: [{ at: 'phone', t: 10, face: 0, arms: 'ear', fx: 'talk', gain: { social: 25, fun: 5 }, label: 'on the phone with you',
     begin: () => { ringing = null; }, lines: () => ['Hello?', `Oh, ${S.player || 'it\'s you'}!`, statusLine(), 'Thanks for calling!'] }] },
   arrive: { manual: 1, steps: [
-    { at: 'door', dx: 4, t: 2, face: 0, label: 'moving in', say: 'So this is the place!' },
-    { at: 'sofa', t: 2, face: 0, label: 'moving in' },
+    { at: 'entrance', dx: 14, t: 2, face: 0, label: 'moving in', say: 'The lift is broken, of course.', begin: () => { DOG.follow = true; } },
+    { at: 'door', dx: -4, t: 2, face: 0, label: 'moving in', say: () => `Flat ${T.flat}. This is it!`, begin: () => { DOG.follow = false; } },
     { at: 'fridge', t: 3, face: 2, fx: 'fridge', label: 'moving in', say: 'Ooh, snacks.' },
     { at: 'piano', t: 3, face: 2, label: 'moving in', say: 'A piano!' },
-    { at: 'bed', dx: 10, t: 3, face: 0, label: 'moving in', say: 'Comfy.' },
+    { at: 'loggia', t: 3, face: 0, label: 'moving in', say: 'What a view!' },
     { at: 'desk', t: 20, pose: 'sit', face: 2, arms: 'forward', fx: 'type', label: 'typing you a hello letter', end: () => { S.arrived = true; writeLetter('intro'); } }] }
 };
 const COMMANDS = [
   [/piano/, 'piano'], [/\btv\b|telly|television/, 'tv'], [/\bread|book/, 'read'], [/\bnap\b/, 'nap'], [/sleep|\bbed\b|rest/, 'sleep'],
   [/\beat|food|hungry|dinner|lunch|breakfast|cook|snack/, 'eat'], [/drink|water|thirst/, 'drink'], [/shower|bath|wash|clean/, 'shower'],
   [/exercise|work ?out|gym|jumping|sport|stretch|\bfit/, 'exercise'], [/danc|music|record|song/, 'records'], [/write|letter|\btype/, 'type'],
-  [/feed/, 'feedDog'], [/\bdog|\bpet\b|\bwalk/, 'petDog'], [/phone|\bcall|\bring\b/, 'call'], [/window|outside|stars/, 'window'], [/tonic|medicine/, 'tonic']
+  [/feed/, 'feedDog'], [/walk/, 'walkDog'], [/\bdog|\bpet\b/, 'petDog'], [/phone|\bcall|\bring\b/, 'call'], [/\bpost|mailbox/, 'checkMail'],
+  [/window|outside|view|loggia|balcony/, 'window'], [/tonic|medicine/, 'tonic']
 ];
 
 const Wt = v => .25 + 3 * ((100 - v) / 100) ** 2;
@@ -357,6 +369,8 @@ function score(id) {
   if (a.aff && !((id === 'sleep' || id === 'nap') && n.energy > 60)) s += (aff(a) - 1) * 1.2;
   if (id === 'feedDog') s = S.bowl < .3 && S.dogHunger > .35 ? 4 : -1e9;
   if (id === 'collect') s = 5;
+  if (id === 'walkDog') s = S.dogWalk > .6 && !isNight() && n.energy > 15 ? 4 : -2;
+  if (id === 'checkMail') s = isNight() ? -5 : s + .3;
   if (id === 'type') s += (S.t - S.lastLetter > 720 ? 1.5 : -4);
   if (id === 'greet') s += n.social < 40 ? .5 : -1;
   if (id === 'idle') s = .7;
@@ -385,9 +399,9 @@ function startAct(id) {
 function step() { return cur.steps ? cur.steps[cur.i] : ACTS[cur.id].steps[cur.i]; }
 function target(st) {
   if (st.at === 'here') return { f: floorOf(P.y), x: P.x };
-  if (st.at === 'dog') return { f: 0, x: clamp(DOG.x + (P.x > DOG.x ? 9 : -9), 22, 246) };
+  if (st.at === 'dog') return { f: 1, x: clamp(DOG.x + (P.x > DOG.x ? 9 : -9), 20, 334) };
   if (st.at === 'window') { const w = cur.win || (cur.win = pick(WINDOWS)); return { f: w.f, x: w.x }; }
-  if (st.at === 'random') { const r = cur.rnd || (cur.rnd = { f: Math.floor(Math.random() * 3), x: rnd(24, 244) }); return r; }
+  if (st.at === 'random') { const r = cur.rnd || (cur.rnd = { f: 1, x: rnd(42, 330) }); return r; }
   const o = OBJ[st.at]; return { f: o.f, x: o.x + (st.dx || 0) };
 }
 function startStep() {
@@ -397,7 +411,7 @@ function startStep() {
 }
 function beginStep(st) {
   cur.phase = 'do'; P.walking = false;
-  P.face = st.face ?? 0; P.pose = st.pose || 'stand'; P.arms = st.arms || 'down';
+  P.face = st.at === 'window' && cur.win ? cur.win.face : st.face ?? 0; P.pose = st.pose || 'stand'; P.arms = st.arms || 'down';
   cur.left = typeof st.t === 'function' ? st.t() : st.t;
   cur.rate = {};
   if (st.gain) for (const k in st.gain) cur.rate[k] = st.gain[k] / cur.left * (k === 'fun' || k === 'social' ? aff(ACTS[cur.id]) : 1) * (cur.isNew && k === 'fun' ? 1.5 : 1);
@@ -405,7 +419,7 @@ function beginStep(st) {
   cur.lines = typeof st.lines === 'function' ? st.lines() : st.lines;
   cur.total = cur.left; cur.line = -1;
   if (st.begin) st.begin();
-  if (st.say) say(st.say);
+  if (st.say) say(typeof st.say === 'function' ? st.say() : st.say);
   setLoop(st.fx || null);
 }
 function finishAct() {
@@ -463,14 +477,26 @@ function decay(dt) {
   if (n.health > 60) S.flagSick = 0;
 }
 function dogDecide() {
-  const go = (x, state, t) => { DOG.tx = clamp(x, 22, 246); DOG.next = state; DOG.t = t; DOG.state = 'walk'; };
+  const go = (x, state, t) => { DOG.tx = clamp(x, 20, 334); DOG.next = state; DOG.t = t; DOG.state = 'walk'; };
   if (S.dogHunger > .5) return go(OBJ.bowl.x - 7, S.bowl > .05 ? 'eat' : 'beg', S.bowl > .05 ? 6 : 30);
+  if (S.dogWalk > .85 && !isNight()) return go(OBJ.door.x - 9, 'beg', 30);
   if (isNight() || Math.random() < .2) return go(OBJ.dogbed.x, 'sleep', rnd(60, 180));
-  if (floorOf(P.y) === 0 && onFloor(P.y) && Math.random() < .5) return go(P.x + (Math.random() < .5 ? -11 : 11), 'sit', rnd(15, 40));
-  go(rnd(26, 244), 'sit', rnd(10, 40));
+  if (floorOf(P.y) === 1 && onFloor(P.y) && Math.random() < .5) return go(P.x + (Math.random() < .5 ? -11 : 11), 'sit', rnd(15, 40));
+  go(rnd(42, 330), 'sit', rnd(10, 40));
 }
 function dogUpdate(dt) {
   S.dogHunger = clamp(S.dogHunger + dt * .0011, 0, 1);
+  S.dogWalk = clamp((S.dogWalk || 0) + dt * .0011, 0, 1);
+  if (DOG.follow) {
+    // on the lead: trot just behind the tenant, stairs included
+    if (!cur || (cur.id !== 'walkDog' && cur.id !== 'arrive')) { if (onFloor(P.y) && floorOf(P.y) === 1) { DOG.follow = false; DOG.y = FY[1]; dogDecide(); } }
+    if (DOG.follow) {
+      const nx = clamp(P.x - 9 * (P.face || 1), 18, 382);
+      DOG.dist += Math.abs(nx - DOG.x); DOG.x = nx; DOG.y = P.y; DOG.face = P.face || 1;
+      DOG.state = P.walking && cur && cur.phase === 'walk' ? 'walk' : 'sit'; DOG.tx = DOG.x;
+      return;
+    }
+  }
   DOG.t -= dt;
   if (DOG.state === 'walk') {
     const dx = DOG.tx - DOG.x, m = Math.min(Math.abs(dx), dt * 20);
@@ -483,13 +509,26 @@ function dogUpdate(dt) {
     if (DOG.state === 'sleep' && isNight()) DOG.t = 30; else dogDecide();
   }
 }
+// Panel walls are thin: the neighbours drill by day and bang on the ceiling if the music goes on too late.
+function neighbours(dt) {
+  if (S.drill && S.t > S.drill) S.drill = 0;
+  const h = hour();
+  if (!S.drill && h > 9 && h < 19 && Math.random() < dt * .0015) {
+    S.drill = S.t + 8; log('drill');
+    if (!asleep()) { bump('fun', -4); say(pick(['Not the drill again!', 'What are they building up there?', 'Every single weekend…'])); }
+  }
+  const st = cur && cur.phase === 'do' ? step() : null;
+  if (st && (st.fx === 'piano' || st.fx === 'records') && isNight() && Math.random() < dt * .04) {
+    thump(); bump('fun', -3); log('thump'); say(pick(['Sorry! Sorry!', 'All right, all right!', 'Philistines.'])); finishAct();
+  }
+}
 function sim(dt) {
   while (dt > 0) {
     const s = Math.min(dt, .5); dt -= s;
     S.t += s;
-    decay(s); dogUpdate(s);
+    decay(s); dogUpdate(s); neighbours(s);
     if (!cur) choose(); else runAct(s);
-    if (ringing && S.t > ringing.until) { ringing = null; if (!asleep()) log('missed-call'); }
+    if (ringing && S.t > ringing.until && !(cur && cur.id === 'answer')) { ringing = null; if (!asleep()) log('missed-call'); }
   }
 }
 
@@ -629,7 +668,7 @@ function writeLetter(kind) {
   const out = [];
   if (kind === 'intro') {
     out.push(`Dear ${you},`, '',
-      `Hello! I've just moved into this house inside your computer. It's lovely, and the stairs are only a little steep. My name is ${me}, and the scruffy one is ${dog}.`, '',
+      `Hello! I've just moved into flat ${T.flat} of a big panel block inside your computer. The lift is broken, of course, but luckily I'm only on the first floor, and the loggia gets the morning sun. My name is ${me}, and the scruffy one is ${dog}.`, '',
       `I'm very fond of ${HOBBY[T.fav]}. If you'd like me to do something, just type it in. I'm much more agreeable when people say please.`, '',
       `If you ever pass a shop, I could use groceries now and then, and ${dog} eats like a horse.`, '',
       'Your new tenant,', me);
@@ -660,7 +699,10 @@ function writeLetter(kind) {
         rude: () => "I've been thinking about what you said earlier. It wasn't very kind.",
         nice: () => 'You said something nice to me today. It made me smile all afternoon.',
         exercise: () => { const k = 20 + Math.floor(Math.random() * 60); return `I did ${k} jumping jacks today. Well, ${k - 9}, and then I sat down.`; },
-        dance: () => `I danced around the music room until ${dog} started barking at me.`,
+        dance: () => `I danced around the living room until ${dog} started barking at me.`,
+        walk: () => `I took ${dog} round the block. ${pick(['The caretaker was complaining about the bins again.', 'The kiosk by the bus stop had fresh rolls.', "A neighbour's cat stared us down from a parked Škoda."])}`,
+        thump: () => 'The neighbours banged on the ceiling when I played music late. Fair enough, I suppose.',
+        drill: () => "Somebody upstairs has been drilling again. What are they building up there, a metro station?",
         sick: () => "I haven't been well. I spent a long time in bed.",
         'missed-call': () => 'I think the phone rang, but I didn\'t get there in time. Was it you?',
         call: () => 'It was lovely to hear your voice on the phone.'
@@ -673,7 +715,7 @@ function writeLetter(kind) {
     if (n.health < 50) out.push(S.tonic ? 'I feel a bit poorly, but I still have some tonic.' : "I've been feeling poorly. A bottle of tonic would help.");
     if (n.fun < 40) out.push('It has been a bit dull around here. A new book or record would cheer me up.');
     if (out.length < 5) out.push(pick([`Have you ever tried ${HOBBY[pick(TRAITS)]}? I think everyone should.`, `${dog} chased its tail for ten whole minutes this morning.`,
-      isNight() ? 'The moon is very bright tonight.' : 'The sun came right through the bedroom window this morning.', `I've been thinking about learning to make ${pick(FOODS)}.`]));
+      isNight() ? 'Half the windows across the courtyard are still lit. Nobody sleeps around here.' : 'The sun came right through the loggia this morning.', `I've been thinking about learning to make ${pick(FOODS)}.`]));
     out.push('', pick(['Write back soon (well, type something!).', 'Come and visit soon.', `${dog} says woof.`]), '', pick(['Yours,', 'Love,', 'Your friend,', 'Cheerio,']), me);
   }
   S.letters.push({ t: S.t, text: out.join('\n'), read: false });
@@ -763,6 +805,7 @@ function bark() { tone(720, .08, { type: 'square', vol: .08, slide: 380 }); tone
 function chime() { tone(988, .35, { type: 'sine', vol: .14 }); tone(784, .6, { type: 'sine', vol: .14, at: .22 }); }
 function ding() { tone(1760, .7, { type: 'sine', vol: .1 }); }
 function sfxKnock() { for (let i = 0; i < 3; i++) { tone(120, .12, { type: 'sine', vol: .35, slide: 60, at: i * .2 }); hiss(.05, { vol: .12, freq: 600, type: 'lowpass', at: i * .2 }); } }
+function thump() { for (let i = 0; i < 3; i++) tone(70, .15, { type: 'sine', vol: .4, slide: 40, at: i * .25 }); }
 function blip() { tone(1200, .03, { type: 'square', vol: .03 }); }
 
 // Looping ambience per activity, scheduled a little ahead of the audio clock.
@@ -806,20 +849,27 @@ function tickLoop() {
   if (!live()) return;
   const now = AU.ctx.currentTime;
   if (ringing) { if (!tickLoop.ring || now > tickLoop.ring) { for (let j = 0; j < 8; j++) tone(j % 2 ? 480 : 440, .05, { type: 'sine', vol: .07, at: j * .055 }); tickLoop.ring = now + 2; } }
+  if (S.drill && speed > 0 && (!tickLoop.drill || now > tickLoop.drill)) { tone(150, .5, { type: 'sawtooth', vol: .03, slide: 170, at: 0 }); hiss(.5, { vol: .03, freq: 2500, at: 0 }); tickLoop.drill = now + .45; }
   if (!LOOP.kind || !LOOPS[LOOP.kind] || speed === 0) return;
   if (LOOP.next < now) LOOP.next = now + .03;
   while (LOOP.next < now + .2) LOOP.next += LOOPS[LOOP.kind](LOOP.next - now, LOOP.i++);
 }
 
 // ---------- drawing ----------
-const SHOE = '#2a2420';
+const SHOE = '#2a2420', CONC = '#a9a59c';
 function skin() { const h = S.needs.health; return h < 40 ? '#b7c79a' : T.skin; }
-function wallpaper(i, x0, x1, top, bot) {
-  const r = T.rooms[i], base = hsl(r.h, r.s, r.l), dark = hsl(r.h, r.s, r.l - 7);
+function wallpaper(i, x0, x1, top, bot, force) {
+  const r = T.rooms[i], p = force ?? r.p, base = hsl(r.h, r.s, r.l), dark = hsl(r.h, r.s, r.l - 7);
   R(x0, top, x1 - x0, bot - top, base);
-  if (r.p === 1) for (let x = x0 + 3; x < x1; x += 7) R(x, top, 2, bot - top, dark);
-  if (r.p === 2) for (let y = top + 4; y < bot - 2; y += 7) for (let x = x0 + 3 + (y % 2 ? 3 : 0); x < x1 - 1; x += 7) R(x, y, 1, 1, dark);
-  if (r.p === 3) { R(x0, bot - 15, x1 - x0, 15, dark); R(x0, bot - 16, x1 - x0, 1, hsl(r.h, r.s, r.l - 15)); }
+  if (p === 1) for (let x = x0 + 3; x < x1; x += 7) R(x, top, 2, bot - top, dark);
+  if (p === 2) for (let y = top + 4; y < bot - 2; y += 7) for (let x = x0 + 3 + (y % 2 ? 3 : 0); x < x1 - 1; x += 7) R(x, y, 1, 1, dark);
+  if (p === 3) { R(x0, bot - 15, x1 - x0, 15, dark); R(x0, bot - 16, x1 - x0, 1, hsl(r.h, r.s, r.l - 15)); }
+  if (p === 4 || p === 5) { // tiles: whole wall for the bathroom, lower half in the kitchen
+    const ty = p === 4 ? top : bot - 20, tc = hsl(r.h, 25, 90), tl = hsl(r.h, 20, 78);
+    R(x0, ty, x1 - x0, bot - ty, tc);
+    for (let y = ty + 4; y < bot; y += 5) R(x0, y, x1 - x0, 1, tl);
+    for (let x = x0 + 4; x < x1; x += 5) R(x, ty, 1, bot - ty, tl);
+  }
   R(x0, bot - 2, x1 - x0, 2, hsl(r.h, r.s, r.l - 20));
 }
 function sky() {
@@ -830,71 +880,120 @@ function sky() {
   let c = mix([31, 42, 85], [191, 228, 246], day); c = mix(c, [242, 176, 128], dusk * .6);
   return { col: `rgb(${c.map(v => v | 0).join(',')})`, day };
 }
-function drawWindow(w, skyCol, day, top) {
-  const x = w.x - w.w / 2, y = top + 9, hh = 15;
-  R(x - 1, y - 1, w.w + 2, hh + 2, '#f4efe6');
-  R(x, y, w.w, hh, skyCol);
-  if (day < .5) { R(x + 2, y + 3, 1, 1, '#fff'); R(x + w.w - 4, y + 7, 1, 1, '#fff'); }
-  else { R(x + 2, y + hh - 3, w.w - 4, 2, '#9cc98f'); }
-  R(x + w.w / 2, y, 1, hh, '#f4efe6'); R(x, y + hh / 2, w.w, 1, '#f4efe6');
-  R(x - 2, y - 2, 2, hh + 4, T.blanket); R(x + w.w, y - 2, 2, hh + 4, T.blanket);
+function glass(x, y, w, h, s) {
+  R(x - 1, y - 1, w + 2, h + 2, '#f4efe6'); R(x, y, w, h, s.col);
+  if (s.day < .5) R(x + 2, y + 3, 1, 1, '#fff');
+  R(x + Math.floor(w / 2), y, 1, h, '#f4efe6');
+}
+function drawWindow(w, s) {
+  const top = FY[w.f] - 46;
+  glass(w.x - 8, top + 9, 16, 15, s);
+  R(w.x - 10, top + 7, 3, 19, T.blanket); R(w.x + 7, top + 7, 3, 19, T.blanket);
 }
 function picture(x, top, k) { const [a, b, r] = T.art[k]; R(x - 5, top + 10, 10, 8, '#7a5230'); R(x - 4, top + 11, 8, 6, a); R(x - 4 + Math.floor(r * 5), top + 13, 3, 4, b); }
+
+// Neighbours' storeys: concrete panels with joints, a loggia column and windows that light up in the evening.
+const WINX = [63, 113, 163, 213, 263, 312];
+function facadeRow(f, s, tick) {
+  const bot = FY[f], top = bot - 46, night = s.day < .6;
+  R(16, top, 320, 46, T.panel);
+  R(16, top, 22, 46, shade(T.panel, .82));
+  for (const jx of [38, 88, 138, 188, 238, 288]) R(jx, top, 1, 46, shade(T.panel, .78));
+  R(38, bot - 9, 298, 2, T.stripe);
+  const hr = Math.floor(S.t / 60);
+  WINX.forEach((x, i) => {
+    const r = mulberry(T.seed + f * 1009 + i * 131 + hr * 7919), lit = night && r() < .55, tvGlow = lit && r() < .3;
+    const wy = top + 11, look = T.win[(f * 6 + i) % T.win.length];
+    R(x - 10, wy - 1, 20, 17, '#e8e4da');
+    R(x - 9, wy, 18, 15, lit ? (tvGlow ? hsl(220, 50, 70 + (tick % 3) * 5) : '#f3d27c') : (night ? '#3a4466' : '#a8c4d2'));
+    if (!lit && !night) R(x - 7, wy + 2, 3, 1, '#d6e8ef');
+    R(x, wy, 1, 15, '#e8e4da');
+    R(x - 9, wy, 3, 15, look.curtain); R(x + 6, wy, 3, 15, look.curtain);
+    if (lit && r() < .25) { R(x - 3, wy + 6, 4, 9, 'rgba(40,30,30,.5)'); R(x - 2, wy + 3, 3, 3, 'rgba(40,30,30,.5)'); }
+    if (look.box) { R(x - 9, wy + 15, 18, 2, '#8b5e3c'); for (let k = 0; k < 4; k++) R(x - 8 + k * 5, wy + 13, 2, 2, ['#d9534f', '#e46aa0', '#e7c63f'][k % 3]); }
+  });
+  // the neighbours' loggia
+  const lg = T.win[(f * 5) % T.win.length];
+  R(18, top + 8, 18, 26, night && lg.box ? '#f3d27c' : shade(T.panel, .7));
+  if (lg.box) { R(19, top + 22, 3, 6, '#fff'); R(23, top + 21, 4, 7, T.stripe); R(28, top + 22, 3, 5, '#e7c63f'); }
+  R(16, bot - 14, 22, 14, lg.rail); for (let xx = 18; xx < 38; xx += 3) R(xx, bot - 14, 1, 14, shade(lg.rail, .8));
+}
+function stairwell(s, tick) {
+  for (let f = 0; f < 4; f++) {
+    const bot = FY[f], top = bot - 46;
+    R(336, top, 48, 46, '#eceae2'); R(336, bot - 20, 48, 20, T.oil); R(336, bot - 21, 48, 1, shade(T.oil, .7));
+    glass(356, top + 8, 8, 10, s);
+    R(360, top, 1, 3, '#555'); R(358, top + 3, 5, 2, '#f2e7b5');
+  }
+  for (let f = 0; f < 3; f++) {
+    const [b, tt] = STAIR(f), n = 12;
+    for (let i = 0; i < n; i++) {
+      const x = b + (tt - b) * (i + .5) / n, y = FY[f] - 48 * (i + 1) / n;
+      R(x - 2, y, 5, 2, '#9c9890'); R(x - 2, y + 2, 5, 48 / n - 1, '#87837b');
+      if (i % 3 === 0) R(x + (tt > b ? -2 : 2), y - 9, 1, 9, '#555');
+    }
+    for (let i = 0; i <= 24; i++) R(b + (tt - b) * i / 24 + (tt > b ? -2 : 2), FY[f] - 9 - 48 * i / 24, 1, 1, '#444');
+  }
+}
+function lobby(s, tick) {
+  const fy = FY[0], top = fy - 46;
+  R(16, top, 320, 46, '#eceae2'); R(16, fy - 20, 320, 20, T.oil); R(16, fy - 21, 320, 1, shade(T.oil, .7));
+  for (const lx of [90, 230]) { R(lx, top, 1, 4, '#555'); R(lx - 2, top + 4, 5, 2, '#f2e7b5'); }
+  // entrance doors
+  let x = OBJ.entrance.x;
+  R(x - 13, fy - 32, 26, 32, '#8d8f8f'); glass(x - 11, fy - 30, 10, 28, s); glass(x + 1, fy - 30, 10, 28, s);
+  R(x - 3, fy - 18, 1, 6, '#ccc'); R(x + 2, fy - 18, 1, 6, '#ccc'); R(x - 8, fy - 38, 16, 4, '#f2e7b5');
+  // post boxes; the tenant's has a letter sticking out when one is unread
+  x = OBJ.mailboxes.x;
+  R(x - 15, fy - 33, 30, 19, '#5b6770');
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 5; c++) { R(x - 14 + c * 6, fy - 32 + r * 6, 5, 5, r === 1 && c === 2 ? '#d8b04a' : '#8a969e'); R(x - 13 + c * 6, fy - 31 + r * 6, 3, 1, '#333'); }
+  if (S.letters.some(l => !l.read)) { R(x - 2, fy - 28, 5, 3, '#fff'); R(x - 1, fy - 27, 3, 1, '#c33'); }
+  // notice board, radiator, bike, pram, plant, a neighbour's door
+  x = 142; R(x - 9, fy - 34, 18, 13, '#c49a6c'); R(x - 7, fy - 32, 6, 8, '#fff'); R(x + 1, fy - 31, 6, 5, '#ffe9a8'); R(x - 6, fy - 30, 4, 1, '#888'); R(x - 6, fy - 28, 4, 1, '#888');
+  x = 172; R(x - 8, fy - 13, 16, 9, '#ddd'); for (let k = 0; k < 7; k++) R(x - 7 + k * 2, fy - 13, 1, 9, '#bbb');
+  x = 204; R(x - 8, fy - 6, 5, 5, '#333'); R(x - 7, fy - 5, 3, 3, T.oil); R(x + 3, fy - 6, 5, 5, '#333'); R(x + 4, fy - 5, 3, 3, T.oil); R(x - 5, fy - 9, 10, 1, '#c43c3c'); R(x - 1, fy - 11, 1, 3, '#c43c3c'); R(x + 3, fy - 12, 3, 1, '#333');
+  x = 236; R(x - 6, fy - 12, 12, 7, T.stripe); R(x - 6, fy - 14, 6, 2, shade(T.stripe, .7)); R(x - 5, fy - 4, 3, 3, '#333'); R(x + 2, fy - 4, 3, 3, '#333'); R(x + 5, fy - 16, 1, 5, '#555');
+  x = 264; R(x - 3, fy - 6, 6, 6, '#b5523b'); R(x - 5, fy - 14, 4, 8, '#4caf7a'); R(x + 1, fy - 16, 4, 10, '#3e8f5a'); R(x - 1, fy - 18, 3, 8, '#5fbf7f');
+  x = 302; R(x - 8, fy - 30, 16, 30, '#5a4632'); R(x - 7, fy - 29, 14, 29, T.padded2); for (let yy = fy - 26; yy < fy - 2; yy += 6) for (let xx = x - 5; xx < x + 6; xx += 5) R(xx, yy, 1, 1, shade(T.padded2, .65)); R(x - 9, fy - 1, 18, 1, '#8b6a3a');
+}
 
 function drawHouse(t) {
   const s = sky(), tick = t;
   R(0, 0, W, H, s.col);
-  if (s.day < .4) for (let i = 0; i < 26; i++) { const sx = (i * 73) % W, sy = (i * 37) % 60; if ((i + (tick >> 3)) % 9) R(sx, sy, 1, 1, '#f6f2d8'); }
-  // ground and garden
-  R(0, 188, W, 12, '#7fb069'); R(0, 188, W, 1, '#6a9a57');
-  for (let x = 2; x < W; x += 9) R(x, 190 + (x % 4), 1, 2, '#6a9a57');
-  // roof and chimney
-  g.fillStyle = T.roof; g.beginPath(); g.moveTo(4, 46); g.lineTo(156, 8); g.lineTo(308, 46); g.closePath(); g.fill();
-  R(232, 14, 12, 18, shade(T.outside, .8)); R(230, 12, 16, 3, shade(T.outside, .6));
-  if (S.needs && cur && cur.fx === 'cook') { /* chimney smoke handled by particles */ }
-  R(140, 26, 32, 14, '#f4efe6'); R(142, 28, 28, 10, s.col); // attic window
-  R(155, 28, 1, 10, '#f4efe6');
-  // exterior walls
-  R(12, 44, 288, 144, T.outside);
-  // rooms
-  for (let f = 0; f < 3; f++) {
-    const top = FY[f] - 46;
-    ROOMS.forEach((rm, i) => { if (rm[0] === f) wallpaper(i, rm[1], rm[2], top, FY[f]); });
-    wallpaper(7, 250, 296, top, FY[f]);
-    for (const w of WINDOWS) if (w.f === f) drawWindow(w, s.col, s.day, top);
-    // ceiling lamp
-    for (const rm of ROOMS) if (rm[0] === f) { const lx = (rm[1] + rm[2]) / 2; R(lx, top, 1, 4, '#555'); R(lx - 2, top + 4, 5, 2, '#f2d67a'); }
-  }
-  // seams between rooms
-  for (const rm of ROOMS) if (rm[1] > 16) R(rm[1], FY[rm[0]] - 46, 1, 46, 'rgba(0,0,0,.12)');
-  R(250, 44, 1, 142, 'rgba(0,0,0,.15)');
-  // pictures and clock
-  picture(62, FY[0] - 46, 0); picture(88, FY[1] - 46, 1); picture(226, FY[1] - 46, 2); picture(106, FY[2] - 46, 3); picture(200, FY[2] - 46, 4);
-  clockFace(160, FY[0] - 34);
+  if (s.day < .4) for (let i = 0; i < 10; i++) { const sx = (i * 173) % W, sy = (i * 37) % 120; if (sx < 12 || sx > 388) R(sx, sy, 1, 1, '#f6f2d8'); }
+  // pavement, grass, a tree and a street lamp
+  R(0, 188, W, 3, '#b5b1a7'); R(0, 191, W, 9, '#7fb069');
+  for (let x = 2; x < W; x += 9) R(x, 193 + (x % 4), 1, 2, '#6a9a57');
+  R(4, 168, 3, 20, '#6b4a2f'); R(-2, 146, 14, 24, '#5c9a4f'); R(0, 142, 10, 6, '#6aab5c');
+  R(394, 146, 2, 42, '#555'); R(391, 144, 7, 3, '#555'); R(392, 147, 5, 2, s.day < .5 ? '#f6dc84' : '#ddd');
+  // building shell
+  R(12, 0, 376, 188, T.panel);
+  facadeRow(3, s, tick); facadeRow(2, s, tick);
+  stairwell(s, tick);
+  lobby(s, tick);
+  // the flat
+  const fy = FY[1], top = fy - 46;
+  ROOMS.forEach((rm, i) => wallpaper(i, rm[1], rm[2], top, fy, i === 3 ? 5 : i === 4 ? 4 : undefined));
+  // loggia: concrete back wall open to the estate, laundry line, jars
+  R(16, top, 22, 46, shade(T.panel, .9)); glass(19, top + 6, 16, 22, s);
+  R(17, top + 5, 20, 1, '#777'); R(20, top + 6, 4, 6, '#fff'); R(26, top + 6, 5, 5, T.shirt); R(32, top + 6, 3, 7, T.blanket);
+  for (let k = 0; k < 3; k++) { R(19 + k * 5, fy - 17, 3, 4, '#e8d9a8'); R(19 + k * 5, fy - 18, 3, 1, '#c43c3c'); }
+  for (const w of WINDOWS) if (w.x !== OBJ.loggia.x) drawWindow(w, s);
+  for (const rm of ROOMS.slice(1)) { const lx = (rm[1] + rm[2]) / 2; R(lx, top, 1, 4, '#555'); R(lx - 2, top + 4, 5, 2, '#f2d67a'); }
+  for (const rm of ROOMS) if (rm[1] > 16) R(rm[1], top, 1, 46, 'rgba(0,0,0,.14)');
+  // wall carpet over the sofa
+  let x = OBJ.sofa.x; R(x - 17, top + 7, 34, 20, T.carpet); R(x - 15, top + 9, 30, 16, shade(T.carpet, 1.25));
+  for (let k = 0; k < 4; k++) { const cx = x - 11 + k * 7; R(cx, top + 13, 3, 1, '#f0d48a'); R(cx + 1, top + 12, 1, 3, '#f0d48a'); R(cx, top + 19, 3, 1, T.carpet); R(cx + 1, top + 18, 1, 3, T.carpet); }
+  R(x - 17, top + 27, 34, 1, '#e8d9a8');
+  // calendar over the desk, clock in the kitchen
+  x = OBJ.desk.x; R(x - 4, top + 8, 8, 11, '#fff'); R(x - 4, top + 8, 8, 3, '#c43c3c'); for (let k = 0; k < 3; k++) R(x - 3, top + 13 + k * 2, 6, 1, '#bbb');
+  clockFace(OBJ.table.x, top + 13);
   furniture(tick);
-  // floor slabs, with the stairwell opening on the upper floors
-  for (let f = 0; f < 3; f++) {
-    const y = FY[f];
-    if (f === 0) R(12, y, 288, 2, '#7a5a3a');
-    else { R(12, y, 246, 2, '#7a5a3a'); R(290, y, 10, 2, '#7a5a3a'); }
-  }
-  R(12, 42, 288, 4, '#7a5a3a');
-  // stairs
-  for (let f = 0; f < 2; f++) {
-    const [b, tt] = STAIR(f), n = 12;
-    for (let i = 0; i < n; i++) {
-      const x = b + (tt - b) * (i + .5) / n, y = FY[f] - 48 * (i + 1) / n;
-      R(x - 2, y, 5, 2, '#9b6b43'); R(x - 2, y + 2, 5, 48 / n - 1, '#7a5230');
-    }
-  }
-  // outer walls on top
-  R(12, 44, 4, 144, shade(T.outside, .85)); R(296, 44, 4, 144, shade(T.outside, .85));
-  // mailbox
-  const unread = S.letters.some(l => !l.read);
-  R(310, 170, 2, 18, '#6b4a2f'); R(304, 163, 13, 8, '#3e7cb1'); R(304, 163, 13, 1, '#2d5c85');
-  if (unread) { R(316, 156, 1, 9, '#333'); R(314, 156, 3, 3, '#d9534f'); }
-  // parcels by the door
-  S.parcel.forEach((p, i) => { const px = 34 + (i % 3) * 6, py = FY[0] - 5 - Math.floor(i / 3) * 5; R(px, py, 6, 5, '#c9995b'); R(px, py + 2, 6, 1, '#8b6a3a'); R(px + 2, py, 1, 5, '#8b6a3a'); });
+  // slabs, with the stairwell opening on the upper storeys
+  for (let f = 0; f < 4; f++) { const y = FY[f]; if (f === 0) R(12, y, 376, 2, CONC); else { R(12, y, 332, 2, CONC); R(376, y, 12, 2, CONC); } }
+  R(12, 0, 4, 188, shade(T.panel, .8)); R(384, 0, 4, 188, shade(T.panel, .8)); R(336, 0, 1, 188, shade(T.panel, .7));
+  // parcels at the flat door
+  S.parcel.forEach((p, i) => { const px = 318 + (i % 2) * 7, py = fy - 5 - Math.floor(i / 2) * 5; R(px, py, 6, 5, '#c9995b'); R(px, py + 2, 6, 1, '#8b6a3a'); R(px + 2, py, 1, 5, '#8b6a3a'); });
 }
 function clockFace(x, y) {
   R(x - 4, y - 4, 9, 9, '#5a4032'); R(x - 3, y - 3, 7, 7, '#fff');
@@ -904,82 +1003,80 @@ function clockFace(x, y) {
   R(x, y, 1, 1, '#222');
 }
 function furniture(tick) {
-  const fx = cur && cur.phase === 'do' ? step().fx : null;
-  const fy0 = FY[0], fy1 = FY[1], fy2 = FY[2];
-  // door
-  let x = OBJ.door.x; R(x - 8, fy0 - 28, 16, 28, '#5a4032'); R(x - 7, fy0 - 27, 14, 27, '#9b6b43'); R(x - 5, fy0 - 24, 4, 9, '#8a5a34'); R(x + 1, fy0 - 24, 4, 9, '#8a5a34'); R(x - 5, fy0 - 12, 10, 8, '#8a5a34'); R(x + 4, fy0 - 14, 1, 2, '#e2c26a');
-  // sofa
+  const fx = cur && cur.phase === 'do' ? step().fx : null, fy = FY[1];
+  // bed (blanket is drawn over the sleeper later)
+  let x = OBJ.bed.x; R(x - 20, fy - 17, 3, 17, '#6b4a2f'); R(x + 17, fy - 12, 3, 12, '#6b4a2f'); R(x - 17, fy - 9, 34, 5, '#8b5e3c'); R(x - 17, fy - 11, 34, 2, '#f7f3ea');
+  R(x - 16, fy - 13, 7, 2, '#e8eef7'); R(x - 16, fy - 4, 2, 4, '#6b4a2f'); R(x + 14, fy - 4, 2, 4, '#6b4a2f');
+  // desk with typewriter
+  x = OBJ.desk.x; R(x - 12, fy - 13, 24, 2, '#8b5e3c'); R(x - 11, fy - 11, 2, 11, '#6b4a2f'); R(x + 9, fy - 11, 2, 11, '#6b4a2f'); R(x + 2, fy - 11, 7, 8, '#7a5230');
+  R(x - 5, fy - 17, 10, 4, '#2f4f4f'); R(x - 6, fy - 18, 12, 1, '#222');
+  const paper = fx === 'type' ? 2 + Math.floor((1 - cur.left / cur.total) * 6) : 2;
+  R(x - 3, fy - 18 - paper, 6, paper, '#fff');
+  // the wall unit: crystal in the vitrine, TV and record player, books, cupboards
+  x = OBJ.stenka.x; const wd = '#7a5230', wl = '#8b5e3c';
+  R(x - 14, fy - 40, 28, 40, wd); R(x - 13, fy - 39, 26, 9, '#cfe3ea');
+  for (let k = 0; k < 6; k++) { R(x - 12 + k * 4, fy - 35, 2, 4, '#f7fbfd'); R(x - 12 + k * 4, fy - 36, 2, 1, '#9fc3d1'); }
+  R(x - 13, fy - 29, 26, 1, wl); R(x - 13, fy - 28, 26, 11, '#5a3a22');
+  R(x - 12, fy - 27, 14, 10, '#3a3a3a'); R(x - 11, fy - 26, 10, 7, fx === 'tv' ? hsl((tick * 47) % 360, 45, 60 + (tick % 3) * 6) : '#5d6670');
+  if (fx === 'tv') R(x - 11, fy - 23 + (tick % 3), 10, 1, 'rgba(255,255,255,.35)');
+  R(x - 12, fy - 28, 14, 1, '#f4efe6'); R(x - 10, fy - 29, 2, 1, '#f4efe6'); R(x - 4, fy - 29, 2, 1, '#f4efe6');
+  R(x + 4, fy - 20, 8, 3, '#333'); R(x + 5, fy - 21, 6, 1, '#111'); if (fx === 'records') R(x + 5 + tick % 6, fy - 21, 1, 1, '#e2c26a');
+  for (let i = 0; i < Math.min(S.records, 5); i++) R(x + 4 + i, fy - 27, 1, 5, SHIRT[(i * 3) % 9]);
+  R(x - 13, fy - 17, 26, 1, wl);
+  const nb = Math.min(12, S.books.length + 4);
+  for (let b = 0; b < 12; b++) if (b < nb) R(x - 13 + b * 2 + (b > 5 ? 1 : 0), fy - 16, 2, 6, T.spines[b]);
+  R(x - 13, fy - 10, 26, 1, wl); R(x - 13, fy - 9, 12, 9, wl); R(x + 1, fy - 9, 12, 9, wl); R(x - 2, fy - 6, 1, 2, '#e2c26a'); R(x + 2, fy - 6, 1, 2, '#e2c26a');
+  // sofa and the dog's rug
   x = OBJ.sofa.x; const sc = T.sofa, sd = shade(sc, .75);
-  R(x - 14, fy0 - 15, 28, 8, sd); R(x - 14, fy0 - 8, 28, 6, sc); R(x - 16, fy0 - 11, 3, 9, sd); R(x + 13, fy0 - 11, 3, 9, sd); R(x - 13, fy0 - 2, 2, 2, '#4a3426'); R(x + 11, fy0 - 2, 2, 2, '#4a3426');
-  // tv
-  x = OBJ.tv.x; R(x - 8, fy0 - 9, 16, 9, '#7a5230'); R(x - 7, fy0 - 7, 6, 5, '#6b4a2f'); R(x - 9, fy0 - 21, 18, 12, '#3a3a3a');
-  R(x - 7, fy0 - 19, 14, 8, fx === 'tv' ? hsl((tick * 47) % 360, 45, 60 + (tick % 3) * 6) : '#5d6670');
-  if (fx === 'tv') { R(x - 7, fy0 - 15 + (tick % 4), 14, 1, 'rgba(255,255,255,.35)'); }
-  R(x - 4, fy0 - 25, 1, 4, '#555'); R(x + 3, fy0 - 26, 1, 5, '#555');
-  // dog bed and bowl
-  x = OBJ.dogbed.x; R(x - 8, fy0 - 4, 16, 4, '#b5523b'); R(x - 6, fy0 - 3, 12, 2, '#e9c9a1');
-  x = OBJ.bowl.x; R(x - 3, fy0 - 2, 6, 2, '#3e7cb1'); if (S.bowl > .05) R(x - 2, fy0 - 3, 4, 1, '#8b5a2b');
+  R(x - 14, fy - 15, 28, 8, sd); R(x - 14, fy - 8, 28, 6, sc); R(x - 16, fy - 11, 3, 9, sd); R(x + 13, fy - 11, 3, 9, sd); R(x - 13, fy - 2, 2, 2, '#4a3426'); R(x + 11, fy - 2, 2, 2, '#4a3426');
+  x = OBJ.dogbed.x; R(x - 6, fy - 2, 12, 2, '#b5523b'); R(x - 5, fy - 2, 10, 1, '#e9c9a1');
+  // piano
+  x = OBJ.piano.x; R(x - 14, fy - 26, 28, 26, '#3a2a20'); R(x - 13, fy - 25, 26, 10, '#4a362a'); R(x - 13, fy - 14, 26, 3, '#f5f0e6');
+  for (let k = 0; k < 9; k++) if (k % 3 !== 2) R(x - 12 + k * 3, fy - 14, 1, 2, '#222');
+  R(x - 13, fy - 11, 26, 2, '#2a1e16'); R(x - 6, fy - 7, 12, 2, '#5a4032'); R(x - 5, fy - 5, 1, 5, '#3a2a20'); R(x + 4, fy - 5, 1, 5, '#3a2a20');
+  R(x - 9, fy - 29, 3, 3, '#e2c26a'); R(x + 3, fy - 31, 6, 5, '#f4efe6'); R(x + 4, fy - 30, 4, 3, T.art[5][0]);
   // fridge
   x = OBJ.fridge.x; const open = fx === 'fridge';
-  R(x - 8, fy0 - 31, 16, 31, '#9aa7ad'); R(x - 7, fy0 - 30, 14, 29, open ? '#fff7d6' : '#e9eff2');
-  if (open) { R(x - 7, fy0 - 20, 14, 1, '#ccc'); R(x - 7, fy0 - 11, 14, 1, '#ccc'); for (let i = 0; i < Math.min(S.fridge, 8); i++) R(x - 6 + (i % 4) * 3, fy0 - 23 - (i >> 2) * 9, 2, 3, SHIRT[i % 9]); R(x + 8, fy0 - 30, 4, 29, '#dfe6ea'); }
-  else { R(x - 7, fy0 - 21, 14, 1, '#9aa7ad'); R(x + 4, fy0 - 27, 1, 4, '#777'); R(x + 4, fy0 - 18, 1, 6, '#777'); }
-  // stove with hood
-  x = OBJ.stove.x; R(x - 8, fy0 - 14, 16, 14, '#e4e4e4'); R(x - 6, fy0 - 10, 12, 7, '#555'); R(x - 5, fy0 - 9, 10, 5, fx === 'cook' ? '#a8452c' : '#3a3a3a');
-  R(x - 8, fy0 - 15, 16, 1, '#999'); R(x - 6, fy0 - 16, 4, 1, '#333'); R(x + 2, fy0 - 16, 4, 1, '#333');
-  if (fx === 'cook') { R(x - 7, fy0 - 18, 7, 2, '#444'); R(x, fy0 - 17, 4, 1, '#444'); if (tick % 2) R(x - 6, fy0 - 17, 1, 1, '#ff9a3c'); }
-  R(x - 7, fy0 - 40, 14, 5, '#bbb'); R(x - 2, fy0 - 46, 4, 6, '#bbb');
-  // kitchen sink
-  x = OBJ.ksink.x; R(x - 9, fy0 - 12, 18, 12, '#b98b5a'); R(x - 10, fy0 - 13, 20, 2, '#d9d9d9'); R(x - 1, fy0 - 17, 1, 4, '#999'); R(x - 1, fy0 - 17, 4, 1, '#999');
-  R(x - 8, fy0 - 9, 7, 7, '#a67a4c'); R(x + 1, fy0 - 9, 7, 7, '#a67a4c');
-  // desk with typewriter
-  x = OBJ.desk.x; R(x - 13, fy1 - 13, 26, 2, '#8b5e3c'); R(x - 12, fy1 - 11, 2, 11, '#6b4a2f'); R(x + 10, fy1 - 11, 2, 11, '#6b4a2f'); R(x + 3, fy1 - 11, 7, 8, '#7a5230');
-  R(x - 5, fy1 - 17, 10, 4, '#2f4f4f'); R(x - 6, fy1 - 18, 12, 1, '#222');
-  const paper = fx === 'type' ? 2 + Math.floor((1 - cur.left / cur.total) * 6) : 2;
-  R(x - 3, fy1 - 18 - paper, 6, paper, '#fff');
-  // bookshelf
-  x = OBJ.shelf.x; R(x - 10, fy1 - 36, 20, 36, '#7a5230');
-  const nb = Math.min(40, S.books.length * 3 + 6);
-  for (let sh = 0; sh < 4; sh++) { R(x - 9, fy1 - 27 + sh * 8, 18, 1, '#5a3a22'); for (let b = 0; b < 8; b++) { const k = sh * 8 + b; if (k < nb) R(x - 9 + b * 2 + (b > 3 ? 1 : 0), fy1 - 34 + sh * 8, 2, 7, T.spines[k]); } }
-  // armchair
-  x = OBJ.armchair.x; R(x - 8, fy1 - 15, 16, 8, sd); R(x - 8, fy1 - 8, 16, 6, sc); R(x - 10, fy1 - 11, 3, 9, sd); R(x + 7, fy1 - 11, 3, 9, sd); R(x - 7, fy1 - 2, 2, 2, '#4a3426'); R(x + 5, fy1 - 2, 2, 2, '#4a3426');
-  // phone table
-  x = OBJ.phone.x; R(x - 5, fy1 - 13, 10, 2, '#8b5e3c'); R(x - 4, fy1 - 11, 1, 11, '#6b4a2f'); R(x + 3, fy1 - 11, 1, 11, '#6b4a2f');
-  const shake = ringing && tick % 2 ? 1 : 0, inHand = cur && cur.phase === 'do' && step().arms === 'ear';
-  R(x - 3 + shake, fy1 - 16, 6, 3, '#c43c3c'); if (!inHand) R(x - 4 + shake, fy1 - 17, 8, 1, '#a12f2f');
-  if (ringing && tick % 2) { R(x - 7, fy1 - 21, 1, 3, '#c43c3c'); R(x + 6, fy1 - 21, 1, 3, '#c43c3c'); }
-  // piano
-  x = OBJ.piano.x; R(x - 14, fy1 - 26, 28, 26, '#3a2a20'); R(x - 13, fy1 - 25, 26, 10, '#4a362a'); R(x - 13, fy1 - 14, 26, 3, '#f5f0e6');
-  for (let k = 0; k < 9; k++) if (k % 3 !== 2) R(x - 12 + k * 3, fy1 - 14, 1, 2, '#222');
-  R(x - 13, fy1 - 11, 26, 2, '#2a1e16'); R(x - 6, fy1 - 7, 12, 2, '#5a4032'); R(x - 5, fy1 - 5, 1, 5, '#3a2a20'); R(x + 4, fy1 - 5, 1, 5, '#3a2a20');
-  R(x - 9, fy1 - 29, 3, 3, '#e2c26a'); R(x + 5, fy1 - 30, 4, 4, T.art[5][0]);
-  // record player
-  x = OBJ.records.x; R(x - 8, fy1 - 12, 16, 12, '#9b6b43'); R(x - 7, fy1 - 10, 6, 8, '#7a5230'); R(x + 1, fy1 - 10, 6, 8, '#7a5230');
-  R(x - 7, fy1 - 14, 14, 2, '#333'); R(x - 4, fy1 - 15, 8, 1, '#111'); if (fx === 'records') R(x - 4 + tick % 8, fy1 - 15, 1, 1, '#e2c26a');
-  R(x - 14, fy1 - 18, 5, 18, '#444'); R(x - 13, fy1 - 15, 3, 3, '#777'); R(x - 13, fy1 - 8, 3, 3, '#777');
-  for (let i = 0; i < Math.min(S.records, 6); i++) R(x + 9 + (i % 2) * 3, fy1 - 4 - (i >> 1) * 1, 3, 4, SHIRT[(i * 3) % 9]);
-  // bed (blanket is drawn over the sleeper later)
-  x = OBJ.bed.x; R(x - 20, fy2 - 17, 3, 17, '#6b4a2f'); R(x + 17, fy2 - 12, 3, 12, '#6b4a2f'); R(x - 17, fy2 - 9, 34, 5, '#8b5e3c'); R(x - 17, fy2 - 11, 34, 2, '#f7f3ea');
-  R(x - 16, fy2 - 13, 7, 2, '#e8eef7'); R(x - 16, fy2 - 4, 2, 4, '#6b4a2f'); R(x + 14, fy2 - 4, 2, 4, '#6b4a2f');
-  // wardrobe
-  x = OBJ.wardrobe.x; R(x - 9, fy2 - 34, 18, 34, '#a9744f'); R(x - 8, fy2 - 33, 8, 31, '#b9845f'); R(x, fy2 - 33, 8, 31, '#b9845f'); R(x - 1, fy2 - 20, 1, 3, '#e2c26a'); R(x + 1, fy2 - 20, 1, 3, '#e2c26a');
-  // shower
-  x = OBJ.shower.x; R(x - 10, fy2 - 40, 20, 40, '#d7eef5');
-  for (let yy = fy2 - 38; yy < fy2; yy += 5) R(x - 10, yy, 20, 1, '#bcdbe6');
-  for (let xx = x - 6; xx < x + 10; xx += 5) R(xx, fy2 - 40, 1, 40, '#bcdbe6');
-  R(x - 10, fy2 - 2, 20, 2, '#c8d0d6'); R(x - 1, fy2 - 40, 1, 7, '#999'); R(x - 3, fy2 - 33, 5, 2, '#999');
-  // sink and mirror
-  x = OBJ.bsink.x; R(x - 2, fy2 - 10, 4, 10, '#eee'); R(x - 6, fy2 - 13, 12, 3, '#f4f4f4'); R(x - 5, fy2 - 30, 10, 12, '#9aa'); R(x - 4, fy2 - 29, 8, 10, '#d6eef7');
-  // exercise mat and weights
-  x = OBJ.mat.x; R(x - 13, fy2 - 1, 26, 1, '#4caf7a'); R(x + 16, fy2 - 3, 6, 1, '#555'); R(x + 15, fy2 - 4, 2, 3, '#333'); R(x + 21, fy2 - 4, 2, 3, '#333');
-  // table drawn last on the ground floor so a seated eater sits behind it
+  R(x - 8, fy - 26, 16, 26, '#9aa7ad'); R(x - 7, fy - 25, 14, 24, open ? '#fff7d6' : '#f1f1ea');
+  if (open) { R(x - 7, fy - 17, 14, 1, '#ccc'); R(x - 7, fy - 9, 14, 1, '#ccc'); for (let i = 0; i < Math.min(S.fridge, 8); i++) R(x - 6 + (i % 4) * 3, fy - 20 - (i >> 2) * 8, 2, 3, SHIRT[i % 9]); R(x + 8, fy - 25, 4, 24, '#e6e6dc'); }
+  else { R(x + 4, fy - 20, 1, 6, '#999'); R(x - 5, fy - 23, 3, 1, '#c43c3c'); }
+  // gas cooker with a kettle
+  x = OBJ.stove.x; R(x - 8, fy - 15, 16, 15, '#f2f2ec'); R(x - 6, fy - 11, 12, 7, '#555'); R(x - 5, fy - 10, 10, 5, fx === 'cook' ? '#a8452c' : '#3a3a3a');
+  R(x - 8, fy - 16, 16, 1, '#999'); R(x - 6, fy - 17, 4, 1, '#333'); R(x + 2, fy - 17, 4, 1, '#333'); for (let k = 0; k < 4; k++) R(x - 6 + k * 4, fy - 14, 1, 1, '#333');
+  if (fx === 'cook') { R(x - 7, fy - 19, 7, 2, '#444'); R(x, fy - 18, 4, 1, '#444'); if (tick % 2) R(x - 6, fy - 18, 1, 1, '#ff9a3c'); }
+  else { R(x + 2, fy - 20, 4, 3, '#c43c3c'); R(x + 6, fy - 19, 1, 1, '#c43c3c'); }
+  R(x + 8, fy - 40, 1, 25, '#c9b04a');
+  // sink with a draining board
+  x = OBJ.ksink.x; R(x - 9, fy - 12, 18, 12, '#e8e2d0'); R(x - 10, fy - 13, 20, 2, '#c9ccce'); R(x - 1, fy - 17, 1, 4, '#999'); R(x - 1, fy - 17, 4, 1, '#999');
+  R(x - 8, fy - 10, 7, 8, '#d6cfbb'); R(x + 1, fy - 10, 7, 8, '#d6cfbb'); R(x - 8, fy - 15, 1, 2, '#fff'); R(x - 6, fy - 16, 1, 3, '#fff');
+  // stool by the kitchen table (the table itself is drawn in front of the eater)
+  x = OBJ.table.x; R(x - 4, fy - 7, 8, 2, '#6b4a2f'); R(x - 3, fy - 5, 1, 5, '#5a3a22'); R(x + 2, fy - 5, 1, 5, '#5a3a22');
+  // shower hose over the tub
+  x = OBJ.bath.x; R(x + 7, fy - 32, 1, 22, '#999'); R(x + 5, fy - 33, 4, 2, '#999'); R(x - 9, fy - 30, 6, 1, '#aaa'); R(x - 8, fy - 29, 3, 3, '#e46aa0');
+  // wall phone, dog bowl, padded front door
+  x = OBJ.phone.x; const shake = ringing && tick % 2 ? 1 : 0, inHand = cur && cur.phase === 'do' && step().arms === 'ear';
+  R(x - 3 + shake, fy - 25, 6, 8, '#c43c3c'); R(x - 1 + shake, fy - 22, 2, 2, '#f4efe6'); if (!inHand) R(x - 4 + shake, fy - 26, 8, 1, '#a12f2f');
+  R(x + shake, fy - 17, 1, 3, '#333');
+  if (ringing && tick % 2) { R(x - 6, fy - 28, 1, 3, '#c43c3c'); R(x + 5, fy - 28, 1, 3, '#c43c3c'); }
+  x = OBJ.bowl.x; R(x - 3, fy - 2, 6, 2, '#3e7cb1'); if (S.bowl > .05) R(x - 2, fy - 3, 4, 1, '#8b5a2b');
+  x = OBJ.door.x; R(x - 7, fy - 31, 14, 31, '#5a4632'); R(x - 6, fy - 30, 12, 30, T.padded);
+  for (let yy = fy - 27; yy < fy - 2; yy += 5) for (let xx = x - 4; xx < x + 5; xx += 4) R(xx, yy, 1, 1, shade(T.padded, .65));
+  R(x - 2, fy - 24, 4, 2, '#d8b04a'); R(x, fy - 27, 1, 1, '#222'); R(x + 4, fy - 15, 1, 2, '#d8b04a');
 }
-function tableFront() {
-  const x = OBJ.table.x, fy = FY[0];
-  R(x - 5, fy - 7, 10, 2, '#7a5230'); // chair seat behind
-  R(x - 13, fy - 12, 26, 2, '#a0703c'); R(x - 12, fy - 10, 2, 10, '#7a5230'); R(x + 10, fy - 10, 2, 10, '#7a5230');
-  if (cur && cur.phase === 'do' && step().fx === 'eat') { R(x - 3, fy - 13, 6, 1, '#fff'); R(x - 2, fy - 14, 4, 1, '#c77b3a'); }
-  if (CARDS) { R(x - 9, fy - 13, 3, 1, '#fff'); R(x - 6, fy - 13, 3, 1, '#fff'); R(x + 5, fy - 13, 3, 1, '#fff'); R(x + 1, fy - 13, 3, 1, '#c33'); }
+function foreground() {
+  const fy = FY[1], st = cur && cur.phase === 'do' ? step() : null;
+  // kitchen table with oilcloth
+  let x = OBJ.table.x;
+  for (let k = 0; k < 16; k++) R(x - 8 + k, fy - 12, 1, 2, k % 2 ? '#fff' : '#d9534f');
+  R(x - 7, fy - 10, 1, 10, '#7a5230'); R(x + 6, fy - 10, 1, 10, '#7a5230');
+  if (st && st.fx === 'eat') { R(x - 3, fy - 13, 6, 1, '#fff'); R(x - 2, fy - 14, 4, 1, '#c77b3a'); }
+  if (CARDS) { R(x - 7, fy - 13, 3, 1, '#fff'); R(x - 3, fy - 13, 3, 1, '#fff'); R(x + 3, fy - 13, 3, 1, '#c33'); }
+  // bathtub front
+  x = OBJ.bath.x; R(x - 11, fy - 9, 22, 8, '#f6f6f2'); R(x - 11, fy - 9, 22, 1, '#ddd'); R(x - 10, fy - 1, 2, 1, '#999'); R(x + 8, fy - 1, 2, 1, '#999');
+  if (st && st.fx === 'shower') R(x - 11, fy - 34, 4, 25, 'rgba(255,255,255,.6)');
+  // loggia railing
+  R(16, fy - 13, 22, 13, T.rail); for (let xx = 18; xx < 38; xx += 3) R(xx, fy - 13, 1, 13, shade(T.rail, .8)); R(16, fy - 14, 22, 1, shade(T.rail, .6));
+  R(30, fy - 18, 5, 4, '#b5523b'); R(29, fy - 23, 3, 5, '#4caf7a'); R(32, fy - 24, 3, 6, '#d9534f');
 }
 function chair(x, fy) { R(x - 5, fy - 7, 10, 2, '#6b4a2f'); R(x - 4, fy - 5, 1, 5, '#5a3a22'); R(x + 3, fy - 5, 1, 5, '#5a3a22'); }
 
@@ -1058,7 +1155,7 @@ function drawLying(x, y, sk) {
   R(x - 9, top - 4, 16, 4, T.shirt); R(x + 7, top - 3, 8, 3, T.pants); R(x + 15, top - 3, 1, 3, SHOE);
 }
 function drawDog(tick) {
-  const x = Math.round(DOG.x), y = FY[0], c = T.dogCol, d = shade(c, .7), f = DOG.face;
+  const x = Math.round(DOG.x), y = Math.round(DOG.y), c = T.dogCol, d = shade(c, .7), f = DOG.face;
   if (DOG.state === 'sleep') {
     R(x - 5, y - 3, 10, 3, c); R(x + (f > 0 ? 3 : -6), y - 4, 3, 3, c); R(x + (f > 0 ? 4 : -6), y - 4, 1, 1, d);
     return;
@@ -1074,50 +1171,49 @@ function drawDog(tick) {
   if (!eat) R(hx + (f > 0 ? 2 : 0), y - 8, 1, 1, '#111');
   const wag = (DOG.state === 'held' || walking || DOG.state === 'beg') && tick % 2;
   R(f > 0 ? x - 5 : x + 4, y - (wag ? 9 : 8), 1, 3, d);
+  if (DOG.follow) R(Math.min(x, P.x), y - 8, Math.abs(P.x - x), 1, '#c43c3c');
 }
 function particlesStep(dtr, tick) {
-  const fx = cur && cur.phase === 'do' ? step().fx : null;
-  if (fx === 'sleep' && Math.random() < dtr * 1.2) parts.push({ x: P.x - 10, y: P.y - 8, vx: 4, vy: -6, life: 2.2, k: 'z' });
+  const fx = cur && cur.phase === 'do' ? step().fx : null, fy = FY[1];
+  if (fx === 'sleep' && Math.random() < dtr * 1.2) parts.push({ x: P.x - 10, y: fy - 16, vx: 4, vy: -6, life: 2.2, k: 'z' });
   if (fx === 'piano' && Math.random() < dtr * 2) parts.push({ x: P.x + rnd(-6, 6), y: P.y - 22, vx: rnd(-3, 3), vy: -7, life: 1.6, k: 'note' });
-  if (fx === 'records' && Math.random() < dtr * 2) parts.push({ x: OBJ.records.x - 11, y: FY[1] - 18, vx: rnd(-4, 4), vy: -6, life: 1.6, k: 'note' });
-  if (fx === 'cook' && Math.random() < dtr * 4) parts.push({ x: OBJ.stove.x - 4 + rnd(0, 4), y: FY[0] - 19, vx: rnd(-1, 1), vy: -6, life: 1.2, k: 'steam' });
-  if (fx === 'shower') for (let i = 0; i < 3; i++) if (Math.random() < dtr * 18) parts.push({ x: OBJ.shower.x + rnd(-4, 4), y: FY[2] - 31, vx: 0, vy: 40, life: .7, k: 'drop' });
-  if (cur && cur.id === 'eat' && Math.random() < dtr * .8) parts.push({ x: 238, y: 12, vx: 2, vy: -4, life: 3, k: 'smoke' });
+  if (fx === 'records' && Math.random() < dtr * 2) parts.push({ x: OBJ.stenka.x + 8, y: fy - 24, vx: rnd(-4, 4), vy: -6, life: 1.6, k: 'note' });
+  if (fx === 'cook' && Math.random() < dtr * 4) parts.push({ x: OBJ.stove.x - 4 + rnd(0, 4), y: fy - 20, vx: rnd(-1, 1), vy: -6, life: 1.2, k: 'steam' });
+  if (fx === 'shower') for (let i = 0; i < 3; i++) if (Math.random() < dtr * 18) parts.push({ x: OBJ.bath.x + rnd(-1, 9), y: fy - 31, vx: 0, vy: 40, life: .7, k: 'drop' });
+  if (S.drill && Math.random() < dtr * 10) parts.push({ x: rnd(40, 330), y: FY[2] + 3, vx: rnd(-1, 1), vy: 12, life: 1.5, k: 'dust' });
   for (const p of parts) { p.x += p.vx * dtr; p.y += p.vy * dtr; p.life -= dtr; }
-  parts = parts.filter(p => p.life > 0 && p.y < (p.k === 'drop' ? FY[2] - 2 : 999));
+  parts = parts.filter(p => p.life > 0 && p.y < (p.k === 'drop' ? fy - 9 : 999));
   for (const p of parts) {
     const x = Math.round(p.x), y = Math.round(p.y);
     if (p.k === 'z') { R(x, y, 3, 1, '#5a6bd6'); R(x + 1, y + 1, 1, 1, '#5a6bd6'); R(x, y + 2, 3, 1, '#5a6bd6'); }
     if (p.k === 'note') { R(x, y + 2, 2, 2, '#333'); R(x + 1, y - 1, 1, 3, '#333'); R(x + 2, y - 1, 1, 1, '#333'); }
     if (p.k === 'steam') R(x, y, 1, 1, 'rgba(255,255,255,.8)');
     if (p.k === 'drop') R(x, y, 1, 2, '#6fb3e0');
-    if (p.k === 'smoke') R(x, y, 2, 2, 'rgba(240,240,240,.7)');
+    if (p.k === 'dust') R(x, y, 1, 1, '#9a948a');
     if (p.k === 'heart') { R(x, y, 1, 1, '#e0436b'); R(x + 2, y, 1, 1, '#e0436b'); R(x, y + 1, 3, 1, '#e0436b'); R(x + 1, y + 2, 1, 1, '#e0436b'); }
   }
 }
 function heart(x, y) { for (let i = 0; i < 3; i++) parts.push({ x: x + rnd(-4, 3), y: y - i * 3, vx: rnd(-2, 2), vy: -8, life: 1.4, k: 'heart' }); }
 
 function draw(dtr) {
-  const tick = Math.floor(performance.now() / 250);
+  const tick = Math.floor(performance.now() / 250), fy = FY[1];
   drawHouse(tick);
-  const inBed = cur && cur.phase === 'do' && step().pose === 'lie' && step().at === 'bed';
-  const seat = cur && cur.phase === 'do' && OBJ[step().at] ? (OBJ[step().at].dy || 0) : 0;
-  const y = P.pose === 'lie' ? (inBed ? FY[2] - 11 : FY[0] - 8) : P.y + (P.pose === 'sit' ? seat : 0);
-  // chairs that sit in front of furniture
-  chair(OBJ.desk.x, FY[1]);
-  if (floorOf(P.y) !== 0 || climbing()) drawDog(tick);
-  drawPerson(P.x, y, { pose: P.pose, arms: P.arms, face: P.face, frame: P.frame, walking: P.walking && cur && cur.phase === 'walk', tick });
-  if (floorOf(P.y) === 0 && !climbing()) drawDog(tick);
-  tableFront();
-  // blanket over the bed
+  const st = cur && cur.phase === 'do' ? step() : null;
+  const inBed = st && st.pose === 'lie' && st.at === 'bed';
+  const seat = st && OBJ[st.at] ? (OBJ[st.at].dy || 0) : 0;
+  const y = P.pose === 'lie' ? (inBed ? fy - 11 : fy - 8) : P.y + (P.pose === 'sit' ? seat : 0);
+  const hidden = st && st.hidden;
+  chair(OBJ.desk.x, fy);
+  if (!(hidden && DOG.follow)) drawDog(tick);
+  if (!hidden) drawPerson(P.x, y, { pose: P.pose, arms: P.arms, face: P.face, frame: P.frame, walking: P.walking && cur && cur.phase === 'walk', tick });
+  foreground();
   const bx = OBJ.bed.x;
-  R(bx - 9, FY[2] - (inBed ? 13 : 12), 26, inBed ? 5 : 3, T.blanket); R(bx - 9, FY[2] - (inBed ? 13 : 12), 26, 1, shade(T.blanket, 1.2));
-  if (cur && cur.phase === 'do' && step().fx === 'shower') { R(OBJ.shower.x + 6, FY[2] - 34, 4, 32, 'rgba(255,255,255,.55)'); }
+  R(bx - 9, fy - (inBed ? 13 : 12), 26, inBed ? 5 : 3, T.blanket); R(bx - 9, fy - (inBed ? 13 : 12), 26, 1, shade(T.blanket, 1.2));
   particlesStep(dtr, tick);
-  // night: lights off while the tenant sleeps
+  // evening: the flat goes dark while the tenant sleeps
   const s = sky(), dark = (1 - s.day) * (asleep() && cur.id === 'sleep' ? .55 : .12);
-  if (dark > .01) { g.fillStyle = `rgba(20,24,60,${dark})`; g.fillRect(16, 44, 280, 144); }
-  if (dark > .2 && !asleep()) for (const rm of ROOMS) { g.fillStyle = 'rgba(255,230,150,.08)'; g.fillRect(rm[1], FY[rm[0]] - 46, rm[2] - rm[1], 46); }
+  if (dark > .01) { g.fillStyle = `rgba(20,24,60,${dark})`; g.fillRect(16, fy - 46, 320, 46); g.fillStyle = `rgba(20,24,60,${(1 - s.day) * .1})`; g.fillRect(16, FY[0] - 46, 368, 46); }
+  if (dark > .2 && !asleep()) { g.fillStyle = 'rgba(255,230,150,.08)'; g.fillRect(38, fy - 46, 298, 46); }
 }
 
 // ---------- UI ----------
@@ -1149,7 +1245,8 @@ function updateBubble(now) {
   if (b.textContent !== bubble.text) b.textContent = bubble.text;
   b.hidden = false;
   const lying = P.pose === 'lie';
-  const px = lying ? P.x - 12 : P.x, py = (lying ? (OBJ.bed.f === floorOf(P.y) ? FY[2] - 18 : FY[0] - 16) : P.y - T.height - 4);
+  const inBed = cur && cur.phase === 'do' && step().at === 'bed';
+  const px = lying ? P.x - 12 : P.x, py = lying ? FY[1] - (inBed ? 18 : 16) : P.y - T.height - 4;
   b.style.left = clamp(px / W * 100, 14, 86) + '%';
   b.style.top = Math.max(py / H * 100, 12) + '%';
 }
@@ -1170,7 +1267,7 @@ function showLetter(i) {
 }
 function showIntro() {
   modal(`<h2>Someone is moving in</h2>
-    <p><b>${esc(T.name)}</b> and their dog <b>${esc(T.dog)}</b> are moving into the little house inside your computer. They have their own habits and moods, and they love ${esc(HOBBY[T.fav])}.</p>
+    <p><b>${esc(T.name)}</b> and their dog <b>${esc(T.dog)}</b> are moving into flat ${T.flat}, in a concrete panel block inside your computer. They have their own habits and moods, and they love ${esc(HOBBY[T.fav])}.</p>
     <p>Watch what they get up to, type requests, send parcels when the fridge runs low, and check the mailbox for letters.</p>
     <div class="row"><button class="primary" id="startBtn" data-m="start">Let them in</button></div>`, () => {});
 }
@@ -1185,7 +1282,7 @@ $('mcard').addEventListener('click', e => {
   if (m === 'close') hideModal();
   if (m === 'mail') showMail();
   if (m === 'start') { audioOn(); hideModal(); started = true; }
-  if (m === 'reset') { cur = null; queued = null; CARDS = null; S = fresh((Math.random() * 2 ** 32) >>> 0); T = makeTenant(S.seed); P.x = 28; P.y = FY[0]; DOG.x = 40; parts = []; save(); showIntro(); started = false; }
+  if (m === 'reset') { cur = null; queued = null; CARDS = null; S = fresh((Math.random() * 2 ** 32) >>> 0); T = makeTenant(S.seed); P.x = 40; P.y = FY[0]; DOG.x = 30; DOG.y = FY[0]; DOG.follow = false; parts = []; save(); showIntro(); started = false; }
   if (c === 'hit') hit(); if (c === 'stand') stand(); if (c === 'deal') deal(); if (c === 'leave') closeCards();
 });
 $('modal').addEventListener('click', e => { if (e.target === $('modal') && modalClose && started) modalClose(); });
@@ -1203,12 +1300,12 @@ cv.addEventListener('pointerdown', e => {
   if (!started) return;
   audioOn();
   const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
-  if (x > 302 && y > 150 && y < 190) return showMail();
+  if (Math.abs(x - OBJ.mailboxes.x) < 16 && y > FY[0] - 34 && y < FY[0] - 12) return showMail();
   const lying = P.pose === 'lie', px = lying ? P.x - 4 : P.x, top = lying ? P.y - 30 : P.y - T.height - 2;
   if (Math.abs(x - px) < (lying ? 14 : 6) && y > top - 2 && y < (lying ? P.y + 2 : P.y + 1) + (lying ? 0 : 0) + 2) return pat();
-  if (Math.abs(x - DOG.x) < 7 && y > FY[0] - 12 && y < FY[0] + 2) { bark(); heart(DOG.x, FY[0] - 10); if (DOG.state !== 'walk') { DOG.state = 'held'; DOG.t = 2; } return; }
-  if (Math.abs(x - OBJ.door.x) < 9 && y > FY[0] - 28 && y < FY[0]) return knock();
-  if (Math.abs(x - OBJ.phone.x) < 6 && y > FY[1] - 18 && y < FY[1] - 10) return phone();
+  if (Math.abs(x - DOG.x) < 7 && y > DOG.y - 12 && y < DOG.y + 2) { bark(); heart(DOG.x, DOG.y - 10); if (DOG.state !== 'walk') { DOG.state = 'held'; DOG.t = 2; } return; }
+  if (Math.abs(x - OBJ.door.x) < 7 && y > FY[1] - 31 && y < FY[1]) return knock();
+  if (Math.abs(x - OBJ.phone.x) < 5 && y > FY[1] - 27 && y < FY[1] - 15) return phone();
 });
 document.addEventListener('pointerdown', () => audioOn(), { once: true });
 addEventListener('pagehide', save);

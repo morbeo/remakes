@@ -51,7 +51,7 @@ def arctic_adventure(pg):
 
 def little_computer_people(pg):
     pg.click("#startBtn")
-    pg.evaluate("__tt.S.arrived = true; __tt.act('piano'); __tt.sim(25)")
+    pg.evaluate("__tt.S.arrived = true; Object.assign(__tt.DOG, {x: 183, y: 138, state: 'sleep', t: 99}); __tt.act('piano'); __tt.sim(25)")
     pg.wait_for_timeout(1200)
     return "#c"
 
