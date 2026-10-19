@@ -1109,8 +1109,10 @@ addEventListener("keydown", e => {
 });
 addEventListener("keyup", e => held.delete(e.code));
 addEventListener("blur", () => held.clear());
+let padsOk = !!navigator.getGamepads;
 function pads() {
-  const ps = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+  let ps = [];
+  if (padsOk) { try { ps = [...navigator.getGamepads()].filter(Boolean); } catch (e) { padsOk = false; } } // embedded previews may forbid gamepads
   const out = [];
   ps.forEach((p, j) => {
     const prev = padPrev[j] || (padPrev[j] = {}), b = i => p.buttons[i] && p.buttons[i].pressed, slot = App.mode === "local" ? Math.min(j, 1) : 0;
