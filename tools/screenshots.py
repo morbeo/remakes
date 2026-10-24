@@ -56,6 +56,16 @@ def little_computer_people(pg):
     return "#c"
 
 
+def spy_vs_spy(pg):
+    pg.click("#bSolo")
+    pg.wait_for_timeout(300)
+    # bring the CPU spy into White's room so both show, then crop to the top room view
+    pg.evaluate("""() => { const g = DD.App.game, [w, b] = g.spies; g.ai[1] = null;
+      b.room = w.room; b.x = 5.3; b.z = 3.4; b.face = -1; b.hand = "umbrella"; w.x = 4.0; w.z = 3.5; w.face = 1; g.rooms[w.room].floor.length = 0; }""")
+    pg.keyboard.press("KeyF"); pg.wait_for_timeout(120)
+    return "#c", (0, 0.03, 0.734, 0.44)
+
+
 def default(pg):
     pg.wait_for_timeout(1000)
     return "canvas"
@@ -63,7 +73,7 @@ def default(pg):
 
 RECIPES = {"elasto-mania": elasto_mania, "clockwerx": clockwerx,
            "excitebike": excitebike, "arctic-adventure": arctic_adventure,
-           "little-computer-people": little_computer_people}
+           "little-computer-people": little_computer_people, "spy-vs-spy": spy_vs_spy}
 
 # Scale the element shot down in the page and encode it as WebP there, so no image library is needed.
 ENCODE = """async ([src, w]) => {
@@ -81,7 +91,16 @@ def capture(pg, game, width):
     pg.goto((ROOT / game / "index.html").as_uri())
     pg.wait_for_timeout(800)
     selector = RECIPES.get(game, default)(pg)
-    png = pg.locator(selector).first.screenshot()
+    crop = None
+    if isinstance(selector, tuple):  # (selector, (x, y, w, h) as fractions of the element)
+        selector, crop = selector
+    el = pg.locator(selector).first
+    if crop:
+        bb = el.bounding_box()
+        png = pg.screenshot(clip={"x": bb["x"] + bb["width"] * crop[0], "y": bb["y"] + bb["height"] * crop[1],
+                                  "width": bb["width"] * crop[2], "height": bb["height"] * crop[3]})
+    else:
+        png = el.screenshot()
     url = pg.evaluate(ENCODE, ["data:image/png;base64," + base64.b64encode(png).decode(), width])
     out = ROOT / game / "screenshot.webp"
     out.write_bytes(base64.b64decode(url.split(",", 1)[1]))
