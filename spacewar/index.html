@@ -1,0 +1,1090 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sunwell Duel</title>
+<meta name="description" content="Sunwell Duel, a browser remake of Spacewar: two armed ships duel around a star that pulls on everything.">
+<style>
+/* Layout: canvas stage with HTML overlay (menu, pause, results); touch pads below the stage in portrait, over its corners in landscape */
+:root{--page:#ebe7dc;--paper:#f6f3ea;--panel:#fffdf7;--ink:#2b2a27;--muted:#6b675e;--line:#d6cfbd;--p1:#2457c5;--p2:#c8402c;--accent:#e08a12;--shield:#1f9a8a}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--page);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+body{-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;touch-action:none}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:8px}
+#stage{position:relative}
+#c{display:block;border-radius:6px;border:1px solid var(--line);background:var(--paper);box-shadow:0 2px 12px rgba(60,50,30,.12)}
+#pauseBtn{position:absolute;top:6px;left:50%;transform:translateX(-50%);width:34px;height:28px;border-radius:6px;border:1px solid var(--line);background:rgba(255,253,247,.85);color:var(--ink);font-size:13px;font-weight:700;cursor:pointer;display:none}
+body.playing #pauseBtn{display:block}
+button{font:inherit;color:var(--ink)}
+/* overlay */
+#ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:12px;background:rgba(235,231,220,.55);z-index:10}
+#ov.hide{display:none}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 30px rgba(60,50,30,.18);padding:20px 22px;max-width:560px;width:100%;max-height:100%;overflow:auto;touch-action:pan-y}
+h1{margin:0;font-size:30px;letter-spacing:.02em}
+h1 .s{color:var(--accent)}
+h2{margin:0 0 6px;font-size:24px}
+.sub{margin:4px 0 16px;color:var(--muted)}
+.modes{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.modes button{flex:1 1 140px;padding:12px 14px;border-radius:8px;border:1px solid var(--ink);background:#fff;font-weight:700;font-size:16px;cursor:pointer}
+.modes button.main{background:var(--ink);color:#fff}
+.modes button:hover{filter:brightness(.95)}
+.opts{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center;margin-bottom:12px}
+.opts label{color:var(--muted);font-size:14px}
+.opts button{min-width:96px;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:#fff;font-size:14px;font-weight:600;cursor:pointer}
+details{font-size:14px;color:var(--muted)}
+summary{cursor:pointer;color:var(--ink);font-weight:600;margin-bottom:6px}
+table{border-collapse:collapse;width:100%}
+td,th{padding:3px 6px;text-align:left;border-bottom:1px solid #eee8da}
+th{color:var(--ink)}
+kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:#fff;color:var(--ink)}
+.p1{color:var(--p1)}.p2{color:var(--p2)}
+#keys td{white-space:nowrap}
+#keys button{min-width:44px;margin:1px 2px;padding:2px 6px;font:12px ui-monospace,monospace;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;background:#fff;color:var(--ink);cursor:pointer}
+#keys button.empty{color:#b8b1a0}
+#keys button.wait{background:#ffe0b0;border-color:var(--accent)}
+.keyhelp{font-size:13px}
+#adv{margin-top:8px}
+#tune fieldset{border:1px solid var(--line);border-radius:8px;margin:0 0 10px;padding:6px 10px 8px}
+#tune legend{font-weight:600;color:var(--ink);padding:0 4px}
+#tune label{display:grid;grid-template-columns:1fr 92px;align-items:center;gap:8px;padding:2px 0}
+#tune input{width:92px;padding:3px 6px;border:1px solid var(--line);border-radius:5px;font:13px ui-monospace,monospace;background:#fff;color:var(--ink)}
+#tune input.changed{border-color:var(--accent);background:#fff7ea}
+button.link{border:0;background:none;padding:0;font:inherit;color:var(--p1);text-decoration:underline;cursor:pointer}
+.back{display:inline-block;margin-top:10px;font-size:14px;color:var(--muted)}
+/* touch pads: left hand rotates and toggles, right hand flies and fights */
+.pad{display:none;justify-content:space-between;align-items:flex-end;gap:8px;pointer-events:none}
+body.touch .pad.active{display:flex}
+.pad .grp{display:flex;flex-direction:column;gap:6px;pointer-events:auto}
+.pad .row{display:flex;gap:6px;justify-content:center}
+.pad button{width:56px;height:56px;border-radius:50%;border:1px solid var(--line);background:var(--panel);font-size:20px;font-weight:700;touch-action:none;-webkit-touch-callout:none;box-shadow:0 1px 3px rgba(60,50,30,.15);padding:0}
+.pad .row.small button{width:44px;height:34px;border-radius:8px;font-size:10px;letter-spacing:.02em}
+.pad button.on{background:#ffe0b0;border-color:var(--accent)}
+.pad button.lit{background:#d5f0ea;border-color:var(--shield)}
+#pad2{transform:rotate(180deg)}
+body.over .pad{position:absolute;left:8px;right:8px}
+body.over #pad1{bottom:8px}
+body.over #pad2{top:8px}
+body.over .pad button{opacity:.62}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="pad2" class="pad" data-p="1"></div>
+  <div id="stage">
+    <canvas id="c" width="960" height="600" aria-label="Sunwell Duel playfield"></canvas>
+    <button id="pauseBtn" aria-label="Pause">II</button>
+  </div>
+  <div id="pad1" class="pad active" data-p="0"></div>
+</div>
+
+<div id="ov">
+  <div class="card">
+    <div id="menu">
+      <h1>Sunwell <span class="s">Duel</span></h1>
+      <p class="sub">A Spacewar remake. Two armed ships, one hungry star.</p>
+      <div class="modes">
+        <button id="b1" class="main">1 player vs CPU</button>
+        <button id="b2">2 players</button>
+      </div>
+      <div id="opts" class="opts"></div>
+      <details>
+        <summary>Controls</summary>
+        <table id="keys"></table>
+        <p class="keyhelp">Click a key to change it, then press the new key. <kbd>Backspace</kbd> clears a slot, <kbd>Esc</kbd> cancels. <button id="keysReset" class="link">Reset keys</button></p>
+        <p>Solo: either key set flies the Needle. <kbd>Esc</kbd> pauses. On touch screens use the on-screen pads; in 2-player mode the Wedge's pad sits upside down across the top for a shared tablet.</p>
+        <p>Destroy the other ship with blaster torpedoes or laser pulses until all its <b>shield</b> energy is gone. Torpedoes cost 1 energy and hit for 4; laser pulses cost 1 and hit for 2, and can shoot down incoming torpedoes. Engines, the held shield and the held cloak each burn 1 energy every half second; teleport costs 8. <b>Energy</b> recharges 1 unit every 2 seconds, up to 8 times faster close to the star, and you can move it into the shield or back. Holding the shield makes hits drain energy instead of shield. Touching the star burns 3 shield and flings you away, and a warning beep means it's nearly gone.</p>
+      </details>
+      <details id="adv">
+        <summary>Advanced settings</summary>
+        <p class="keyhelp">Change the rules to taste. Values are saved in this browser and apply right away. <button id="tuneReset" class="link">Reset to defaults</button></p>
+        <div id="tune"></div>
+      </details>
+      <a class="back" href="../">← All remakes</a>
+    </div>
+    <div id="msg" hidden>
+      <h2 id="msgT"></h2>
+      <p id="msgP" class="sub"></p>
+      <div class="modes"><button id="bGo" class="main">Resume</button><button id="bMenu">Menu</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ---------- constants ----------
+const W = 960, H = 600, CX = W / 2, CY = H / 2;
+const STEP = 1 / 120;
+const ARM = 0.12, LASER_FLASH = 0.09, TELE_BITS = 36;
+// Tunable rules, editable under Advanced settings. Energy defaults follow the DOS original:
+// torpedo costs 1 and hits for 4, laser costs 1 and hits for 2, engines and cloak cost 1 every half second,
+// hyperspace 8, recharge 1 every 2 seconds. A ship is destroyed when its shield energy runs out.
+const TUNE = [
+  ['Ship', [
+    ['maxSpeed', 'Max speed', 420, 50, 1500, 10],
+    ['thrust', 'Thrust acceleration', 150, 10, 1000, 10],
+    ['turn', 'Turn rate (rad/s)', 3.8, 0.5, 12, 0.1],
+    ['shipR', 'Hit radius', 10, 4, 24, 1],
+    ['shieldR', 'Shield radius', 18, 8, 40, 1],
+  ]],
+  ['Energy', [
+    ['eMax', 'Max energy', 40, 1, 200, 1],
+    ['sMax', 'Max shield', 40, 1, 200, 1],
+    ['eStart', 'Starting energy', 30, 0, 200, 1],
+    ['sStart', 'Starting shield', 20, 1, 200, 1],
+    ['eRegen', 'Recharge per second', 0.5, 0, 20, 0.1],
+    ['solarBoost', 'Extra recharge near star (×)', 7, 0, 30, 0.5],
+    ['solarR', 'Star recharge radius', 60, 10, 300, 5],
+    ['xfer', 'Transfer per second', 5, 0.5, 50, 0.5],
+  ]],
+  ['Energy costs', [
+    ['thrustCost', 'Engines per second', 2, 0, 20, 0.5],
+    ['blastCost', 'Blaster shot', 1, 0, 20, 0.5],
+    ['laserCost', 'Laser pulse', 1, 0, 20, 0.5],
+    ['teleCost', 'Teleport', 8, 0, 100, 1],
+    ['shieldDrain', 'Shield per second', 2, 0, 20, 0.5],
+    ['cloakDrain', 'Cloak per second', 2, 0, 20, 0.5],
+  ]],
+  ['Weapons', [
+    ['boltDmg', 'Blaster damage', 4, 0, 100, 1],
+    ['boltV', 'Blaster bolt speed', 320, 50, 1200, 10],
+    ['boltLife', 'Blaster bolt life (s)', 1.7, 0.2, 8, 0.1],
+    ['boltCd', 'Blaster cooldown (s)', 0.25, 0.02, 3, 0.01],
+    ['laserDmg', 'Laser damage', 2, 0, 100, 1],
+    ['laserRange', 'Laser range', 150, 20, 600, 10],
+    ['laserCd', 'Laser cooldown (s)', 0.3, 0.02, 3, 0.01],
+  ]],
+  ['Star and hazards', [
+    ['gBase', 'Gravity strength', 9e5, 0, 5e6, 5e4],
+    ['starR', 'Star radius', 16, 4, 60, 1],
+    ['starDmg', 'Star touch damage', 3, 0, 100, 1],
+    ['starKick', 'Star bounce speed', 360, 0, 1200, 10],
+    ['ramDmg', 'Ramming damage', 4, 0, 100, 1],
+    ['lowShield', 'Low-shield warning at', 8, 0, 100, 1],
+  ]],
+  ['Teleport and cloak', [
+    ['hyperT', 'Teleport duration (s)', 1.4, 0.2, 5, 0.1],
+    ['hyperCd', 'Teleport cooldown (s)', 2, 0, 20, 0.5],
+    ['reveal', 'Cloak reveal after firing (s)', 0.45, 0, 3, 0.05],
+  ]],
+];
+const T = {};
+(function loadTune() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem('sunwell-tune') || '{}') || {}; } catch (e) {}
+  for (const [, rows] of TUNE) for (const [k, , def, min, max] of rows) {
+    const v = saved[k];
+    T[k] = typeof v === 'number' && isFinite(v) ? Math.min(max, Math.max(min, v)) : def;
+  }
+})();
+function saveTune() { try { localStorage.setItem('sunwell-tune', JSON.stringify(T)); } catch (e) {} }
+function buildTune() {
+  const box = document.getElementById('tune'); box.innerHTML = '';
+  for (const [group, rows] of TUNE) {
+    const fs = document.createElement('fieldset'), lg = document.createElement('legend');
+    lg.textContent = group; fs.append(lg);
+    for (const [k, label, def, min, max, step] of rows) {
+      const lab = document.createElement('label'), span = document.createElement('span'), inp = document.createElement('input');
+      span.textContent = label;
+      Object.assign(inp, { type: 'number', min, max, step, value: T[k], title: `Default ${def}, range ${min} to ${max}` });
+      inp.classList.toggle('changed', T[k] !== def);
+      inp.onchange = () => {
+        const v = parseFloat(inp.value);
+        T[k] = isFinite(v) ? Math.min(max, Math.max(min, v)) : def;
+        inp.value = T[k]; inp.classList.toggle('changed', T[k] !== def);
+        saveTune();
+      };
+      lab.append(span, inp); fs.append(lab);
+    }
+    box.append(fs);
+  }
+}
+const NAMES = ['Needle', 'Wedge'], COLORS = ['#2457c5', '#c8402c'], SHIELD_C = '#1f9a8a';
+// Ship outlines, nose along +x
+// Same length, span and swept area for both, so neither ship is harder to see or hit; only the tails differ
+const SHAPES = [
+  [[14, 0], [-10, -8], [-6, -3], [-11, -3], [-11, 3], [-6, 3], [-10, 8]],
+  [[14, 0], [-10, -8], [-7, -3], [-11, 0], [-7, 3], [-10, 8]],
+];
+
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const $ = id => document.getElementById(id);
+
+// ---------- options ----------
+const CHOICES = {
+  gravity: { label: 'Star gravity', v: [[1, 'Normal'], [2, 'Strong'], [0, 'Off']] },
+  sun: { label: 'Star', v: [[1, 'Burns shields'], [0, 'Hidden']] },
+  torpGrav: { label: 'Blaster bolts feel gravity', v: [[1, 'Yes'], [0, 'No']] },
+  edges: { label: 'Screen edges', v: [['wrap', 'Wrap'], ['bounce', 'Bounce']] },
+  cpu: { label: 'CPU skill', v: [[1, 'Normal'], [2, 'Hard'], [0, 'Easy']] },
+  winAt: { label: 'Points to win', v: [[5, '5'], [7, '7'], [10, '10'], [3, '3']] },
+  sound: { label: 'Sound', v: [[1, 'On'], [0, 'Off']] },
+};
+const opts = {};
+(function loadOpts() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem('sunwell-opts') || '{}') || {}; } catch (e) {}
+  for (const k in CHOICES) {
+    const vals = CHOICES[k].v.map(c => c[0]);
+    opts[k] = vals.includes(saved[k]) ? saved[k] : vals[0];
+  }
+})();
+function saveOpts() { try { localStorage.setItem('sunwell-opts', JSON.stringify(opts)); } catch (e) {} }
+function buildOpts() {
+  const box = $('opts'); box.innerHTML = '';
+  for (const k in CHOICES) {
+    const c = CHOICES[k], lab = document.createElement('label'), b = document.createElement('button');
+    lab.textContent = c.label;
+    const show = () => { b.textContent = c.v.find(x => x[0] === opts[k])[1]; };
+    b.onclick = () => {
+      const i = c.v.findIndex(x => x[0] === opts[k]);
+      opts[k] = c.v[(i + 1) % c.v.length][0]; show(); saveOpts();
+      if (k === 'sound') { audioInit(); if (opts.sound) sfx.blip(660); }
+    };
+    show(); box.append(lab, b);
+  }
+}
+buildOpts();
+
+// ---------- audio ----------
+let ac = null, master = null, noiseBuf = null;
+const loops = [];   // per ship: thrust hiss and laser buzz
+function audioInit() {
+  if (!ac) {
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      master = ac.createGain(); master.gain.value = 0.35; master.connect(ac.destination);
+      noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      for (let p = 0; p < 2; p++) {
+        const pan = panner(p ? 0.6 : -0.6); pan.connect(master);
+        const src = ac.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+        const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = p ? 380 : 300; f.Q.value = 1.2;
+        const tg = ac.createGain(); tg.gain.value = 0;
+        src.connect(f); f.connect(tg); tg.connect(pan); src.start();
+        const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = p ? 155 : 130;
+        const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 23; lg.gain.value = 18;
+        lfo.connect(lg); lg.connect(o.frequency); lfo.start();
+        const lf = ac.createBiquadFilter(); lf.type = 'lowpass'; lf.frequency.value = 1400;
+        const lzg = ac.createGain(); lzg.gain.value = 0;
+        o.connect(lf); lf.connect(lzg); lzg.connect(pan); o.start();
+        loops.push({ tg, lzg, pan });
+      }
+    } catch (e) { ac = null; }
+  }
+  if (ac && ac.state === 'suspended') ac.resume();
+}
+function panner(x) {
+  if (ac.createStereoPanner) { const p = ac.createStereoPanner(); p.pan.value = x; return p; }
+  return ac.createGain();
+}
+function voice(x) {
+  if (!ac || !opts.sound) return null;
+  const g = ac.createGain(), p = panner((x - CX) / CX * 0.8);
+  g.connect(p); p.connect(master);
+  return g;
+}
+function sweep(x, type, f0, f1, len, vol) {
+  const g = voice(x); if (!g) return;
+  const t = ac.currentTime, o = ac.createOscillator();
+  o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + len);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + len);
+  o.connect(g); o.start(t); o.stop(t + len + 0.02);
+}
+const sfx = {
+  fire(x, hi) { sweep(x, 'square', hi ? 1100 : 900, 180, 0.13, 0.16); },
+  boom(x, big) {
+    const g = voice(x); if (!g) return;
+    const t = ac.currentTime, s = ac.createBufferSource(), f = ac.createBiquadFilter(), len = big ? 1.3 : 0.25;
+    s.buffer = noiseBuf; s.loop = true; f.type = 'lowpass';
+    f.frequency.setValueAtTime(big ? 2400 : 3000, t); f.frequency.exponentialRampToValueAtTime(60, t + len);
+    g.gain.setValueAtTime(big ? 0.9 : 0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + len);
+    s.connect(f); f.connect(g); s.start(t); s.stop(t + len + 0.05);
+  },
+  hyper(x, out) { sweep(x, 'sine', out ? 1600 : 180, out ? 180 : 1600, 0.38, 0.2); },
+  shieldHit(x) { sweep(x, 'triangle', 1500, 700, 0.12, 0.18); },
+  zap(x, hi) { sweep(x, 'sawtooth', hi ? 2400 : 2000, 300, 0.07, 0.12); },
+  warn() { sweep(CX, 'square', 880, 880, 0.09, 0.1); },
+  shield(x, on) { sweep(x, 'triangle', on ? 400 : 900, on ? 900 : 400, 0.15, 0.12); },
+  cloak(x, on) { sweep(x, 'sine', on ? 700 : 120, on ? 120 : 700, 0.3, 0.14); },
+  blip(f) { sweep(CX, 'triangle', f, f, 0.18, 0.2); },
+  tune(notes) { notes.forEach((f, i) => setTimeout(() => sfx.blip(f), i * 120)); },
+};
+function loopSound(i, thrust, laser, x) {
+  const n = loops[i]; if (!n) return;
+  const t = ac.currentTime, on = opts.sound;
+  n.tg.gain.setTargetAtTime(thrust && on ? 0.22 : 0, t, 0.03);
+  n.lzg.gain.setTargetAtTime(laser && on ? 0.07 : 0, t, 0.02);
+  if (n.pan.pan) n.pan.pan.value = Math.max(-1, Math.min(1, (x - CX) / CX * 0.8));
+}
+function hush() { loopSound(0, false, false, CX); loopSound(1, false, false, CX); }
+
+// ---------- input ----------
+// l/r rotate, t thrust, f blaster, z laser, h teleport, s shield, c cloak, ts energy→shield, te shield→energy
+const ACTIONS = [['l', 'Rotate left'], ['r', 'Rotate right'], ['t', 'Thrust'], ['f', 'Blaster'], ['z', 'Laser pulse'], ['h', 'Teleport'],
+  ['s', 'Shield (hold)'], ['c', 'Cloak (hold)'], ['ts', 'Energy → shield'], ['te', 'Shield → energy']];
+const DEFAULT_KEYS = [
+  { l: ['KeyA'], r: ['KeyD'], t: ['KeyW'], f: ['KeyS', 'Space'], z: ['KeyX'], h: ['KeyQ'], s: ['KeyE'], c: ['KeyR'], ts: ['KeyZ'], te: ['KeyC'] },
+  { l: ['KeyJ', 'ArrowLeft'], r: ['KeyL', 'ArrowRight'], t: ['KeyI', 'ArrowUp'], f: ['KeyK', 'ArrowDown'], z: ['KeyM', 'Slash'], h: ['KeyU', 'ShiftRight'], s: ['KeyO'], c: ['KeyP'], ts: ['KeyN'], te: ['Comma'] },
+];
+const SLOTS = 2;
+let KEYS = loadKeys();
+// Bindings are saved per browser; anything malformed falls back to the defaults
+function loadKeys() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('sunwell-keys') || 'null'); } catch (e) {}
+  return DEFAULT_KEYS.map((def, p) => {
+    const out = {};
+    for (const [k] of ACTIONS) {
+      const v = saved && saved[p] && saved[p][k];
+      out[k] = Array.isArray(v) && v.every(c => typeof c === 'string') ? v.slice(0, SLOTS) : def[k].slice();
+    }
+    return out;
+  });
+}
+function saveKeys() { try { localStorage.setItem('sunwell-keys', JSON.stringify(KEYS)); } catch (e) {} }
+const KEY_NAMES = { ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', ShiftLeft: 'L Shift', ShiftRight: 'R Shift',
+  ControlLeft: 'L Ctrl', ControlRight: 'R Ctrl', AltLeft: 'L Alt', AltRight: 'R Alt', MetaLeft: 'L Meta', MetaRight: 'R Meta',
+  Comma: ',', Period: '.', Slash: '/', Semicolon: ';', Quote: "'", BracketLeft: '[', BracketRight: ']', Backslash: '\\',
+  Minus: '-', Equal: '=', Backquote: '`', Space: 'Space', Enter: 'Enter', Tab: 'Tab', CapsLock: 'Caps' };
+function keyName(c) {
+  if (KEY_NAMES[c]) return KEY_NAMES[c];
+  return c.replace(/^Key/, '').replace(/^Digit/, '').replace(/^Numpad/, 'Num ');
+}
+let capture = null;   // { p, k, slot } while waiting for a key
+function buildKeys() {
+  const t = $('keys');
+  t.innerHTML = `<tr><th></th><th class="p1">${NAMES[0]}</th><th class="p2">${NAMES[1]}</th></tr>`;
+  for (const [k, label] of ACTIONS) {
+    const tr = document.createElement('tr'), td = document.createElement('td');
+    td.textContent = label; tr.append(td);
+    for (let p = 0; p < 2; p++) {
+      const cell = document.createElement('td');
+      for (let slot = 0; slot < SLOTS; slot++) {
+        const b = document.createElement('button'), code = KEYS[p][k][slot];
+        const waiting = capture && capture.p === p && capture.k === k && capture.slot === slot;
+        b.textContent = waiting ? '…' : code ? keyName(code) : '+';
+        b.className = waiting ? 'wait' : code ? '' : 'empty';
+        b.setAttribute('aria-label', `${NAMES[p]} ${label} key ${slot + 1}: ${code ? keyName(code) : 'none'}`);
+        b.onclick = () => { capture = waiting ? null : { p, k, slot }; buildKeys(); };
+        cell.append(b);
+      }
+      tr.append(cell);
+    }
+    t.append(tr);
+  }
+}
+function bindKey(code) {
+  const { p, k, slot } = capture;
+  capture = null;
+  if (code) for (const m of KEYS) for (const a in m) m[a] = m[a].filter(c => c !== code);   // a key drives one action only
+  const list = KEYS[p][k].slice();
+  if (code) list[Math.min(slot, list.length)] = code; else list.splice(slot, 1);
+  KEYS[p][k] = list.filter(Boolean).slice(0, SLOTS);
+  saveKeys(); buildKeys();
+}
+$('tuneReset').onclick = () => { for (const [, rows] of TUNE) for (const [k, , def] of rows) T[k] = def; saveTune(); buildTune(); };
+buildTune();
+$('keysReset').onclick = () => { capture = null; KEYS = DEFAULT_KEYS.map(m => JSON.parse(JSON.stringify(m))); saveKeys(); buildKeys(); };
+buildKeys();
+const EDGE = ['h'];
+const down = new Set();
+// Taps shorter than a physics step still count: keydowns and pad presses latch until the next update
+const tapped = new Set();
+const touchIn = [{}, {}], touchTap = [{}, {}];
+function readInput(p) {
+  const inp = {}, sets = mode === 1 && p === 0 ? [0, 1] : [p];
+  for (const k in KEYS[0]) inp[k] = sets.some(q => KEYS[q][k].some(c => down.has(c) || tapped.has(c)) || !!touchIn[q][k] || !!touchTap[q][k]);
+  return inp;
+}
+const boundKey = c => KEYS.some(m => Object.values(m).some(l => l.includes(c)));
+addEventListener('keydown', e => {
+  audioInit();
+  if (capture) {
+    e.preventDefault();
+    if (e.code === 'Escape') { capture = null; buildKeys(); }
+    else if (e.code === 'Backspace' || e.code === 'Delete') bindKey(null);
+    else bindKey(e.code);
+    return;
+  }
+  if (state !== 'menu' && (boundKey(e.code) || e.code === 'Space' || e.code.startsWith('Arrow'))) e.preventDefault();
+  if (e.repeat) return;
+  down.add(e.code); tapped.add(e.code);
+  if (e.code === 'Escape') {
+    if (state === 'play' || state === 'round') pause();
+    else if (state === 'paused') resume();
+  } else if (e.code === 'Enter' && !$('ov').classList.contains('hide')) {
+    e.preventDefault();
+    if (state === 'menu') start(1); else $('bGo').click();
+  }
+});
+addEventListener('keyup', e => down.delete(e.code));
+addEventListener('blur', () => { down.clear(); if (state === 'play' || state === 'round') pause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && (state === 'play' || state === 'round')) pause(); });
+addEventListener('pointerdown', e => {
+  audioInit();
+  if (e.pointerType === 'touch' && !document.body.classList.contains('touch')) { document.body.classList.add('touch'); fit(); }
+}, { capture: true, passive: true });
+if (matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
+
+const PAD_HTML = `
+  <div class="grp">
+    <div class="row small"><button data-k="s" aria-label="Shield, hold">SHIELD</button><button data-k="c" aria-label="Cloak, hold">CLOAK</button></div>
+    <div class="row"><button data-k="l" aria-label="Rotate left">⟲</button><button data-k="r" aria-label="Rotate right">⟳</button></div>
+  </div>
+  <div class="grp">
+    <div class="row small"><button data-k="ts" aria-label="Move energy to shield">+SHLD</button><button data-k="te" aria-label="Move shield to energy">+ENRG</button><button data-k="h" aria-label="Teleport">TELE</button></div>
+    <div class="row"><button data-k="t" aria-label="Thrust">▲</button><button data-k="f" aria-label="Blaster">●</button><button data-k="z" aria-label="Laser">≡</button></div>
+  </div>`;
+document.querySelectorAll('.pad').forEach(pad => {
+  pad.innerHTML = PAD_HTML;
+  const p = +pad.dataset.p;
+  pad.querySelectorAll('button').forEach(b => {
+    const k = b.dataset.k;
+    const on = e => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (_) {} touchIn[p][k] = touchTap[p][k] = true; b.classList.add('on'); };
+    const off = () => { touchIn[p][k] = false; b.classList.remove('on'); };
+    b.addEventListener('pointerdown', on);
+    b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('lostpointercapture', off);
+    b.addEventListener('contextmenu', e => e.preventDefault());
+  });
+});
+// ---------- layout ----------
+let scale = 1;
+function fit() {
+  const touch = document.body.classList.contains('touch');
+  const two = touch && mode === 2;
+  $('pad2').classList.toggle('active', two);
+  const aw = innerWidth - 16, ah = innerHeight - 16;
+  const portrait = innerHeight > innerWidth * 0.8;
+  const below = touch && portrait;
+  document.body.classList.toggle('over', touch && !portrait);
+  const padH = below ? (two ? 2 : 1) * 106 : 0;
+  let w = Math.min(aw, (ah - padH) * W / H);
+  w = Math.max(160, Math.floor(w));
+  const h = Math.round(w * H / W);
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  scale = cv.width / W;
+  const pw = below ? Math.min(aw, Math.max(w, 320)) + 'px' : '';
+  $('pad1').style.width = pw; $('pad2').style.width = pw;
+  const stage = $('stage');
+  for (const id of ['pad1', 'pad2']) {
+    const el = $(id), inStage = el.parentNode === stage;
+    if (below && inStage) id === 'pad1' ? stage.after(el) : stage.before(el);
+    if (!below && touch && !inStage) stage.append(el);
+  }
+  if (state !== 'play') draw();
+}
+addEventListener('resize', fit);
+
+// ---------- world ----------
+let mode = 1, state = 'menu';
+let ships = [], bolts = [], parts = [], debris = [], rings = [], stars = [];
+let score = [0, 0], roundT = 0, shake = 0, time = 0, roundMsg = '';
+const gravity = () => [0, 1, 2.2][opts.gravity] * T.gBase;
+
+function rnd(a, b) { return a + Math.random() * (b - a); }
+// Shortest offset from a to b, respecting wraparound
+function off(ax, ay, bx, by) {
+  let dx = bx - ax, dy = by - ay;
+  if (opts.edges === 'wrap') {
+    if (dx > W / 2) dx -= W; else if (dx < -W / 2) dx += W;
+    if (dy > H / 2) dy -= H; else if (dy < -H / 2) dy += H;
+  }
+  return [dx, dy];
+}
+function makeStars() {
+  stars = [];
+  for (let i = 0; i < 140; i++) stars.push({ x: rnd(0, W), y: rnd(0, H), r: rnd(0.5, 1.6), ph: rnd(0, 6.28) });
+}
+function orbitV(x, y, dir) {
+  const dx = x - CX, dy = y - CY, r = Math.hypot(dx, dy), g = gravity();
+  const v = g ? Math.sqrt(g / r) * 0.85 : 0;
+  return [-dy / r * v * dir, dx / r * v * dir];
+}
+function newShip(i) {
+  const x = i ? CX + 300 : CX - 300, y = i ? CY + 140 : CY - 140;
+  const [vx, vy] = orbitV(x, y, 1);
+  return {
+    i, x, y, vx, vy, a: i ? Math.PI : 0, energy: Math.min(T.eStart, T.eMax), shield: Math.min(T.sStart, T.sMax), shieldOn: false, cloak: false,
+    cd: 0, alive: true, hyper: 0, hyperCd: 0, thrust: false, laser: 0, laserT: 0, lcd: 0, hitT: 0, reveal: 0, warnT: 0,
+    prev: {}, ai: { t: 0, err: 0, lx: x, ly: y, calm: 0, cloakT: 0 },
+  };
+}
+function newRound() {
+  ships = [newShip(0), newShip(1)];
+  bolts = []; parts = []; debris = []; rings = [];
+  tapped.clear();
+  makeStars();
+  state = 'play';
+}
+function start(m) {
+  audioInit();
+  mode = m; score = [0, 0];
+  document.body.classList.add('playing');
+  $('ov').classList.add('hide');
+  fit(); newRound();
+  sfx.tune([523, 659, 784]);
+}
+let pausedFromRound = false;
+function pause() {
+  pausedFromRound = state === 'round';
+  state = 'paused';
+  hush();
+  showMsg('Paused', 'Press Esc to resume.', 'Resume');
+}
+function resume() {
+  $('ov').classList.add('hide');
+  state = pausedFromRound ? 'round' : 'play';
+  tapped.clear();
+  last = performance.now();
+}
+function showMsg(t, p, go) {
+  $('menu').hidden = true; $('msg').hidden = false;
+  $('msgT').textContent = t; $('msgP').textContent = p; $('bGo').textContent = go;
+  $('ov').classList.remove('hide');
+}
+function toMenu() {
+  state = 'menu';
+  document.body.classList.remove('playing');
+  $('menu').hidden = false; $('msg').hidden = true; $('ov').classList.remove('hide');
+  hush();
+  attractInit(); fit();
+}
+$('b1').onclick = () => start(1);
+$('b2').onclick = () => start(2);
+$('bMenu').onclick = toMenu;
+$('bGo').onclick = () => { if (state === 'over') start(mode); else resume(); };
+$('pauseBtn').onclick = () => { if (state === 'play' || state === 'round') pause(); };
+
+function wrapEdges(o, bounce) {
+  if (opts.edges === 'wrap') {
+    if (o.x < 0) o.x += W; else if (o.x >= W) o.x -= W;
+    if (o.y < 0) o.y += H; else if (o.y >= H) o.y -= H;
+    return false;
+  }
+  let hit = false;
+  if (o.x < 0) { o.x = 0; o.vx = Math.abs(o.vx) * bounce; hit = true; }
+  if (o.x > W) { o.x = W; o.vx = -Math.abs(o.vx) * bounce; hit = true; }
+  if (o.y < 0) { o.y = 0; o.vy = Math.abs(o.vy) * bounce; hit = true; }
+  if (o.y > H) { o.y = H; o.vy = -Math.abs(o.vy) * bounce; hit = true; }
+  return hit;
+}
+function pull(o, dt) {
+  const g = gravity(); if (!g) return;
+  const dx = CX - o.x, dy = CY - o.y, r2 = Math.max(dx * dx + dy * dy, 400), r = Math.sqrt(r2);
+  const a = g / r2;
+  o.vx += dx / r * a * dt; o.vy += dy / r * a * dt;
+}
+// Energy recharges faster near the star
+function solarGain(s) {
+  if (!opts.sun) return 1;
+  const d = Math.max(1, Math.hypot(s.x - CX, s.y - CY));
+  return 1 + T.solarBoost * Math.min(1, (T.solarR / d) ** 2);
+}
+function spend(s, amount) {
+  if (s.energy < amount) return false;
+  s.energy -= amount; return true;
+}
+function setShield(s, on) {
+  if (on === s.shieldOn) return;
+  s.shieldOn = on;
+  sfx.shield(s.x, on);
+}
+function setCloak(s, on) {
+  if (on === s.cloak) return;
+  s.cloak = on;
+  sfx.cloak(s.x, on);
+  rings.push({ x: s.x, y: s.y, r: 24, life: 0.35, max: 0.35, c: COLORS[s.i], dots: true, shrink: on });
+}
+// A hit drains shield energy; a held shield takes it from energy first. The ship is lost when shields run out.
+function damage(s, dmg) {
+  s.reveal = T.reveal; s.hitT = 0.25;
+  if (s.shieldOn) { const m = Math.min(dmg, s.energy); s.energy -= m; dmg -= m; }
+  s.shield -= dmg;
+  sfx.shieldHit(s.x);
+  if (s.shield <= 0) { s.shield = 0; explode(s); }
+}
+function fire(s) {
+  const c = Math.cos(s.a), n = Math.sin(s.a);
+  bolts.push({ x: s.x + c * 15, y: s.y + n * 15, vx: s.vx + c * T.boltV, vy: s.vy + n * T.boltV, life: T.boltLife, age: 0, o: s.i });
+  s.cd = T.boltCd; s.reveal = T.reveal;
+  sfx.fire(s.x, s.i);
+}
+// Laser pulse: an instant short beam from the nose; it stops at the first ship it strikes and shoots down torpedoes
+function pulse(s) {
+  const c = Math.cos(s.a), n = Math.sin(s.a), nx = s.x + c * 14, ny = s.y + n * 14;
+  let len = T.laserRange, target = null;
+  for (const t of ships) {
+    if (t === s || !t.alive || t.hyper) continue;
+    const [dx, dy] = off(nx, ny, t.x, t.y), along = dx * c + dy * n, perp = Math.abs(-dx * n + dy * c);
+    const r = t.shieldOn ? T.shieldR : T.shipR;
+    if (along > 0 && along < len && perp < r) { len = Math.max(0, along - Math.sqrt(Math.max(0, r * r - perp * perp))); target = t; }
+  }
+  for (const b of bolts) {
+    if (b.o === s.i || b.life <= 0) continue;
+    const [dx, dy] = off(nx, ny, b.x, b.y), along = dx * c + dy * n, perp = Math.abs(-dx * n + dy * c);
+    if (along > 0 && along < len && perp < 6) { b.life = 0; spark(b.x, b.y, '#e08a12', 5); }
+  }
+  s.laser = len; s.laserT = LASER_FLASH; s.lcd = T.laserCd; s.reveal = T.reveal;
+  sfx.zap(s.x, s.i);
+  if (target) { spark(nx + c * len, ny + n * len, COLORS[s.i], 4); damage(target, T.laserDmg); }
+}
+// Points spread evenly along a ship outline, in ship-local coordinates
+function outlinePoints(shape, n) {
+  const segs = shape.map((p, k) => { const q = shape[(k + 1) % shape.length]; return [p, q, Math.hypot(q[0] - p[0], q[1] - p[1])]; });
+  const total = segs.reduce((t, g) => t + g[2], 0), pts = [];
+  for (let k = 0; k < n; k++) {
+    let d = k / n * total, g = 0;
+    while (d > segs[g][2]) { d -= segs[g][2]; g++; }
+    const [p, q, l] = segs[g], f = d / l;
+    pts.push([p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f]);
+  }
+  return pts;
+}
+// Teleport: the outline breaks into particles that scatter, stream to the destination and reassemble
+function jump(s) {
+  let x, y;
+  do { x = rnd(40, W - 40); y = rnd(40, H - 40); } while (Math.hypot(x - CX, y - CY) < 120);
+  s.hyper = T.hyperT; s.hyperCd = T.hyperCd + T.hyperT; s.thrust = false; s.laserT = 0;
+  s.from = [s.x, s.y]; s.to = [x, y];
+  s.bits = outlinePoints(SHAPES[s.i], TELE_BITS).map(p => {
+    const a = rnd(0, 6.283), r = rnd(14, 38), b = rnd(0, 6.283), r2 = rnd(14, 38);
+    return { p, ax: Math.cos(a) * r, ay: Math.sin(a) * r, bx: Math.cos(b) * r2, by: Math.sin(b) * r2, arc: rnd(-60, 60), lag: rnd(0, 0.12) };
+  });
+  sfx.hyper(s.x, false);
+}
+function emerge(s) {
+  s.x = s.to[0]; s.y = s.to[1]; s.vx *= 0.3; s.vy *= 0.3; s.bits = null;
+  sfx.hyper(s.x, true);
+}
+const ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
+function drawTeleport(s) {
+  if (!s.bits || s.cloak) return;
+  const k = 1 - s.hyper / T.hyperT, c = Math.cos(s.a), n = Math.sin(s.a);
+  const [fx, fy] = s.from, [tx, ty] = s.to;
+  ctx.fillStyle = COLORS[s.i];
+  for (const b of s.bits) {
+    const t = Math.min(1, Math.max(0, (k - b.lag) / (1 - 0.12)));
+    const lx = b.p[0] * c - b.p[1] * n, ly = b.p[0] * n + b.p[1] * c;
+    let x, y;
+    if (t < 0.25) {          // disintegrate around the old position
+      const e = ease(t / 0.25); x = fx + lx + (b.ax - lx) * e; y = fy + ly + (b.ay - ly) * e;
+    } else if (t < 0.75) {   // stream across, each particle on its own curve
+      const e = ease((t - 0.25) / 0.5), sx = fx + b.ax, sy = fy + b.ay, ex = tx + b.bx, ey = ty + b.by;
+      const dx = ex - sx, dy = ey - sy, d = Math.hypot(dx, dy) || 1, bend = Math.sin(e * Math.PI) * b.arc;
+      x = sx + dx * e - dy / d * bend; y = sy + dy * e + dx / d * bend;
+    } else {                 // reassemble into the outline
+      const e = ease((t - 0.75) / 0.25); x = tx + b.bx + (lx - b.bx) * e; y = ty + b.by + (ly - b.by) * e;
+    }
+    const sz = t > 0.25 && t < 0.75 ? 2.8 : 3.2;
+    ctx.globalAlpha = 0.9;
+    ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
+  }
+  ctx.globalAlpha = 1;
+}
+function explode(s) {
+  if (!s.alive) return;
+  s.alive = false; s.thrust = false; s.laserT = 0; s.cloak = false; s.shieldOn = false;
+  const c = Math.cos(s.a), n = Math.sin(s.a), pts = SHAPES[s.i];
+  for (let k = 0; k < pts.length; k++) {
+    const p = pts[k], q = pts[(k + 1) % pts.length];
+    const mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2;
+    const wx = s.x + mx * c - my * n, wy = s.y + mx * n + my * c;
+    const ang = Math.atan2(q[1] - p[1], q[0] - p[0]) + s.a, len = Math.hypot(q[0] - p[0], q[1] - p[1]);
+    const out = Math.atan2(wy - s.y, wx - s.x);
+    debris.push({ x: wx, y: wy, vx: s.vx * 0.5 + Math.cos(out) * rnd(30, 90), vy: s.vy * 0.5 + Math.sin(out) * rnd(30, 90), a: ang, va: rnd(-6, 6), len, life: rnd(1.6, 2.6), c: COLORS[s.i] });
+  }
+  for (let k = 0; k < 40; k++) {
+    const a = rnd(0, 6.28), v = rnd(20, 220);
+    parts.push({ x: s.x, y: s.y, vx: s.vx * 0.4 + Math.cos(a) * v, vy: s.vy * 0.4 + Math.sin(a) * v, life: rnd(0.4, 1.2), c: k % 3 ? COLORS[s.i] : '#e08a12' });
+  }
+  rings.push({ x: s.x, y: s.y, r: 4, life: 0.6, max: 0.6, c: '#e08a12' });
+  shake = 10;
+  sfx.boom(s.x, true);
+  loopSound(s.i, false, false, s.x);
+}
+function spark(x, y, c, k) {
+  for (let i = 0; i < k; i++) {
+    const a = rnd(0, 6.28), v = rnd(20, 120);
+    parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rnd(0.2, 0.5), c });
+  }
+}
+
+// ---------- CPU pilot ----------
+const SKILL = [
+  { err: 0.25, tol: 0.22, react: 0.3, dodge: 0.25, range: 420, shields: 0.4, cloak: 0, laser: 0.5 },
+  { err: 0.15, tol: 0.12, react: 0.18, dodge: 0.6, range: 440, shields: 0.8, cloak: 0.15, laser: 0.9 },
+  { err: 0.05, tol: 0.08, react: 0.08, dodge: 0.9, range: 520, shields: 1, cloak: 0.35, laser: 1 },
+];
+function angDiff(a, b) { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; }
+// Seconds until the nearest close pass of an enemy bolt, or Infinity
+function boltThreat(s, within) {
+  let best = Infinity;
+  for (const p of bolts) {
+    if (p.o === s.i) continue;
+    const [dx, dy] = off(s.x, s.y, p.x, p.y), rvx = p.vx - s.vx, rvy = p.vy - s.vy, v2 = rvx * rvx + rvy * rvy;
+    const tc = v2 ? -(dx * rvx + dy * rvy) / v2 : 0;
+    if (tc > 0 && tc < within) {
+      const mx = dx + rvx * tc, my = dy + rvy * tc;
+      if (mx * mx + my * my < 22 * 22) best = Math.min(best, tc);
+    }
+  }
+  return best;
+}
+function cpu(s, foe, dt) {
+  const sk = SKILL[opts.cpu], inp = {}, m = s.ai;
+  m.t -= dt;
+  if (m.t <= 0) { m.t = sk.react; m.err = rnd(-sk.err, sk.err); }
+  const seen = foe.alive && !foe.hyper && (!foe.cloak || foe.reveal > 0);
+  if (seen) { m.lx = foe.x; m.ly = foe.y; }
+  let want = s.a;
+  const sx = s.x - CX, sy = s.y - CY, sd = Math.hypot(sx, sy) || 1;
+  const radial = (s.vx * sx + s.vy * sy) / sd;
+  const danger = opts.gravity && (sd < 95 || (sd < 200 && radial < -70)) || (!opts.gravity && opts.sun && sd < 60 && radial < 0);
+  let dist = Infinity;
+  if (danger && s.energy > 2) {
+    // Burn along the orbit and slightly outward
+    const tang = (s.vx * -sy + s.vy * sx) >= 0 ? 1 : -1;
+    const tx = -sy * tang, ty = sx * tang;
+    want = Math.atan2(ty / sd * 0.8 + sy / sd * 0.6, tx / sd * 0.8 + sx / sd * 0.6);
+    inp.t = Math.abs(angDiff(s.a, want)) < 0.6;
+  } else if (foe.alive && !foe.hyper) {
+    const tx = seen ? foe.x : m.lx, ty = seen ? foe.y : m.ly;
+    const [dx, dy] = off(s.x, s.y, tx, ty);
+    dist = Math.hypot(dx, dy);
+    const rvx = seen ? foe.vx - s.vx : 0, rvy = seen ? foe.vy - s.vy : 0, t = dist / T.boltV;
+    want = Math.atan2(dy + rvy * t, dx + rvx * t) + m.err * (seen ? 1 : 3);
+    const da = Math.abs(angDiff(s.a, want)), sp = Math.hypot(s.vx, s.vy);
+    if (s.energy > 18 && ((sp < 50 && da < 0.4) || (dist > 420 && da < 0.3))) inp.t = true;
+    const reserve = opts.cpu ? 4 : 6;
+    if (seen && dist < T.laserRange * 0.95 && da < 0.15 && s.energy > reserve && Math.random() < sk.laser) inp.z = true;
+    else if (da < sk.tol * (seen ? 1 : 2) && dist < sk.range && s.energy > reserve + T.blastCost) inp.f = true;
+  }
+  const da = angDiff(s.a, want);
+  if (da > 0.04) inp.r = true; else if (da < -0.04) inp.l = true;
+  // Defence: shields against incoming fire or a close enemy, teleport when they can't help
+  const threat = boltThreat(s, 0.6);
+  const close = seen && dist < T.laserRange * 1.3;
+  let wantShield = s.shieldOn;
+  if ((threat < 0.5 || close) && Math.random() < sk.shields) { wantShield = true; m.calm = 0; }
+  else { m.calm += dt; if (m.calm > 0.6) wantShield = false; }
+  // Cloak when calm and charged, drop it when threatened
+  let wantCloak = s.cloak;
+  if (s.cloak) { m.cloakT -= dt; if (m.cloakT <= 0 || threat < 0.6 || s.energy < 10) wantCloak = false; }
+  else if (!wantShield && s.energy > 30 && Math.random() < sk.cloak * dt) { wantCloak = true; m.cloakT = rnd(2, 4); }
+  inp.s = wantShield && s.energy > 1;
+  inp.c = wantCloak;
+  if (threat < 0.3 && !s.shieldOn && s.hyperCd <= 0 && s.energy > T.teleCost + 4 && Math.random() < sk.dodge) inp.h = true;
+  // Move spare energy into the shield when it runs low
+  if (s.shield < 16 && s.energy > 22) inp.ts = true;
+    return inp;
+}
+
+// ---------- update ----------
+function update(dt) {
+  time += dt;
+  shake = Math.max(0, shake - dt * 30);
+  for (const s of ships) {
+    if (!s.alive) continue;
+    s.cd -= dt; s.hyperCd -= dt; s.hitT -= dt; s.reveal -= dt;
+    if (s.hyper > 0) {
+      s.hyper -= dt;
+      if (s.hyper <= 0) { s.hyper = 0; emerge(s); }
+      continue;
+    }
+    const inp = state !== 'play' ? {} : (mode === 1 && s.i === 1 ? cpu(s, ships[0], dt) : readInput(s.i));
+    const press = k => inp[k] && !s.prev[k];
+    if (inp.l) s.a -= T.turn * dt;
+    if (inp.r) s.a += T.turn * dt;
+    s.lcd -= dt; s.laserT -= dt;
+    // Shield and cloak work only while held and powered
+    const shieldNow = !!inp.s && spend(s, T.shieldDrain * dt);
+    const cloakNow = !!inp.c && spend(s, T.cloakDrain * dt);
+    setShield(s, shieldNow); setCloak(s, cloakNow);
+    s.thrust = !!inp.t && spend(s, T.thrustCost * dt);
+    if (s.thrust) { s.vx += Math.cos(s.a) * T.thrust * dt; s.vy += Math.sin(s.a) * T.thrust * dt; }
+    if (inp.ts && s.shield < T.sMax) { const m = Math.min(T.xfer * dt, s.energy, T.sMax - s.shield); s.energy -= m; s.shield += m; }
+    if (inp.te && s.shield > 1 && s.energy < T.eMax) { const m = Math.min(T.xfer * dt, s.shield - 1, T.eMax - s.energy); s.shield -= m; s.energy += m; }
+    s.energy = Math.min(T.eMax, s.energy + T.eRegen * solarGain(s) * dt);
+    if (inp.f && s.cd <= 0 && spend(s, T.blastCost)) fire(s);
+    if (inp.z && s.lcd <= 0 && spend(s, T.laserCost)) pulse(s);
+    if (!s.alive) continue;
+    loopSound(s.i, s.thrust, false, s.x);
+    if (s.shield <= T.lowShield) { s.warnT -= dt; if (s.warnT <= 0) { s.warnT = 0.8; if (mode === 2 || s.i === 0) sfx.warn(); } }
+    const jumpNow = press('h') && s.hyperCd <= 0 && spend(s, T.teleCost);
+    for (const k of EDGE) s.prev[k] = !!inp[k];
+    if (jumpNow) { jump(s); loopSound(s.i, false, false, s.x); continue; }
+    pull(s, dt);
+    const v = Math.hypot(s.vx, s.vy);
+    if (v > T.maxSpeed) { s.vx *= T.maxSpeed / v; s.vy *= T.maxSpeed / v; }
+    s.x += s.vx * dt; s.y += s.vy * dt;
+    if (wrapEdges(s, 0.6)) shake = Math.max(shake, 2);
+    // Touching the star drains shields and shoves the ship back out
+    const sdx = s.x - CX, sdy = s.y - CY, sd = Math.hypot(sdx, sdy) || 1;
+    if (opts.sun && sd < T.starR + 8) {
+      const nx = sdx / sd, ny = sdy / sd, vin = s.vx * nx + s.vy * ny;
+      s.vx += (T.starKick - vin) * nx; s.vy += (T.starKick - vin) * ny;
+      s.x = CX + nx * (T.starR + 8); s.y = CY + ny * (T.starR + 8);
+      spark(s.x, s.y, '#e08a12', 10); shake = Math.max(shake, 4);
+      damage(s, T.starDmg);
+    }
+  }
+  // blaster bolts
+  for (const p of bolts) {
+    p.life -= dt; p.age += dt;
+    if (opts.torpGrav) pull(p, dt);
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    if (wrapEdges(p, 0.8)) p.life -= 0.2;
+    if (opts.sun && Math.hypot(p.x - CX, p.y - CY) < T.starR) { p.life = 0; spark(p.x, p.y, '#e08a12', 4); }
+    for (const s of ships) {
+      if (!s.alive || s.hyper || (p.o === s.i && p.age < ARM) || p.life <= 0) continue;
+      const [dx, dy] = off(p.x, p.y, s.x, s.y), r = s.shieldOn ? T.shieldR : T.shipR;
+      if (dx * dx + dy * dy < r * r) { p.life = 0; spark(p.x, p.y, s.shieldOn ? SHIELD_C : COLORS[s.i], 6); damage(s, T.boltDmg); }
+    }
+  }
+  for (let a = 0; a < bolts.length; a++) for (let b = a + 1; b < bolts.length; b++) {
+    const p = bolts[a], q = bolts[b];
+    if (p.life <= 0 || q.life <= 0 || p.o === q.o) continue;
+    const [dx, dy] = off(p.x, p.y, q.x, q.y);
+    if (dx * dx + dy * dy < 36) { p.life = q.life = 0; spark(p.x, p.y, '#e08a12', 8); sfx.boom(p.x, false); }
+  }
+  bolts = bolts.filter(p => p.life > 0);
+  // ramming: a strong raised shield bounces, anything else breaks up
+  const [A, B] = ships;
+  if (A.alive && B.alive && !A.hyper && !B.hyper) {
+    const [dx, dy] = off(A.x, A.y, B.x, B.y), d = Math.hypot(dx, dy);
+    const ra = A.shieldOn ? T.shieldR : T.shipR, rb = B.shieldOn ? T.shieldR : T.shipR;
+    if (d < ra + rb) {
+      const nx = dx / (d || 1), ny = dy / (d || 1), rel = (B.vx - A.vx) * nx + (B.vy - A.vy) * ny;
+      if (rel < -20) { damage(A, T.ramDmg); damage(B, T.ramDmg); }
+      if (rel < 0) { A.vx += rel * nx; A.vy += rel * ny; B.vx -= rel * nx; B.vy -= rel * ny; }
+      const push = (ra + rb - d) / 2 + 0.5;
+      A.x -= nx * push; A.y -= ny * push; B.x += nx * push; B.y += ny * push;
+    }
+  }
+  // effects
+  for (const p of parts) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.99; p.vy *= 0.99; }
+  parts = parts.filter(p => p.life > 0);
+  for (const d of debris) { d.life -= dt; if (opts.gravity) pull(d, dt * 0.5); d.x += d.vx * dt; d.y += d.vy * dt; d.a += d.va * dt; }
+  debris = debris.filter(d => d.life > 0);
+  for (const r of rings) r.life -= dt;
+  rings = rings.filter(r => r.life > 0);
+  tapped.clear(); touchTap[0] = {}; touchTap[1] = {};
+  // round flow
+  if (state === 'play' && (!A.alive || !B.alive)) {
+    state = 'round'; roundT = 2.6;
+    if (A.alive && !B.alive) { score[0]++; roundMsg = NAMES[0] + ' scores'; }
+    else if (B.alive && !A.alive) { score[1]++; roundMsg = NAMES[1] + ' scores'; }
+    else roundMsg = 'Both destroyed';
+  } else if (state === 'round') {
+    roundT -= dt;
+    if (roundT <= 0) {
+      const w = score[0] >= opts.winAt ? 0 : score[1] >= opts.winAt ? 1 : -1;
+      if (w >= 0) {
+        state = 'over';
+        hush();
+        const who = mode === 1 ? (w ? 'The CPU wins' : 'You win') : NAMES[w] + ' wins';
+        showMsg(who, `Final score ${score[0]} : ${score[1]}`, 'Play again');
+        sfx.tune(w && mode === 1 ? [392, 330, 262] : [523, 659, 784, 1047]);
+      } else newRound();
+    }
+  }
+}
+
+// ---------- drawing ----------
+function draw() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#f6f3ea'; ctx.fillRect(0, 0, cv.width, cv.height);
+  const sx = shake ? rnd(-shake, shake) : 0, sy = shake ? rnd(-shake, shake) : 0;
+  ctx.setTransform(scale, 0, 0, scale, sx * scale, sy * scale);
+  // faint chart grid
+  ctx.strokeStyle = 'rgba(120,105,70,.07)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 40; x < W; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+  for (let y = 40; y < H; y += 40) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+  ctx.stroke();
+  for (const s of stars) {
+    ctx.fillStyle = `rgba(90,82,66,${0.25 + 0.2 * Math.sin(time * 1.5 + s.ph)})`;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.283); ctx.fill();
+  }
+  drawSun();
+  for (const p of bolts) {
+    const c = COLORS[p.o];
+    ctx.strokeStyle = c; ctx.globalAlpha = 0.35; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.03, p.y - p.vy * 0.03); ctx.stroke();
+    ctx.globalAlpha = 1; ctx.fillStyle = c;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 2.6, 0, 6.283); ctx.fill();
+  }
+  for (const s of ships) if (s.alive && !s.hyper && s.laserT > 0) drawLaser(s);
+  for (const s of ships) if (s.alive && s.hyper) drawTeleport(s);
+  for (const s of ships) if (s.alive && !s.hyper) {
+    drawShip(s, s.x, s.y);
+    if (opts.edges === 'wrap') {
+      // Ghost copies so ships stay whole across edges
+      const gx = s.x < 20 ? W : s.x > W - 20 ? -W : 0, gy = s.y < 20 ? H : s.y > H - 20 ? -H : 0;
+      if (gx) drawShip(s, s.x + gx, s.y);
+      if (gy) drawShip(s, s.x, s.y + gy);
+    }
+  }
+  ctx.lineCap = 'round';
+  for (const d of debris) {
+    ctx.strokeStyle = d.c; ctx.globalAlpha = Math.min(1, d.life); ctx.lineWidth = 2;
+    const c = Math.cos(d.a) * d.len / 2, n = Math.sin(d.a) * d.len / 2;
+    ctx.beginPath(); ctx.moveTo(d.x - c, d.y - n); ctx.lineTo(d.x + c, d.y + n); ctx.stroke();
+  }
+  for (const p of parts) {
+    ctx.fillStyle = p.c; ctx.globalAlpha = Math.min(1, p.life * 2);
+    ctx.fillRect(p.x - 1.2, p.y - 1.2, 2.4, 2.4);
+  }
+  for (const r of rings) {
+    const k = 1 - r.life / r.max, rad = r.shrink ? r.r * (1 - k) + 2 : r.r + k * 50;
+    ctx.globalAlpha = r.life / r.max; ctx.strokeStyle = r.c; ctx.lineWidth = 2;
+    if (r.dots) {
+      ctx.fillStyle = r.c;
+      for (let i = 0; i < 12; i++) { const a = i / 12 * 6.283 + k * 2; ctx.fillRect(r.x + Math.cos(a) * rad - 1.5, r.y + Math.sin(a) * rad - 1.5, 3, 3); }
+    } else { ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, 6.283); ctx.stroke(); }
+  }
+  ctx.globalAlpha = 1;
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  if (state !== 'menu') drawHud();
+}
+function drawSun() {
+  if (!opts.sun) {
+    if (opts.gravity) { ctx.strokeStyle = 'rgba(224,138,18,.4)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(CX, CY, 4, 0, 6.283); ctx.stroke(); }
+    return;
+  }
+  ctx.save(); ctx.translate(CX, CY);
+  // Warm halo marks where solar recharge is strong
+  const halo = ctx.createRadialGradient(0, 0, T.starR, 0, 0, T.solarR * 2.6);
+  halo.addColorStop(0, 'rgba(255,190,70,.22)'); halo.addColorStop(1, 'rgba(255,190,70,0)');
+  ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(0, 0, T.solarR * 2.6, 0, 6.283); ctx.fill();
+  ctx.strokeStyle = '#f0a42a'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (let i = 0; i < 16; i++) {
+    const a = i / 16 * 6.283 + time * 0.3;
+    const len = T.starR + 6 + 6 * (0.5 + 0.5 * Math.sin(time * 7 + i * 2.3)) + 4 * Math.sin(time * 3.1 + i);
+    ctx.moveTo(Math.cos(a) * (T.starR + 2), Math.sin(a) * (T.starR + 2));
+    ctx.lineTo(Math.cos(a) * len, Math.sin(a) * len);
+  }
+  ctx.stroke();
+  const g = ctx.createRadialGradient(0, 0, 2, 0, 0, T.starR + 1);
+  g.addColorStop(0, '#fff3c4'); g.addColorStop(0.6, '#ffc94a'); g.addColorStop(1, '#e8861a');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, T.starR, 0, 6.283); ctx.fill();
+  ctx.restore();
+}
+function drawLaser(s) {
+  const c = Math.cos(s.a), n = Math.sin(s.a), x0 = s.x + c * 14, y0 = s.y + n * 14;
+  const x1 = x0 + c * s.laser, y1 = y0 + n * s.laser;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = COLORS[s.i]; ctx.globalAlpha = 0.5; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  ctx.globalAlpha = 1; ctx.strokeStyle = '#fffaf0'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+}
+function drawShip(s, x, y) {
+  // A cloaked ship is invisible except for a faint flame and a flicker when it fires or is hit
+  let alpha = 1;
+  if (s.cloak) alpha = Math.max(0, s.reveal / T.reveal) * 0.8;
+  ctx.save(); ctx.translate(x, y);
+  if (s.shieldOn) {
+    const k = s.shield / T.sMax, hit = s.hitT > 0;
+    ctx.strokeStyle = SHIELD_C; ctx.lineWidth = hit ? 3 : 1.5;
+    ctx.globalAlpha = hit ? 0.9 : 0.25 + 0.45 * k;
+    ctx.beginPath(); ctx.arc(0, 0, T.shieldR + Math.sin(time * 9) * 0.6, 0, 6.283); ctx.stroke();
+    ctx.globalAlpha = (hit ? 0.25 : 0.08) * (0.5 + k); ctx.fillStyle = SHIELD_C; ctx.fill();
+  }
+  ctx.rotate(s.a);
+  if (s.thrust) {
+    const fl = 8 + Math.random() * 8;
+    ctx.globalAlpha = s.cloak ? 0.25 * Math.random() : 1;
+    ctx.fillStyle = '#f0a42a';
+    ctx.beginPath(); ctx.moveTo(-10, -3); ctx.lineTo(-10 - fl, 0); ctx.lineTo(-10, 3); ctx.closePath(); ctx.fill();
+  }
+  if (alpha > 0.01) {
+    ctx.globalAlpha = alpha;
+    const pts = SHAPES[s.i];
+    ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let k = 1; k < pts.length; k++) ctx.lineTo(pts[k][0], pts[k][1]);
+    ctx.closePath();
+    ctx.fillStyle = s.i ? '#f6d9d2' : '#d6e1f7'; ctx.fill();
+    ctx.strokeStyle = COLORS[s.i]; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawHud() {
+  ctx.textBaseline = 'top';
+  for (let i = 0; i < 2; i++) {
+    const s = ships[i], right = i === 1, x = right ? W - 16 : 16, dir = right ? -1 : 1;
+    const label = mode === 1 ? (i ? 'CPU' : 'You') : NAMES[i];
+    ctx.font = '700 18px system-ui,sans-serif';
+    ctx.fillStyle = COLORS[i]; ctx.textAlign = right ? 'right' : 'left';
+    ctx.fillText(`${label}  ${score[i]}`, x, 12);
+    if (!s) continue;
+    const bw = 110;
+    const bar = (y, v, max, col, tag) => {
+      const bx = right ? x - bw : x;
+      ctx.fillStyle = 'rgba(43,42,39,.12)'; ctx.fillRect(bx, y, bw, 6);
+      ctx.fillStyle = col; ctx.fillRect(right ? bx + bw - bw * v / max : bx, y, bw * v / max, 6);
+      ctx.font = '600 10px system-ui,sans-serif'; ctx.fillStyle = 'rgba(43,42,39,.55)';
+      ctx.textAlign = right ? 'right' : 'left'; ctx.fillText(tag, x + dir * (bw + 6) - (right ? 0 : 0), y - 2);
+    };
+    const low = s.shield <= T.lowShield && Math.sin(time * 14) > 0;
+    bar(38, s.energy, T.eMax, s.energy < 8 ? '#d0611a' : COLORS[i], `ENERGY ${Math.floor(s.energy)}`);
+    bar(50, s.shield, T.sMax, low ? '#d0611a' : SHIELD_C, `SHIELD ${Math.ceil(s.shield)}`);
+    const tags = [];
+    if (s.shieldOn) tags.push(['SHIELD UP', SHIELD_C]);
+    if (s.cloak) tags.push(['CLOAKED', COLORS[i]]);
+    if (s.alive && !s.hyper && solarGain(s) > 2 && s.energy < T.eMax) tags.push([`SOLAR ×${solarGain(s).toFixed(1)}`, '#d08a12']);
+    if (s.alive && s.hyperCd <= 0 && s.energy >= T.teleCost) tags.push(['TELEPORT READY', 'rgba(43,42,39,.45)']);
+    ctx.font = '700 10px system-ui,sans-serif';
+    let tx = x;
+    for (const [t, c] of tags) {
+      ctx.fillStyle = c; ctx.textAlign = right ? 'right' : 'left'; ctx.fillText(t, tx, 62);
+      tx += dir * (ctx.measureText(t).width + 10);
+    }
+  }
+  if (state === 'round' || (state === 'paused' && pausedFromRound)) {
+    ctx.textAlign = 'center'; ctx.font = '700 28px system-ui,sans-serif';
+    ctx.fillStyle = 'rgba(43,42,39,.85)'; ctx.fillText(roundMsg, CX, CY + 70);
+    ctx.font = '600 16px system-ui,sans-serif'; ctx.fillStyle = 'rgba(43,42,39,.6)';
+    ctx.fillText(`${score[0]} : ${score[1]}   ·   first to ${opts.winAt}`, CX, CY + 104);
+  }
+  ctx.textAlign = 'left';
+}
+
+// Menu backdrop: both ships drift on their orbits behind the overlay
+function attractInit() {
+  mode = 1; ships = [newShip(0), newShip(1)]; bolts = []; makeStars();
+}
+function attractStep(dt) {
+  for (const s of ships) {
+    if (!s.alive) continue;
+    pull(s, dt); s.x += s.vx * dt; s.y += s.vy * dt; wrapEdges(s, 0.6);
+    s.a = Math.atan2(s.vy, s.vx);
+    if (Math.hypot(s.x - CX, s.y - CY) < 60) Object.assign(s, newShip(s.i));
+  }
+}
+
+// ---------- loop ----------
+let last = performance.now(), acc = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (state === 'play' || state === 'round') {
+    acc += dt;
+    while (acc >= STEP) { update(STEP); acc -= STEP; }
+  } else if (state === 'menu') {
+    time += dt;
+    attractStep(dt);
+  } else acc = 0;
+  draw();
+  requestAnimationFrame(frame);
+}
+attractInit();
+fit();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
