@@ -9,6 +9,7 @@ Browser remakes of old games. Each game lives in its own folder as a self-contai
 | Excitebike | [excitebike/](excitebike/) |
 | Arctic Adventure | [arctic-adventure/](arctic-adventure/) |
 | Little Computer People | [little-computer-people/](little-computer-people/) |
+| Lode Runner | [lode-runner/](lode-runner/) |
 | Spacewar | [spacewar/](spacewar/) |
 | Spy vs Spy | [spy-vs-spy/](spy-vs-spy/) |
 

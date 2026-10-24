@@ -1,0 +1,2116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gold Raid</title>
+<meta name="theme-color" content="#f4f1ea">
+<style>
+/* Layout: header, pixel canvas with an overlay for menus, editor bar, touch pad, key legend */
+:root{
+  --paper:#f4f1ea; --panel:#ffffff; --ink:#1c1b19; --muted:#6b665c; --line:#d8d2c4;
+  --accent:#d2541b; --accent-soft:#fbe9df; --blue:#2b6cb0;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Courier New",monospace;
+  color-scheme: light;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink)}
+body{font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.wrap{max-width:980px;margin:0 auto;padding-block:16px 28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:12px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 16px}
+h1{margin:0;font:800 clamp(26px,5vw,38px)/1 var(--mono);letter-spacing:.08em}
+h1 span{color:var(--accent)}
+.tag{margin:4px 0 0;color:var(--muted);max-width:62ch}
+.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+button,select,input{font:600 15px/1.2 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink)}
+button{border:2px solid var(--ink);background:var(--panel);border-radius:6px;padding:7px 14px;cursor:pointer}
+button:hover{background:var(--accent-soft)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.4;cursor:not-allowed;background:var(--panel)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover{filter:brightness(1.07)}
+button.sel{background:var(--ink);color:#fff}
+select,input[type=text]{border:2px solid var(--line);border-radius:6px;padding:6px 8px;background:#fff;min-width:0}
+textarea{width:100%;min-height:70px;font:12px/1.3 var(--mono);border:2px solid var(--line);border-radius:6px;padding:6px;resize:vertical}
+.stage{position:relative;border:3px solid var(--ink);border-radius:6px;overflow:hidden;background:#000;width:100%;aspect-ratio:280/192;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#c{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:12px;background:rgba(244,241,234,.6);overflow:auto}
+.overlay[hidden]{display:none}
+.stage.menu{aspect-ratio:auto;min-height:min(70vw,640px);background:var(--paper)}
+.stage.menu #c{position:absolute;inset:0;opacity:.35}
+.stage.menu .overlay{position:relative;min-height:inherit;background:transparent}
+.panel{background:var(--panel);border:2px solid var(--ink);border-radius:8px;padding:16px 18px;width:100%;max-width:600px;box-shadow:0 5px 0 rgba(28,27,25,.18)}
+.panel h2{margin:0 0 4px;font:800 24px/1.1 var(--mono);letter-spacing:.04em}
+.panel h3{margin:14px 0 6px;font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.panel p{margin:0 0 10px;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:8px 0}
+.grid button{text-align:left;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
+.grid button small{font-weight:500;color:var(--muted);font-size:12px}
+.grid button.sel small{color:#ddd}
+.menu-list{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));margin-top:10px}
+.menu-list button{padding:12px;text-align:left}
+.menu-list button small{display:block;font-weight:500;color:var(--muted);font-size:13px;margin-top:2px}
+.menu-list button.primary small{color:#ffe7dc}
+.code{font:800 34px/1 var(--mono);letter-spacing:.18em;color:var(--accent)}
+.players{list-style:none;margin:6px 0;padding:0;display:grid;gap:4px}
+.players li{display:flex;gap:8px;align-items:center}
+.dot{width:14px;height:14px;border-radius:3px;border:2px solid var(--ink);flex:none}
+table.res{border-collapse:collapse;width:100%;margin:8px 0;font-variant-numeric:tabular-nums}
+table.res th,table.res td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:right}
+table.res th:first-child,table.res td:first-child{text-align:left}
+.note{font-size:13px;color:var(--muted)}
+.err{color:#b3261e;font-weight:600}
+details{margin-top:10px}
+summary{cursor:pointer;font-weight:600}
+.edbar{display:grid;gap:8px}
+.edbar[hidden]{display:none}
+.palette{display:flex;flex-wrap:wrap;gap:4px}
+.palette button{padding:3px;display:flex;align-items:center;gap:5px;font-size:13px;border-width:2px}
+.palette canvas{width:20px;height:22px;image-rendering:pixelated;background:#000;border-radius:2px}
+.pad{display:none;justify-content:space-between;align-items:center;gap:12px;user-select:none;-webkit-user-select:none}
+.pad .dir{display:grid;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(3,48px);gap:5px}
+.pad .dir .u{grid-column:2;grid-row:1}.pad .dir .l{grid-column:1;grid-row:2}.pad .dir .r{grid-column:3;grid-row:2}.pad .dir .d{grid-column:2;grid-row:3}
+.pad .act{display:grid;grid-template-columns:repeat(2,68px);gap:8px}
+.pad button{padding:0;font-size:15px;touch-action:none;-webkit-touch-callout:none}
+.pad .act button{height:58px;border-radius:12px}
+.pad .act .use{grid-column:span 2;background:var(--accent);border-color:var(--accent);color:#fff}
+.pad button.on{transform:translateY(2px);filter:brightness(.85)}
+html.touch .pad{display:flex}
+.keys{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:4px 18px;color:var(--muted);font-size:15px;margin:0;padding:0;list-style:none}
+kbd{font:600 13px/1.4 var(--mono);background:var(--panel);border:1px solid var(--line);border-bottom-width:2px;border-radius:3px;padding:0 5px;color:var(--ink)}
+html.touch .keys{display:none}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 14px;border-radius:6px;font-weight:600;z-index:10;max-width:90vw}
+.toast[hidden]{display:none}
+@media (max-width:600px){.panel{padding:12px}.code{font-size:28px}.grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>GOLD <span>RAID</span></h1>
+      <p class="tag">A Lode Runner remake: the 1983 look, the sequel's tools and terrain, and online multiplayer.</p>
+    </div>
+    <div class="bar">
+      <button id="bPause" title="Pause (Esc)">Pause</button>
+      <button id="bSound" title="Sound on or off (M)">Sound: on</button>
+    </div>
+  </header>
+  <div class="stage menu" id="stage">
+    <canvas id="c" width="280" height="192" aria-label="Game screen"></canvas>
+    <div class="overlay" id="ov"><div class="panel" id="panel"></div></div>
+  </div>
+  <div class="edbar" id="edbar" hidden>
+    <div class="palette" id="palette"></div>
+    <div class="row">
+      <input type="text" id="edName" maxlength="24" aria-label="Level name" value="My level">
+      <label><input type="checkbox" id="edNight"> Night</label>
+      <button class="primary" id="edTest">Test</button>
+      <button id="edSave">Save</button>
+      <select id="edOpen" aria-label="Open a saved level"></select>
+      <button id="edNew">New</button>
+      <button id="edExport">Copy code</button>
+      <button id="edImport">Paste code</button>
+      <button id="edDelete">Delete</button>
+      <button id="edDone">Done</button>
+    </div>
+    <p class="note">Click or drag to paint, right-click to erase. Exits: an Exit ladder appears when all gold is taken and leads off the top; an Exit door opens at the same moment.</p>
+  </div>
+  <div class="pad" id="pad">
+    <div class="dir">
+      <button class="u" data-k="u" aria-label="Up">▲</button>
+      <button class="l" data-k="l" aria-label="Left">◀</button>
+      <button class="r" data-k="r" aria-label="Right">▶</button>
+      <button class="d" data-k="d" aria-label="Down">▼</button>
+    </div>
+    <div class="act">
+      <button data-k="dl" aria-label="Dig left">Dig ◀</button>
+      <button data-k="dr" aria-label="Dig right">Dig ▶</button>
+      <button class="use" data-k="use" aria-label="Use tool">Use tool</button>
+    </div>
+  </div>
+  <ul class="keys" id="keys">
+    <li><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> or <kbd>WASD</kbd> run, climb, drop</li>
+    <li><kbd>Z</kbd>/<kbd>X</kbd> or <kbd>Q</kbd>/<kbd>E</kbd> dig left / right</li>
+    <li><kbd>Space</kbd> use the tool you carry</li>
+    <li><kbd>Esc</kbd> pause, <kbd>R</kbd> give up a life when stuck (solo)</li>
+    <li>Two on one keyboard: P1 <kbd>WASD</kbd> <kbd>Q</kbd>/<kbd>E</kbd> <kbd>F</kbd>, P2 <kbd>←→↑↓</kbd> <kbd>,</kbd>/<kbd>.</kbd> <kbd>/</kbd></li>
+    <li>Gamepads: stick or d-pad, <kbd>X</kbd>/<kbd>B</kbd> dig, <kbd>A</kbd> tool. Online: <kbd>1</kbd>-<kbd>4</kbd> quick chat</li>
+  </ul>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script id="levels" type="application/json">
+{"campaign":[{"name":"First Shift",
+"map":[
+".......................S....",
+".......................S....",
+".......................S....",
+"..$.......0............S.$..",
+"##H###########....########H#",
+"..H.......................H.",
+"..H....--------...........H.",
+"..H.........$....0.....$..H.",
+"#####H##########H###########",
+".....H..........H...........",
+".....H..........H...........",
+".$...H....1.....H.......$...",
+"##########H#############H###",
+"..........H.............H...",
+"..........H.............H...",
+"...$......H.............H.$."]},
+{"name":"Rope Walk",
+"map":[
+"S...........................",
+"S...........................",
+"S..$............0........$..",
+"#########H#################H",
+".........H.................H",
+".--------H-----------------H",
+".........H.................H",
+"..$......H...$.........$...H",
+"###......H#######.....######",
+".........H..................",
+".........H..................",
+"..1......H...0..........H...",
+"########################H###",
+"........................H...",
+".$----------------------H...",
+"............$...........H.$."]},
+{"name":"Dig Deep",
+"map":[
+"S@..........................",
+"S@..........................",
+"S@1........................$",
+"S@##########################",
+"S@..........................",
+"S@.$............0........$..",
+"S@##########################",
+"S@..........................",
+"S@.....$...........0..$.....",
+"S@##########################",
+"S...........................",
+"S....$.........$..........$.",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@"]},
+{"name":"False Floor",
+"map":[
+".....................S......",
+".....................S......",
+"..1..................S...$..",
+"###XX#####H#####XXX####H####",
+"..........H............H....",
+"..........H............H....",
+"..$..0....H.....$......H..$.",
+"#######XXXH#####@@#####H####",
+"..........H............H....",
+"..........H............H....",
+".$........H......0.....H...$",
+"###XXXX###H###XX#######H####",
+"..........H............H....",
+"..........H............H....",
+"..........H............H....",
+"....$.....H......$.....H.$.."]},
+{"name":"Hammer Time",
+"map":[
+"S@..........................",
+"S@..........................",
+"S@1.............0.........$.",
+"S@@@@@@@##@@@@@@@@@@@@@@@@@@",
+"S@..........................",
+"S@..$.....j...##...0...$....",
+"S@@@@@@@@@@@@@##@@@@@@@@@@@@",
+"S@..........................",
+"S@.$..g.....j....$.......0..",
+"S@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+"S...........................",
+"S..$......$............$..$.",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@"]},
+{"name":"Phase Shift",
+"map":[
+"..........................S.",
+"..........................S.",
+".1........................S.",
+"###H###%%%%%%%&&&&&&&###H###",
+"...H....................H...",
+"...H...$..0..$..........H...",
+"###H##########%%%%%%%###H###",
+"...H....................H...",
+"...H.$...........$......H...",
+"###H###&&&&&&&##########H###",
+"...H....................H...",
+"...H.....$.........$....H...",
+"###H###%%%%%%%&&&&&&&###H###",
+"...H....................H...",
+"...H....................H...",
+"...H......$......$......H..."]},
+{"name":"Night Vault",
+"map":[
+"..........S.................",
+"..........S.................",
+"..$.......S......0.....$....",
+"####H############H##########",
+"....H............H..........",
+"....H------------H-------...",
+"....H............H..........",
+".$..H...0........H.$.......$",
+"##X#H#####..#####H####X###H#",
+"....H............H........H.",
+"....H....$.......H........H.",
+"####H############H########H#",
+"....H............H........H.",
+"....H............H........H.",
+"....H............H........H.",
+".$..H....1..l....H.0..$...H."],"night":true},
+{"name":"Sticky Situation",
+"map":[
+".......................S....",
+".......................S....",
+".1...o...........0.....S..$.",
+"###H###~~~~~~~~~~~~~~#####H#",
+"...H......................H.",
+"...H.....$..g...$.........H.",
+"###H######H######H########H#",
+"...H......H......H........H.",
+"...H.0....H......H..$.....H.",
+"~~~H~~~~~~H~~~~~~H~~~~~~~~H~",
+"...H......H......H........H.",
+".$.H......H.$....H....0...H.",
+"###H######################H#",
+"...H......................H.",
+"...H......................H.",
+".$.H.....$.........$......H."]},
+{"name":"Snare Line",
+"map":[
+"S...........................",
+"S...........................",
+"S..n.....0.......0......p.$.",
+"########H##########H########",
+"........H..........H........",
+".$..n...H..$.......H...n..$.",
+"###H#############H######H###",
+"...H.............H......H...",
+"...H....0.$......H......H.0.",
+"##H#############H###########",
+"..H.............H...........",
+".$H...1.........H..p....$...",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@"]},
+{"name":"Powder Keg",
+"map":[
+"...........................S",
+"...........................S",
+".1..b.....0............b...S",
+"###H########################",
+"...H...#$.$.$#..............",
+"...H...#######....0.........",
+"###H###.......##########H###",
+"...H....................H...",
+"...H....b...............H.$.",
+"###H##########@@@@@@@###H###",
+"...H...#.$.$.#@$.$.$@...H...",
+"...H...##############...H...",
+"###H###..............###H###",
+"...H....................H...",
+"...H....................H...",
+"...H.........m..........H..."]},
+{"name":"Monastery",
+"map":[
+"............................",
+"............................",
+"..0.......E......$.......0..",
+"###H####################H###",
+"...H....................H...",
+"...H--------------------H...",
+"...H....................H...",
+".$.H..$.......$.........H.$.",
+"###H#####H###XX###H#####H###",
+"...H.....H........H.....H...",
+"...H.....H.0......H.....H...",
+"...H.....H........H.....H...",
+".$.H.....H.$.1..$.H.....H.$.",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@"]},
+{"name":"Quicksilver",
+"map":[
+"...........................S",
+"...........................S",
+".1..$..5.....5..$...0......S",
+"########=====##############H",
+"...........................H",
+"...........................H",
+"...........................H",
+"..$.....6.....6...0....$...H",
+"#########=====#############H",
+"...........................H",
+"...........................H",
+"...........................H",
+"..$.......0..........$.....H",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@"]},
+{"name":"Lock and Key",
+"map":[
+"............................",
+"............................",
+".1...k.....0.......D.$..E...",
+"###H##########H#############",
+"...H..........H.............",
+"...H..........H.............",
+".$.H...f..l...H...D...$.....",
+"##############H#############",
+"..............H.............",
+"..............H.............",
+".k....0.......H......D...$..",
+"##############H#############",
+"..............H.............",
+"..............H.............",
+"...k....$.....H.....0....$..",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@"],"night":true},
+{"name":"Fuse Box",
+"map":[
+"...........................S",
+"...........................S",
+".1...p......0.......g......S",
+"####H#################H#####",
+"....H.................H.....",
+"....H...#####.........H.....",
+".$..H...#$B$#.....0...H..$..",
+"####H#################H#####",
+"....H.................H.....",
+"....H.....#######.....H.....",
+".j..H.....#$B$B$#...0.H..$..",
+"####H#######################",
+"....H.......................",
+"....H.......................",
+".$..H...b.......0.....m..$..",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@"]},
+{"name":"Crossroads",
+"map":[
+"............................",
+"............................",
+".E....0..$.......$......7.E.",
+"###H###############====#####",
+"...H........................",
+".$.H.....0.......$..........",
+"#######H################H###",
+".......H................H...",
+".......H................H...",
+"..$....H.....0..........H.$.",
+"########################H###",
+"........................H...",
+"........................H...",
+".1..$........7......$...H...",
+"############################",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@"],"exits":{"1,2":15,"26,2":16}},
+{"name":"Long Way",
+"map":[
+"S...........................",
+"S...........................",
+"S.$....0......$......0....$.",
+"###########################H",
+".......-------------.......H",
+".$...........0..........$..H",
+"H###########################",
+"H...........................",
+"H..$.......$.......0.....$..",
+"###########################H",
+"...........................H",
+".$....$......0......$......H",
+"H###########################",
+"H...........................",
+"H.1....$.........$......$...",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@"]},
+{"name":"Mother Lode",
+"map":[
+"S..........................S",
+"S..........................S",
+"S..$..0........g...j.0..$..S",
+"####H##%%%%%%%&&&&&&&##H####",
+"....H..................H....",
+"....H------------------H....",
+"....H..................H....",
+".$..H...$.0..$$..0.$...H..$.",
+"##XXH#####~~~##~~~#####H#XX#",
+"....H..................H....",
+"....H..................H....",
+".b..H............n.....H..o.",
+"####H#####XX####@@@####H####",
+"....H..................H....",
+"....H..................H....",
+".$..H$...1........m.$.$.H.$."]}],"arenas":[{"name":"Twin Pits",
+"map":[
+"............................",
+"............................",
+".1..$....j........j....$..2.",
+"###H####################H###",
+"...H....................H...",
+"...H--------------------H...",
+"...H....................H...",
+".$.H....$..0....0..$....H.$.",
+"###H######H######H######H###",
+"...H......H......H......H...",
+"...H......H......H......H...",
+".3.H.b....H.$..$.H....b.H.4.",
+"############################",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@"],"locks":{"9,2":0,"18,2":1}},
+{"name":"Crossfire",
+"map":[
+"............................",
+"............................",
+"..1.......$......$.......2..",
+"#H#######&&&####&&&#######H#",
+".H........................H.",
+".H..$..................$..H.",
+".H#######H%%%%%%%%H#######H.",
+".H.......H........H.......H.",
+".H.g.....H.$....$.H.....g.H.",
+".H########H######H########H.",
+".H........H......H........H.",
+".H..$.....H.n..n.H.....$..H.",
+".H########H######H########H.",
+".H........H......H........H.",
+".H........H......H........H.",
+"3H..$.0...H......H...0.$..H4"],"locks":{"3,8":0,"24,8":1}},
+{"name":"The Well",
+"map":[
+"............................",
+"............................",
+".1......$$........$$......2.",
+"####H#####...##...#####H####",
+"....H....#...##...#....H....",
+"....H----#---##---#----H....",
+"....H....#...##...#....H....",
+".$..H....#.$.##.$.#....H..$.",
+"####H#####...##...#####H####",
+"....H..................H....",
+"....H..................H....",
+".3..H.j...0......0...j.H..4.",
+"####H####@@@####@@@####H####",
+"....H..................H....",
+"....H..................H....",
+"..$.H.$..............$.H.$.."]},
+{"name":"Scaffold",
+"map":[
+"............................",
+"............................",
+"..........E......E..........",
+"..H######################H..",
+"..H......................H..",
+"..H.$....H........H....$.H..",
+"..H######H#XX##XX#H######H..",
+"..H......H........H......H..",
+"..H------H-$----$-H------H..",
+"..H......H........H......H..",
+"..H......H........H......H..",
+".1H.$.p..H.0....0.H..p.$.H2.",
+"##H######################H##",
+"..H......................H..",
+".3H$......$......$......$H4.",
+"############################"],"race":true},
+{"name":"Portals",
+"map":[
+"............................",
+"............................",
+".1...$.....$....$.....$...2.",
+"###H########====########H###",
+"...H....................H...",
+"...H--------$..$--------H...",
+"...H....................H...",
+".5.H.......0......0.....H.6.",
+"###H####################H###",
+"...H....................H...",
+"...H....................H...",
+".3.H..$...6......5...$..H.4.",
+"###H#########==#########H###",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@"]}]}
+</script>
+<script>
+"use strict";
+// ---------------------------------------------------------------- constants
+const W = 28, H = 16, TW = 10, TH = 11, SW = 280, SH = 192, PH = H * TH;
+const STEP = 1 / 60;
+const DIGT = 0.26, HOLET = 6.2, FILLT = 0.9, TRAPT = 2.4, STRUG = 6;
+const SPD = { run: 5.4, climb: 4.5, slide: 6.6, rope: 4.6, fall: 7.6 }, MONK = 0.62, GOO = 0.45;
+const LEVELS = JSON.parse(document.getElementById("levels").textContent);
+const PCOL = ["#ffffff", "#5fe05f", "#4fb4ff", "#ff8ad8"];
+const PNAME = ["P1", "P2", "P3", "P4"];
+const TOOLS = {
+  j: { name: "Jackhammer", tip: "drills the block under you, even bedrock" },
+  p: { name: "Pickaxe", tip: "drops a brick in front of you to wall off monks" },
+  n: { name: "Snare", tip: "set it where you stand; holds the next monk or rival" },
+  g: { name: "Gas can", tip: "stuns monks (and rivals) up to 3 tiles ahead" },
+  o: { name: "Goo bucket", tip: "coats the floor around you; goo slows everyone" },
+  b: { name: "Bomb", tip: "opens bricks around it for a while; stand clear" },
+  m: { name: "Mega bomb", tip: "blows away bricks and bedrock for good" },
+  f: { name: "Befuddle gas", tip: "stuns every monk (and rival) within 2 tiles" },
+};
+// Pick-ups that don't take the tool slot, plus the self-lighting bomb that waits in the level.
+const EXTRAS = {
+  k: { name: "Key", tip: "opens one locked door; carry as many as you find" },
+  l: { name: "Pendant", tip: "widens your circle of light on night levels" },
+  B: { name: "Live bomb", tip: "lights itself, blows, and comes back; grab it to carry a bomb" },
+};
+const TELE_COL = { 5: "#4fb4ff", 6: "#ff8ad8", 7: "#5fe05f", 8: "#ffd23f", 9: "#ffffff" };
+const MODES = {
+  solo: "Solo", coop: "Co-op", rush: "Gold Rush", race: "Race",
+};
+const $ = s => document.querySelector(s);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const rnd = n => Math.floor(Math.random() * n);
+
+// ---------------------------------------------------------------- storage
+const Store = {
+  get(k, d) { try { const v = localStorage.getItem("gold-raid-" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("gold-raid-" + k, JSON.stringify(v)); } catch (e) {} },
+};
+
+// ---------------------------------------------------------------- level parsing
+// Map chars: . empty, # brick, @ bedrock, X trapdoor, H ladder, - rope, S exit ladder (hidden), E exit door,
+// % & phase blocks (opposite timing), ~ goo brick, = lethal liquid, D locked door, 5-9 teleporter pairs,
+// $ gold, 0 monk, 1-4 player starts, j p n g o b m f tools, k key, l pendant, B live bomb.
+function parseLevel(lv) {
+  const map = [], gold = [], items = [], monks = [], starts = [];
+  lv.map.forEach((row, y) => {
+    for (let x = 0; x < W; x++) {
+      let c = row[x] || ".";
+      if (c === ".") c = " ";
+      if (c === "$") { gold.push(y * W + x); c = " "; }
+      else if (c === "0") { monks.push([x, y]); c = " "; }
+      else if ("1234".includes(c)) { starts[+c - 1] = [x, y]; c = " "; }
+      else if (TOOLS[c] || EXTRAS[c]) { const lk = lv.locks && lv.locks[x + "," + y]; items.push({ x, y, k: c, lock: lk == null ? -1 : lk }); c = " "; }
+      map.push(c);
+    }
+  });
+  return { map, gold, items, monks, starts };
+}
+
+// ---------------------------------------------------------------- game state
+function newGame(lv, opt) {
+  const P = parseLevel(lv);
+  const g = {
+    name: lv.name, night: !!lv.night, mode: opt.mode, no: opt.no || 0,
+    t: 0, ready: opt.mode === "solo" ? 1.2 : 2.6,
+    map: P.map, mapVer: 1, holes: {}, gold: new Array(W * H).fill(0),
+    items: P.items, snares: [], bombs: [], fx: [], ev: [], queue: [],
+    players: [], monks: [], exitsOpen: false, over: null, overT: 0,
+    score: opt.score || 0, lives: opt.lives == null ? 5 : opt.lives,
+    timeLeft: opt.mode === "rush" ? 150 : opt.mode === "race" ? 240 : 0,
+    nugT: 30, src: lv, tele: {}, exitTo: null,
+    awake: opt.mode !== "solo" && opt.mode !== "coop", // monks wait for the first move, as in the original
+  };
+  const pads = {};
+  P.map.forEach((c, k) => { if (c >= "5" && c <= "9") (pads[c] = pads[c] || []).push(k); });
+  for (const c in pads) if (pads[c].length === 2) { g.tele[pads[c][0]] = pads[c][1]; g.tele[pads[c][1]] = pads[c][0]; }
+  P.items.forEach((it, i) => { if (it.k === "B") it.t = 7 + i * 2.5; });
+  for (const k of P.gold) g.gold[k] = 1;
+  g.goldTotal = P.gold.length;
+  const used = new Set();
+  const n = opt.players.length;
+  for (let i = 0; i < n; i++) {
+    let s = P.starts[i];
+    if (!s || used.has(s + "")) s = freeNear(g, P.starts[0] || [1, H - 1], used);
+    used.add(s + "");
+    g.players.push(mkEnt(s[0], s[1], {
+      idx: i, sx: s[0], sy: s[1], name: opt.players[i].name || PNAME[i], col: PCOL[i],
+      tool: null, pts: 0, gold: 0, kills: 0, deaths: 0, inv: 0, emo: "", emoT: 0,
+      in: { l: 0, r: 0, u: 0, d: 0, dl: 0, dr: 0, use: 0, useN: 0, upN: 0 }, useN: 0, upN: 0,
+      bufUse: 0, bufUp: 0, bufDl: 0, bufDr: 0, strug: 0, isP: true, keys: 0, lamp: false, tpFrom: -1,
+    }));
+  }
+  P.monks.forEach(([x, y], i) => g.monks.push(mkEnt(x, y, { id: i, sx: x, sy: y, carry: 0, carryT: 0, item: null, itemT: 0, stun: 0, trapT: 0, escape: false, tpFrom: -1 })));
+  return g;
+}
+function mkEnt(x, y, o) {
+  return Object.assign({ x, y, fx: x, fy: y, tx: x, ty: y, mv: null, face: 1, an: "st", st: "ok", busy: 0, hover: 0, stun: 0, deadT: 0 }, o);
+}
+function freeNear(g, [sx, sy], used) {
+  let best = null, bd = 1e9;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (g.map[y * W + x] !== " " || used.has([x, y] + "")) continue;
+    if (!(y === H - 1 || solid(g, x, y + 1) || ladder(g, x, y + 1))) continue;
+    const d = Math.abs(x - sx) + Math.abs(y - sy) * 3;
+    if (d > 0 && d < bd) { bd = d; best = [x, y]; }
+  }
+  return best || [sx, sy];
+}
+function ev(g, s, x, y) { g.ev.push(s); }
+
+// ---------------------------------------------------------------- terrain queries
+const inb = (x, y) => x >= 0 && x < W && y >= 0 && y < H;
+function phaseOn(g, c) {
+  const t = c === "%" ? g.t % 5 : (g.t + 2.5) % 5;
+  return t < 3;
+}
+function phaseSoon(g, c) { // seconds until the block changes state
+  const t = c === "%" ? g.t % 5 : (g.t + 2.5) % 5;
+  return t < 3 ? 3 - t : 5 - t;
+}
+function solid(g, x, y) {
+  if (x < 0 || x >= W || y >= H) return true;
+  if (y < 0) return false;
+  const k = y * W + x, c = g.map[k];
+  if (c === "#" || c === "~") { const h = g.holes[k]; return !(h && h.st === "open"); }
+  if (c === "@" || c === "D") return true;
+  if (c === "%" || c === "&") return phaseOn(g, c);
+  return false;
+}
+function ladder(g, x, y) { if (!inb(x, y)) return false; const c = g.map[y * W + x]; return c === "H" || (c === "S" && g.exitsOpen); }
+function rope(g, x, y) { return inb(x, y) && g.map[y * W + x] === "-"; }
+function liquid(g, x, y) { return inb(x, y) && g.map[y * W + x] === "="; }
+const cellOf = e => [Math.round(e.x), Math.round(e.y)];
+function monkAt(g, x, y, self) {
+  for (const m of g.monks) if (m !== self && m.st !== "dead" && Math.round(m.x) === x && Math.round(m.y) === y) return m;
+  return null;
+}
+function playerAt(g, x, y, self) {
+  for (const p of g.players) if (p !== self && p.st === "ok" && Math.round(p.x) === x && Math.round(p.y) === y) return p;
+  return null;
+}
+function standable(g, e, x, y) { // something below to stand on (another monk counts)
+  if (y >= H - 1) return true;
+  if (solid(g, x, y + 1) || ladder(g, x, y + 1)) return true;
+  for (const m of g.monks) if (m !== e && m.st !== "dead" && m.mv !== "f" && Math.round(m.x) === x && Math.round(m.y) === y + 1 && Math.abs(m.x - x) < 0.5) return true;
+  return false;
+}
+function supported(g, e, x, y) { return ladder(g, x, y) || rope(g, x, y) || standable(g, e, x, y); }
+const itemAt = (g, x, y) => g.items.find(i => !i.gone && i.x === x && i.y === y);
+const isVs = g => g.mode === "rush" || g.mode === "race";
+
+// ---------------------------------------------------------------- movement
+function startMove(e, nx, ny, kind) {
+  e.fx = Math.round(e.x); e.fy = Math.round(e.y); e.tx = nx; e.ty = ny; e.mv = kind;
+  if (kind === "h") e.face = nx > e.fx ? 1 : -1;
+}
+function speedOf(g, e) {
+  let s;
+  if (e.mv === "f") return SPD.fall;
+  if (e.mv === "v") s = e.ty > e.fy && ladder(g, e.fx, e.fy) && ladder(g, e.tx, e.ty) ? SPD.slide : SPD.climb;
+  else {
+    s = rope(g, e.fx, e.fy) && rope(g, e.tx, e.ty) ? SPD.rope : SPD.run;
+    const below = g.map[(e.fy + 1) * W + e.fx], below2 = g.map[(e.ty + 1) * W + e.tx];
+    if (below === "~" || below2 === "~") s *= GOO;
+  }
+  return e.isP ? s : s * MONK;
+}
+function animFor(g, e) {
+  if (e.mv === "h") return rope(g, e.fx, e.fy) && rope(g, e.tx, e.ty) ? "rope" : "run";
+  if (e.mv === "v") return "climb";
+  if (e.mv === "f") return "fall";
+  const [x, y] = cellOf(e);
+  return ladder(g, x, y) ? "lad" : rope(g, x, y) ? "hang" : "st";
+}
+function moveEnt(g, e, dt, decide) {
+  let b = dt;
+  for (let i = 0; i < 4 && b > 1e-6; i++) {
+    if (!e.mv) { decide(g, e); if (!e.mv || e.busy > 0 || e.st !== "ok") break; }
+    const sp = speedOf(g, e), d = Math.abs(e.tx - e.x) + Math.abs(e.ty - e.y);
+    e.an = animFor(g, e);
+    if (sp * b >= d) {
+      b -= d / sp; e.x = e.tx; e.y = e.ty; e.mv = null;
+      arrive(g, e);
+      if (e.st !== "ok" || e.busy > 0) break;
+    } else {
+      const s = sp * b; e.x += Math.sign(e.tx - e.x) * s; e.y += Math.sign(e.ty - e.y) * s; b = 0;
+    }
+  }
+  if (!e.mv && e.busy <= 0 && e.st === "ok" && e.an !== "dig") e.an = animFor(g, e);
+}
+function reverse(e) { const fx = e.fx, fy = e.fy; e.fx = e.tx; e.fy = e.ty; e.tx = fx; e.ty = fy; if (e.mv === "h") e.face = -e.face; }
+
+// ---------------------------------------------------------------- players
+function updatePlayer(g, p, dt) {
+  const I = p.in;
+  if (I.useN !== p.useN) { p.useN = I.useN; p.bufUse = 0.3; g.awake = true; }
+  if (I.l || I.r || I.u || I.d || I.dl || I.dr) g.awake = true;
+  if (I.upN !== p.upN) { p.upN = I.upN; p.bufUp = 0.3; }
+  if (I.dl) p.bufDl = 0.22; if (I.dr) p.bufDr = 0.22;
+  p.bufUse -= dt; p.bufUp -= dt; p.bufDl -= dt; p.bufDr -= dt;
+  if (p.emoT > 0) p.emoT -= dt;
+  if (p.st !== "ok") return;
+  if (p.inv > 0) p.inv -= dt;
+  if (p.hover > 0) p.hover -= dt;
+  if (p.stun > 0) { p.stun -= dt; p.an = "stun"; return; }
+  if (p.busy > 0) { p.busy -= dt; if (p.busy <= 0 && p.an !== "dig") p.an = "st"; if (p.busy > 0) return; }
+  if (p.mv === "h") {
+    const want = I.l && !I.r ? -1 : I.r && !I.l ? 1 : 0;
+    if (want && want !== Math.sign(p.tx - p.fx)) reverse(p);
+  } else if (p.mv === "v" && !p.climbOut) {
+    const dir = Math.sign(p.ty - p.fy);
+    if ((dir < 0 && I.d && !I.u && !solid(g, p.fx, p.fy + 1) && ladder(g, p.fx, p.fy)) || (dir > 0 && I.u && !I.d && ladder(g, p.tx, p.ty))) reverse(p);
+  }
+  moveEnt(g, p, dt, decidePlayer);
+}
+function decidePlayer(g, p) {
+  const I = p.in, [x, y] = cellOf(p);
+  p.climbOut = false;
+  if (p.hover <= 0 && !supported(g, p, x, y)) { startMove(p, x, y + 1, "f"); return; }
+  if (p.bufUse > 0) { p.bufUse = 0; if (useTool(g, p, x, y)) return; }
+  const dd = I.dl || p.bufDl > 0 ? -1 : I.dr || p.bufDr > 0 ? 1 : 0;
+  if (dd && p.hover <= 0) { p.bufDl = p.bufDr = 0; if (tryDig(g, p, x, y, dd)) return; }
+  const h = g.holes[y * W + x];
+  if (h && !ladder(g, x, y)) {
+    if (p.bufUp > 0) { p.bufUp = 0; p.strug++; ev(g, "strug"); }
+    if (p.strug >= STRUG && h.st === "open" && !solid(g, x, y - 1) && !monkAt(g, x, y - 1)) {
+      p.strug = 0; startMove(p, x, y - 1, "v"); p.hover = 0.7; p.climbOut = true; return;
+    }
+  } else p.strug = 0;
+  if (I.u && y === 0 && ladder(g, x, 0) && g.exitsOpen) { exitPlayer(g, p, -1); return; }
+  if (I.u && y > 0 && ladder(g, x, y) && !solid(g, x, y - 1)) { startMove(p, x, y - 1, "v"); return; }
+  if (I.d && y < H - 1 && !solid(g, x, y + 1) && !monkAt(g, x, y + 1)) {
+    startMove(p, x, y + 1, ladder(g, x, y + 1) || ladder(g, x, y) ? "v" : "f"); return;
+  }
+  const hd = I.l && !I.r ? -1 : I.r && !I.l ? 1 : 0;
+  if (hd) {
+    p.face = hd;
+    if (inb(x + hd, y) && g.map[y * W + x + hd] === "D" && p.keys > 0) { p.keys--; setTile(g, x + hd, y, " "); ev(g, "unlock"); }
+    if (!solid(g, x + hd, y)) { startMove(p, x + hd, y, "h"); p.hover = 0; return; }
+  }
+}
+function tryDig(g, p, x, y, d) {
+  const hx = x + d, hy = y + 1;
+  if (hx < 0 || hx >= W || hy >= H) return false;
+  const k = hy * W + hx, c = g.map[k];
+  p.face = d;
+  if (c !== "#" || g.holes[k]) return false; // goo-covered brick can't be dug
+  if (solid(g, hx, y) || ladder(g, hx, y) || g.gold[y * W + hx] || itemAt(g, hx, y) || monkAt(g, hx, y) || playerAt(g, hx, y, p)) return false;
+  g.holes[k] = { st: "dig", t: 0, by: p.idx };
+  p.busy = DIGT; p.an = "dig"; ev(g, "dig");
+  return true;
+}
+function useTool(g, p, x, y) {
+  const t = p.tool; if (!t) return false;
+  let ok = false;
+  if (t === "j") {
+    const c = g.map[(y + 1) * W + x];
+    if (y + 1 < H && "#~@X%&".includes(c)) { setTile(g, x, y + 1, " "); ok = true; ev(g, "jack"); g.fx.push({ k: "dust", x, y: y + 1, t: 0.4 }); }
+  } else if (t === "p") {
+    const nx = x + p.face;
+    if (inb(nx, y) && g.map[y * W + nx] === " " && !g.gold[y * W + nx] && !itemAt(g, nx, y) && !monkAt(g, nx, y) && !playerAt(g, nx, y)) { setTile(g, nx, y, "#"); ok = true; ev(g, "pick"); }
+  } else if (t === "n") {
+    if (!g.snares.find(s => s.x === x && s.y === y)) { g.snares.push({ x, y, by: p.idx }); ok = true; ev(g, "snare"); }
+  } else if (t === "g") {
+    let x1 = x;
+    for (let i = 1; i <= 3 && !solid(g, x + p.face * i, y); i++) x1 = x + p.face * i;
+    const lo = Math.min(x, x1), hi = Math.max(x, x1);
+    for (const m of g.monks) if (m.st !== "dead" && Math.abs(m.y - y) < 0.8 && m.x > lo - 0.6 && m.x < hi + 0.6 && Math.round(m.x) !== x - p.face) m.stun = 4.5;
+    if (isVs(g)) for (const q of g.players) if (q !== p && q.st === "ok" && Math.abs(q.y - y) < 0.8 && q.x > lo - 0.6 && q.x < hi + 0.6) q.stun = 2;
+    g.fx.push({ k: "gas", x: lo, x2: hi, y, t: 0.7, d: p.face }); ok = true; ev(g, "gas");
+  } else if (t === "f") {
+    for (const m of g.monks) if (m.st !== "dead" && Math.abs(m.x - x) < 2.6 && Math.abs(m.y - y) < 2.6) m.stun = 5;
+    if (isVs(g)) for (const q of g.players) if (q !== p && q.st === "ok" && Math.abs(q.x - x) < 2.6 && Math.abs(q.y - y) < 2.6) q.stun = 2.5;
+    g.fx.push({ k: "cloud", x, y, t: 0.9 }); ok = true; ev(g, "gas");
+  } else if (t === "o") {
+    for (let i = -1; i <= 1; i++) if (inb(x + i, y + 1) && g.map[(y + 1) * W + x + i] === "#") { setTile(g, x + i, y + 1, "~"); ok = true; }
+    if (ok) ev(g, "goo");
+  } else if (t === "b" || t === "m") {
+    g.bombs.push({ x, y, t: 1.7, mega: t === "m", by: p.idx }); ok = true; ev(g, "fuse");
+  }
+  if (ok) { p.tool = null; p.busy = 0.12; p.an = "dig"; }
+  return ok;
+}
+function setTile(g, x, y, c) { const k = y * W + x; g.map[k] = c; delete g.holes[k]; g.mapVer++; }
+function exitPlayer(g, p, k) {
+  p.st = "out"; p.mv = null; ev(g, "exit");
+  const to = k >= 0 && g.src.exits ? g.src.exits[(k % W) + "," + ((k / W) | 0)] : null;
+  if (to != null && g.exitTo == null) g.exitTo = to;
+  if (g.mode === "race") { p.pts += 3; g.over = { k: "race", w: p.idx }; }
+}
+function killPlayer(g, p, by) {
+  if (p.st !== "ok") return;
+  p.st = "dead"; p.deadT = 0; p.mv = null; p.deaths++; p.tool = null; ev(g, "die");
+  if (isVs(g) && by != null && by >= 0 && by !== p.idx) { const k = g.players[by]; k.pts += 2; k.kills++; }
+}
+function respawn(g, p) {
+  Object.assign(p, { x: p.sx, y: p.sy, mv: null, st: "ok", inv: 2.2, busy: 0, stun: 0, hover: 0, strug: 0, an: "st" });
+}
+function gainGold(g, p, v) {
+  p.gold += v; ev(g, v > 1 ? "nugget" : "gold");
+  if (isVs(g)) p.pts += v; else g.score += 250 * v;
+  if (g.mode === "rush") g.queue.push({ t: 3, k: "$" });
+}
+function arrive(g, e) {
+  const x = e.tx, y = e.ty, k = y * W + x;
+  if (e.isP) {
+    if (g.gold[k]) { const v = g.gold[k]; g.gold[k] = 0; gainGold(g, e, v); }
+    const it = itemAt(g, x, y);
+    if (it && it.k === "k") { it.gone = true; e.keys++; ev(g, "tool"); }
+    else if (it && it.k === "l") { it.gone = true; e.lamp = true; ev(g, "tool"); }
+    else if (it && it.k === "B") { if (!e.tool) { e.tool = "b"; it.gone = true; it.rt = 8; ev(g, "tool"); } }
+    else if (it && (it.lock < 0 || it.lock === e.idx) && it.k !== e.tool) {
+      const old = e.tool; e.tool = it.k; ev(g, "tool");
+      if (old) { it.k = old; it.lock = -1; }
+      else { it.gone = true; if (isVs(g)) g.queue.push({ t: 12, k: "item", it }); }
+    }
+    const s = g.snares.find(s => s.x === x && s.y === y);
+    if (s && isVs(g) && s.by !== e.idx) { g.snares.splice(g.snares.indexOf(s), 1); e.busy = 2.5; e.an = "stun"; e.mv = null; ev(g, "snap"); }
+    if (g.exitsOpen && g.map[k] === "E") { exitPlayer(g, e, k); return; }
+    teleport(g, e, k);
+  } else {
+    const h = g.holes[k];
+    if (h && h.st === "open" && e.mv !== "v") {
+      e.st = "trap"; e.trapT = TRAPT; e.an = "trap"; e.by = h.by; ev(g, "trap");
+      if (!isVs(g)) g.score += 75;
+      if (e.carry) { const up = k - W; if (y > 0 && !g.gold[up] && !solid(g, x, y - 1)) g.gold[up] = e.carry; e.carry = 0; }
+      if (e.item) { if (y > 0 && !solid(g, x, y - 1) && !itemAt(g, x, y - 1)) Object.assign(e.item, { x, y: y - 1 }); e.item.gone = false; e.item = null; }
+      return;
+    }
+    const s = g.snares.find(s => s.x === x && s.y === y);
+    if (s) { g.snares.splice(g.snares.indexOf(s), 1); e.busy = 5; e.an = "stun"; ev(g, "snap"); return; }
+    if (g.gold[k] && !e.carry && Math.random() < 0.55) { e.carry = g.gold[k]; g.gold[k] = 0; e.carryT = 3 + Math.random() * 6; }
+    const it = itemAt(g, x, y);
+    if (it && !e.item && TOOLS[it.k] && it.lock < 0 && Math.random() < 0.35) { e.item = it; it.gone = true; e.itemT = 4 + Math.random() * 7; } // monks pocket tools
+    const free = g.map[k] === " " && y < H - 1 && solid(g, x, y + 1) && !g.holes[k + W] && !itemAt(g, x, y) && !g.gold[k];
+    if (e.carry && e.carryT <= 0 && free) { g.gold[k] = e.carry; e.carry = 0; }
+    else if (e.item && e.itemT <= 0 && free) { Object.assign(e.item, { x, y, gone: false }); e.item = null; }
+    teleport(g, e, k);
+  }
+}
+function teleport(g, e, k) {
+  const to = g.tele[k];
+  if (to == null) { e.tpFrom = -1; return; }
+  if (e.tpFrom === k) return; // just arrived here through the pad; step off first
+  const tx = to % W, ty = (to / W) | 0;
+  if (!e.isP && monkAt(g, tx, ty, e)) return;
+  g.fx.push({ k: "tele", x: e.tx, y: e.ty, t: 0.4 }, { k: "tele", x: tx, y: ty, t: 0.4 });
+  e.x = e.fx = e.tx = tx; e.y = e.fy = e.ty = ty; e.tpFrom = to; ev(g, "tele");
+}
+
+// ---------------------------------------------------------------- monks
+function updateMonk(g, m, dt) {
+  if (m.st === "dead") {
+    m.deadT += dt;
+    if (m.deadT > 1.3) {
+      const xs = []; for (let x = 0; x < W; x++) if (!solid(g, x, 0) && !ladder(g, x, 0) && !g.gold[x]) xs.push(x);
+      const x = xs.length ? xs[rnd(xs.length)] : m.sx;
+      Object.assign(m, { x, y: xs.length ? 0 : m.sy, mv: null, st: "ok", stun: 0, busy: 0, hover: 0, an: "fall", carry: 0 });
+    }
+    return;
+  }
+  if (!g.awake) return;
+  if (m.carry) m.carryT -= dt;
+  if (m.item) m.itemT -= dt;
+  if (m.stun > 0) { m.stun -= dt; return; }
+  if (m.busy > 0) { m.busy -= dt; return; }
+  if (m.hover > 0) m.hover -= dt;
+  if (m.st === "trap") {
+    m.trapT -= dt;
+    const [x, y] = cellOf(m), h = g.holes[y * W + x];
+    if (!h) { m.st = "ok"; return; }
+    if (m.trapT <= 0 && h.st === "open" && !solid(g, x, y - 1) && !monkAt(g, x, y - 1, m) && !playerAt(g, x, y - 1)) { // held down while anyone stands on its head
+      m.st = "ok"; startMove(m, x, y - 1, "v"); m.hover = 0.8; m.escape = true;
+    } else return;
+  }
+  moveEnt(g, m, dt, decideMonk);
+}
+const NB = [];
+function decideMonk(g, m) {
+  const [x, y] = cellOf(m);
+  if (m.hover <= 0 && !supported(g, m, x, y)) { if (!monkAt(g, x, y + 1, m)) startMove(m, x, y + 1, "f"); return; }
+  const tgt = nearestPlayer(g, m);
+  if (m.escape) {
+    m.escape = false;
+    const d0 = tgt ? Math.sign(tgt.x - x) || 1 : 1;
+    for (const d of [d0, -d0]) if (!solid(g, x + d, y) && !monkAt(g, x + d, y, m)) { startMove(m, x + d, y, "h"); return; }
+    return;
+  }
+  if (!tgt) return;
+  const step = pathStep(g, m, x, y);
+  if (!step) return;
+  const [nx, ny] = step;
+  if (monkAt(g, nx, ny, m) || g.monks.some(o => o !== m && o.mv && o.tx === nx && o.ty === ny)) return;
+  startMove(m, nx, ny, ny > y ? (ladder(g, nx, ny) || ladder(g, x, y) ? "v" : "f") : ny < y ? "v" : "h");
+}
+function nearestPlayer(g, m) {
+  let best = null, bd = 1e9;
+  for (const p of g.players) if (p.st === "ok") { const d = Math.abs(p.x - m.x) + Math.abs(p.y - m.y) * 1.5; if (d < bd) { bd = d; best = p; } }
+  return best;
+}
+function neighbours(g, x, y, out) {
+  out.length = 0;
+  const ok = (a, b) => !solid(g, a, b) && !liquid(g, a, b);
+  if (!supported(g, null, x, y)) { if (y + 1 < H && ok(x, y + 1)) out.push(x, y + 1); return; }
+  if (x > 0 && ok(x - 1, y)) out.push(x - 1, y);
+  if (x < W - 1 && ok(x + 1, y)) out.push(x + 1, y);
+  if (y > 0 && ladder(g, x, y) && ok(x, y - 1)) out.push(x, y - 1);
+  if (y < H - 1 && ok(x, y + 1)) out.push(x, y + 1);
+}
+const PREV = new Int16Array(W * H), DIST = new Int16Array(W * H), Q = new Int16Array(W * H), VIA = new Int16Array(W * H);
+function pathStep(g, m, sx, sy) {
+  PREV.fill(-1); DIST.fill(-1);
+  const s = sy * W + sx; DIST[s] = 0; let qh = 0, qt = 0; Q[qt++] = s;
+  const goals = new Set(); for (const p of g.players) if (p.st === "ok") goals.add(Math.round(p.y) * W + Math.round(p.x));
+  let found = -1;
+  while (qh < qt) {
+    const c = Q[qh++];
+    if (goals.has(c)) { found = c; break; }
+    neighbours(g, c % W, (c / W) | 0, NB);
+    for (let i = 0; i < NB.length; i += 2) {
+      const v = NB[i + 1] * W + NB[i], n = g.tele[v] != null ? g.tele[v] : v; // stepping on a pad lands on its partner
+      if (DIST[n] < 0) { DIST[n] = DIST[c] + 1; PREV[n] = c; VIA[n] = v; Q[qt++] = n; }
+    }
+  }
+  if (found < 0) { // unreachable: head for the reachable cell closest to a player
+    const p = nearestPlayer(g, m); let bd = 1e9;
+    for (let i = 0; i < qt; i++) {
+      const c = Q[i], cx = c % W, cy = (c / W) | 0;
+      const d = Math.abs(cx - p.x) + Math.abs(cy - p.y) * 2 + DIST[c] * 0.05;
+      if (d < bd) { bd = d; found = c; }
+    }
+  }
+  if (found < 0 || found === s) return null;
+  let c = found; while (PREV[c] !== s && PREV[c] >= 0) c = PREV[c];
+  c = VIA[c];
+  return [c % W, (c / W) | 0];
+}
+function killMonk(g, m, by) {
+  if (m.st === "dead") return;
+  m.st = "dead"; m.deadT = 0; m.mv = null; m.stun = 0; m.busy = 0; ev(g, "kill");
+  if (!isVs(g)) g.score += 75;
+  else if (by != null && by >= 0 && g.players[by]) g.players[by].pts += 1;
+  if (m.carry) { g.queue.push({ t: 0, k: "$", v: m.carry }); m.carry = 0; }
+  if (m.item) { m.item.gone = false; m.item = null; } // back where it was taken
+}
+
+function explode(g, b) {
+  ev(g, "boom"); g.fx.push({ k: "boom", x: b.x, y: b.y, t: 0.5 });
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const x = b.x + dx, y = b.y + dy; if (!inb(x, y)) continue;
+    const k = y * W + x, c = g.map[k];
+    if (b.mega) { if ("#~@X%&D".includes(c)) setTile(g, x, y, " "); }
+    else if (c === "#") g.holes[k] = { st: "open", t: 0, by: b.by };
+    const it = itemAt(g, x, y); if (it && it.k === "B") it.t = Math.min(it.t, 0.15); // chain reaction
+  }
+  for (const p of g.players) if (p.st === "ok" && Math.abs(p.x - b.x) < 1.5 && Math.abs(p.y - b.y) < 1.5) killPlayer(g, p, b.by);
+  for (const m of g.monks) if (m.st !== "dead" && Math.abs(m.x - b.x) < 1.5 && Math.abs(m.y - b.y) < 1.5) killMonk(g, m, b.by);
+}
+
+// ---------------------------------------------------------------- world update
+function tick(g, dt) {
+  g.t += dt;
+  for (let i = g.fx.length - 1; i >= 0; i--) if ((g.fx[i].t -= dt) <= 0) g.fx.splice(i, 1);
+  if (g.over) { g.overT += dt; return; }
+  if (g.t < g.ready) return;
+  if (g.timeLeft > 0) { g.timeLeft -= dt; if (g.timeLeft <= 0) { g.timeLeft = 0; g.over = { k: "time" }; return; } }
+  // holes
+  for (const k in g.holes) {
+    const h = g.holes[k], x = k % W, y = (k / W) | 0;
+    h.t += dt;
+    if (h.st === "dig") {
+      if (monkAt(g, x, y - 1)) { delete g.holes[k]; const p = g.players[h.by]; if (p && p.an === "dig") p.busy = 0; continue; }
+      if (h.t >= DIGT) { h.st = "open"; h.t = 0; }
+    } else if (h.st === "open" && h.t >= HOLET) { h.st = "fill"; h.t = 0; }
+    else if (h.st === "fill" && h.t >= FILLT) {
+      delete g.holes[k]; ev(g, "fill");
+      for (const p of g.players) if (p.st === "ok" && Math.round(p.x) === x && Math.round(p.y) === y) killPlayer(g, p, h.by);
+      for (const m of g.monks) if (m.st !== "dead" && Math.round(m.x) === x && Math.round(m.y) === y) killMonk(g, m, h.by);
+    }
+  }
+  // bombs, and live bombs that light themselves and come back
+  for (let i = g.bombs.length - 1; i >= 0; i--) {
+    const b = g.bombs[i]; b.t -= dt;
+    if (b.t <= 0) { g.bombs.splice(i, 1); explode(g, b); }
+  }
+  for (const it of g.items) if (it.k === "B") {
+    if (it.gone) { if (it.rt != null && (it.rt -= dt) <= 0 && !playerAt(g, it.x, it.y) && !monkAt(g, it.x, it.y)) { it.gone = false; it.t = 9; } }
+    else if ((it.t -= dt) <= 0) { it.gone = true; it.rt = 5; explode(g, { x: it.x, y: it.y, mega: false, by: -1 }); }
+  }
+  // queued respawns: gold in Gold Rush, tools in versus
+  for (let i = g.queue.length - 1; i >= 0; i--) {
+    const q = g.queue[i]; q.t -= dt; if (q.t > 0) continue;
+    if (q.k === "$") { const c = randomFloor(g); if (c >= 0) { g.gold[c] = q.v || 1; g.queue.splice(i, 1); } else q.t = 1; }
+    else if (q.k === "item") { if (!playerAt(g, q.it.x, q.it.y)) { q.it.gone = false; g.queue.splice(i, 1); } else q.t = 1; }
+  }
+  if (g.mode === "rush" && (g.nugT -= dt) <= 0) { g.nugT = 30; const c = randomFloor(g); if (c >= 0) { g.gold[c] = 3; ev(g, "nugspawn"); } }
+  for (const p of g.players) updatePlayer(g, p, dt);
+  for (const m of g.monks) updateMonk(g, m, dt);
+  // crushing by phase blocks, monks catching runners
+  for (const p of g.players) {
+    if (p.st !== "ok") continue;
+    const [x, y] = cellOf(p);
+    if ((solid(g, x, y) && "%&#~".includes(g.map[y * W + x]) && !g.holes[y * W + x]) || liquid(g, x, y)) { killPlayer(g, p, -1); continue; }
+    if (p.inv > 0) continue;
+    for (const m of g.monks) if ((m.st === "ok" || m.st === "trap") && m.stun <= 0 && Math.abs(m.x - p.x) < 0.7 && Math.abs(m.y - p.y) < 0.7) { killPlayer(g, p, -1); break; }
+  }
+  for (const m of g.monks) { if (m.st === "dead") continue; const [x, y] = cellOf(m); if ((solid(g, x, y) && "%&".includes(g.map[y * W + x])) || liquid(g, x, y)) killMonk(g, m, -1); }
+  // exits
+  if (!g.exitsOpen && g.mode !== "rush" && g.goldTotal > 0 && !g.gold.some(v => v) && !g.monks.some(m => m.st !== "dead" && m.carry) && !g.queue.some(q => q.k === "$")) {
+    g.exitsOpen = true; g.mapVer++; ev(g, "open");
+  }
+  rules(g, dt);
+}
+function randomFloor(g) {
+  const ok = [];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const k = y * W + x;
+    if (g.map[k] !== " " || g.gold[k] || itemAt(g, x, y) || g.holes[k]) continue;
+    if (!(y === H - 1 || (solid(g, x, y + 1) && !"%&".includes(g.map[k + W])) || ladder(g, x, y + 1))) continue;
+    if (g.players.some(p => Math.abs(p.x - x) + Math.abs(p.y - y) < 3)) continue;
+    ok.push(k);
+  }
+  return ok.length ? ok[rnd(ok.length)] : -1;
+}
+function rules(g, dt) {
+  const ps = g.players;
+  for (const p of ps) if (p.st === "dead") p.deadT += dt;
+  if (g.mode === "solo") {
+    const p = ps[0];
+    if (p.st === "dead" && p.deadT > 1.6) g.over = { k: "dead" };
+    else if (p.st === "out") g.over = { k: "clear" };
+  } else if (g.mode === "coop") {
+    for (const p of ps) if (p.st === "dead" && p.deadT > 2) { if (g.lives > 0) { g.lives--; respawn(g, p); } else p.st = "gone"; }
+    if (ps.every(p => p.st === "out" || p.st === "gone" || p.left)) g.over = { k: ps.some(p => p.st === "out") ? "clear" : "gameover" };
+  } else {
+    for (const p of ps) if (p.st === "dead" && p.deadT > (g.mode === "race" ? 2.5 : 2)) respawn(g, p);
+  }
+}
+
+// ---------------------------------------------------------------- pixel font (5x7)
+const FONT = {};
+("A0E11111F111111 B1E11111E11111E C0E11101010110E D1C12111111121C E1F10101E10101F F1F10101E101010 G0E11101711110F " +
+ "H1111111F111111 I0E04040404040E J0702020202120C K11121418141211 L1010101010101F M111B1515111111 N11111915131111 " +
+ "O0E11111111110E P1E11111E101010 Q0E11111115120D R1E11111E141211 S0F10100E01011E T1F040404040404 U1111111111110E " +
+ "V11111111110A04 W1111111515150A X11110A040A1111 Y1111110A040404 Z1F01020408101F 00E11131519110E 1040C040404040E " +
+ "20E11010204081F 31F02040201110E 402060A121F0202 51F101E0101110E 60608101E11110E 71F010204080808 80E11110E11110E " +
+ "90E11110F01020C :000C0C000C0C00 -0000001F000000 .00000000000C0C /01010204081010 !04040404040004 ?0E110102040004 " +
+ "+0004041F040400 '04040800000000 ,000000000C0408 (02040808080402 )08040202020408 >08040201020408 $040F140E051E04 <02040810080402")
+  .split(" ").forEach(s => { const c = s[0], h = s.slice(1).replace(/ /g, ""); FONT[c] = []; for (let i = 0; i < 7; i++) FONT[c].push(parseInt(h.substr(i * 2, 2) || "0", 16)); });
+function text(ctx, s, x, y, col) {
+  ctx.fillStyle = col || "#fff";
+  s = String(s).toUpperCase();
+  for (let i = 0; i < s.length; i++) {
+    const f = FONT[s[i]]; if (f) for (let r = 0; r < 7; r++) { const b = f[r]; if (b) for (let c = 0; c < 5; c++) if (b & (16 >> c)) ctx.fillRect(x + i * 6 + c, y + r, 1, 1); }
+  }
+}
+const textW = s => String(s).length * 6 - 1;
+
+// ---------------------------------------------------------------- art: tiles and sprites drawn in code
+function mk(w, h, f) { const c = document.createElement("canvas"); c.width = w; c.height = h; f(c.getContext("2d")); return c; }
+function pix(ctx, rows, cmap, ox = 0, oy = 0) {
+  rows.forEach((r, y) => { for (let x = 0; x < r.length; x++) { const col = cmap[r[x]]; if (col) { ctx.fillStyle = col; ctx.fillRect(ox + x, oy + y, 1, 1); } } });
+}
+function brickArt(c, col, mort) {
+  c.fillStyle = col; c.fillRect(0, 0, TW, TH); c.fillStyle = mort;
+  c.fillRect(0, 3, TW, 1); c.fillRect(0, 7, TW, 1); c.fillRect(0, 10, TW, 1);
+  [[4, 0, 3], [9, 0, 3], [1, 4, 3], [6, 4, 3], [4, 8, 2], [9, 8, 2]].forEach(([x, y, h]) => c.fillRect(x, y, 1, h));
+}
+const ART = {
+  brick: mk(TW, TH, c => brickArt(c, "#e0621e", "#000")),
+  trapEd: mk(TW, TH, c => { brickArt(c, "#e0621e", "#000"); c.fillStyle = "#000"; for (let i = 1; i < 9; i += 2) c.fillRect(i, 1 + (i % 4), 1, 1); }),
+  phaseA: mk(TW, TH, c => brickArt(c, "#4f8fff", "#000")),
+  phaseB: mk(TW, TH, c => brickArt(c, "#b45cff", "#000")),
+  rock: mk(TW, TH, c => {
+    c.fillStyle = "#b9521b"; c.fillRect(0, 0, TW, TH);
+    c.fillStyle = "#f08a46"; c.fillRect(0, 0, TW, 1); c.fillRect(0, 0, 1, TH);
+    c.fillStyle = "#5a2306"; c.fillRect(0, TH - 1, TW, 1); c.fillRect(TW - 1, 0, 1, TH);
+    c.fillStyle = "#8c3c10"; [[3, 3], [6, 6], [2, 8], [7, 2]].forEach(([x, y]) => c.fillRect(x, y, 1, 1));
+  }),
+  goo: mk(TW, TH, c => {
+    brickArt(c, "#e0621e", "#000"); c.fillStyle = "#5fe05f"; c.fillRect(0, 0, TW, 2);
+    c.fillRect(2, 2, 1, 2); c.fillRect(7, 2, 1, 1); c.fillRect(5, 2, 1, 3);
+  }),
+  lock: mk(TW, TH, c => pix(c, ["yyyyyyyyyy", "y........y", "y.yyyyyy.y", "y.y....y.y", "y.y.ww.y.y", "y.y.ww.y.y", "y.y..w.y.y", "y.y.ww.y.y", "y.yyyyyy.y", "y........y", "yyyyyyyyyy"], { y: "#ffd23f", w: "#fff" })),
+  rope: mk(TW, TH, c => { c.fillStyle = "#fff"; c.fillRect(0, 1, TW, 1); }),
+  gold: mk(TW, TH, c => pix(c, ["", "", "", "", "", "..oooooo..", ".oyyyyyyo.", ".owwyywwo.", ".oyyyyyyo.", ".oyyyyyyo.", "..oooooo.."], { o: "#c47a10", y: "#ffd23f", w: "#fff" })),
+  nugget: mk(TW, TH, c => pix(c, ["", "", "...w......", "..yyyy....", ".yyyyyyy..", "yywyyyyyy.", "yyyyyyoyyy", "yyyyyyyyyw", ".yyyoyyyy.", "..yyyyyy..", "...oooo..."], { o: "#c47a10", y: "#ffd23f", w: "#fff" })),
+  door: mk(TW, TH, c => pix(c, [".wwwwwwww.", ".w......w.", ".w.yyyy.w.", ".w.y..y.w.", ".w.y..y.w.", ".w.y..ywy.", ".w.y..y.w.", ".w.y..y.w.", ".w.yyyy.w.", ".w......w.", "ww......ww"], { w: "#fff", y: "#ffd23f" })),
+  doorEd: mk(TW, TH, c => pix(c, [".kkkkkkkk.", ".k......k.", ".k......k.", ".k......k.", ".k......k.", ".k....k.k.", ".k......k.", ".k......k.", ".k......k.", ".k......k.", "kk......kk"], { k: "#7a7a7a" })),
+};
+// Ladder rungs sit every 4 px down the screen, so a ladder looks even across tiles 11 px tall.
+const ladderArt = (col, ph) => mk(TW, TH, c => { c.fillStyle = col; c.fillRect(1, 0, 1, TH); c.fillRect(8, 0, 1, TH); for (let y = 0; y < TH; y++) if ((y + ph) % 4 === 1) c.fillRect(1, y, 8, 1); });
+ART.lad = [0, 1, 2, 3].map(ph => ladderArt("#fff", ph)); ART.ladEd = [0, 1, 2, 3].map(ph => ladderArt("#7a7a7a", ph));
+ART.ladder = ART.lad[0]; ART.ladderEd = ART.ladEd[0];
+const ICON_MAP = { w: "#fff", o: "#e0621e", y: "#ffd23f", g: "#5fe05f", k: "#9a9a9a", r: "#ff4a3a", b: "#4fb4ff" };
+const ICONS = {
+  j: ["..wwww..", "...ww...", "..kkkk..", "..kkkk..", "...kk...", "...kk...", "...ww...", "....w..."],
+  p: [".wwwww..", "w..o..w.", "...o....", "...o....", "...o....", "...o....", "...o....", "........"],
+  n: ["........", "........", "w.w.w.w.", "wwwwwww.", ".kkkkk..", "w.....w.", "wwwwwww.", "........"],
+  g: ["...ww...", "..wkkw..", "..rrrr..", "..rwwr..", "..rrrr..", "..rrrr..", "..rrrr..", "........"],
+  o: [".w....w.", "..wwww..", ".gggggg.", ".wggggw.", ".wkkkkw.", ".wkkkkw.", "..wwww..", "........"],
+  b: [".....y..", "....w...", "...ww...", "..kkkk..", ".kkkwkk.", ".kkkkkk.", ".kkkkkk.", "..kkkk.."],
+  m: [".....y..", "...ww...", "..rrrr..", ".rrrrwr.", "rrrrrrwr", "rrrrrrrr", ".rrrrrr.", "..rrrr.."],
+  f: ["..w.w...", ".w.w.w..", "..bbb...", ".bbwbb..", ".bbbbb..", ".bbbbb..", "..bbb...", "........"],
+  k: ["........", ".yyy....", "y...y...", "y...yyyy", "y...y.y.", ".yyy..y.", "........", "........"],
+  l: ["..w..w..", "...ww...", "...ww...", "..yyyy..", ".yywwyy.", ".yywwyy.", "..yyyy..", "...yy..."],
+  B: ["....yry.", "....w...", "...ww...", "..rrrr..", ".rkkwkr.", ".rkkkkr.", ".rkkkkr.", "..rrrr.."],
+};
+const ICON_IMG = {}; for (const k in ICONS) ICON_IMG[k] = mk(TW, TH, c => pix(c, ICONS[k], ICON_MAP, 1, 3));
+const SPR = {
+  st: ["..........", "....##....", "....##....", "...####...", "..#.##.#..", "..#.##.#..", "....##....", "...#..#...", "...#..#...", "...#..#...", "..##..##.."],
+  r0: ["..........", ".....##...", ".....##...", "....###...", "...#.###..", "..#..##.#.", ".....##...", "....#..#..", "...#....#.", "..#.....#.", ".##......."],
+  r1: ["..........", ".....##...", ".....##...", ".....##...", "....####..", "....###...", ".....##...", ".....##...", ".....#.#..", "....#..#..", "....#..##."],
+  r2: ["..........", ".....##...", ".....##...", "....####..", "...#.##.#.", ".....##..#", ".....##...", "....#.#...", "...#...#..", "...#...#..", "..##...##."],
+  c0: ["..#....#..", "..#.##.#..", "...####...", "....##....", "....##....", "....##....", "...#..#...", "...#..#...", "..#....#..", "..#.......", ".........."],
+  h0: [".#......#.", "..#.##.#..", "...####...", "....##....", "....##....", "....##....", "...#..#...", "..#....#..", "..#....#..", "..........", ".........."],
+  h1: [".#......#.", "..#.##.#..", "...####...", "....##....", "....##....", "....##....", "....#.#...", "...#...#..", "...#...#..", "..........", ".........."],
+  f0: ["..........", ".#..##..#.", "..#.##.#..", "...####...", "....##....", "....##....", "...#..#...", "..#....#..", ".#......#.", "..........", ".........."],
+  dg: ["..........", "....##....", "....##....", "...####...", "..#.###...", "....##.#..", "....##..#.", "...#..#..#", "...#..#...", "...#..#...", "..##..##.."],
+  sn: ["..........", "..........", "....##....", "....##....", "..######..", "....##....", "....##....", "...#..#...", "...#..#...", "..#....#..", "kkkkkkkkkk"],
+};
+SPR.c1 = SPR.c0.map(r => r.split("").reverse().join(""));
+const sprCache = new Map();
+function sprite(name, col, flip, monk) {
+  const key = name + col + flip + monk;
+  let c = sprCache.get(key);
+  if (!c) {
+    c = mk(TW, TH, ctx => {
+      pix(ctx, SPR[name], { "#": col, k: "#888" });
+      if (monk) { ctx.fillStyle = col; const hy = SPR[name][1].includes("##") ? 1 : 2; ctx.fillRect(3, hy, 1, 2); ctx.fillRect(6, hy, 1, 2); ctx.fillStyle = "#ff3b3b"; ctx.fillRect(4, hy + 1, 1, 1); ctx.fillRect(5, hy + 1, 1, 1); }
+    });
+    if (flip) { const o = c; c = mk(TW, TH, ctx => { ctx.translate(TW, 0); ctx.scale(-1, 1); ctx.drawImage(o, 0, 0); }); }
+    sprCache.set(key, c);
+  }
+  return c;
+}
+function frameOf(e) {
+  switch (e.an) {
+    case "run": return ["r0", "r1", "r2", "r1"][Math.floor(e.x * 4 + 400) % 4];
+    case "rope": return Math.floor(e.x * 4 + 400) % 2 ? "h1" : "h0";
+    case "climb": return Math.floor(e.y * 4 + 400) % 2 ? "c1" : "c0";
+    case "lad": return "c0";
+    case "hang": return "h0";
+    case "fall": return "f0";
+    case "dig": return "dg";
+    case "stun": return "sn";
+    default: return "st";
+  }
+}
+
+// ---------------------------------------------------------------- rendering
+const cv = $("#c");
+let ctx = cv.getContext("2d");
+const nightCv = mk(SW, PH, () => {}), nctx = nightCv.getContext("2d");
+function drawLiquid(X, Y, t, x) {
+  ctx.fillStyle = "#1d7a2a"; ctx.fillRect(X, Y + 3, TW, TH - 3);
+  ctx.fillStyle = "#5fe05f";
+  for (let i = 0; i < TW; i++) if (Math.sin((X + i) * 0.7 + t * 5) > 0.2) ctx.fillRect(X + i, Y + 2, 1, 1);
+  const b = Math.floor(t * 3 + x * 1.7) % 7; ctx.fillStyle = "#b8ffb8"; ctx.fillRect(X + 1 + b, Y + 9 - Math.floor((t * 6 + x) % 6), 1, 1);
+}
+function drawPad(X, Y, t, c, ed) {
+  ctx.fillStyle = TELE_COL[c];
+  ctx.fillRect(X + 1, Y + 10, 8, 1); ctx.fillRect(X + 2, Y + 9, 1, 1); ctx.fillRect(X + 7, Y + 9, 1, 1);
+  for (let i = 0; i < 3; i++) { const h = (t * 8 + i * 3.3) % 9; ctx.fillRect(X + 2 + i * 3, Y + 9 - Math.floor(h), 1, 1); }
+  if (ed) text(ctx, c, X + 3, Y + 1, TELE_COL[c]);
+}
+function drawWorld(g, view) {
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, SW, SH);
+  const t = g.t, ed = view.editor;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const k = y * W + x, c = g.map[k], X = x * TW, Y = y * TH;
+    if (c === "#" || c === "~" || c === "X") {
+      const img = c === "~" ? ART.goo : c === "X" && ed ? ART.trapEd : ART.brick, h = g.holes[k];
+      if (!h) ctx.drawImage(img, X, Y);
+      else if (h.st === "dig") { const sy = Math.min(TH, Math.ceil(h.t / DIGT * TH)); ctx.drawImage(img, 0, sy, TW, TH - sy, X, Y + sy, TW, TH - sy); }
+      else if (h.st === "fill") { const sy = TH - Math.min(TH, Math.ceil(h.t / FILLT * TH)); ctx.drawImage(img, 0, sy, TW, TH - sy, X, Y + sy, TW, TH - sy); }
+    } else if (c === "@") ctx.drawImage(ART.rock, X, Y);
+    else if (c === "%" || c === "&") {
+      const img = c === "%" ? ART.phaseA : ART.phaseB;
+      if (ed || phaseOn(g, c)) {
+        if (!ed && phaseSoon(g, c) < 0.6 && Math.floor(t * 12) % 2) { ctx.globalAlpha = 0.45; ctx.drawImage(img, X, Y); ctx.globalAlpha = 1; }
+        else ctx.drawImage(img, X, Y);
+      } else {
+        ctx.globalAlpha = phaseSoon(g, c) < 0.6 ? (Math.floor(t * 12) % 2 ? 0.55 : 0.2) : 0.16; ctx.drawImage(img, X, Y); ctx.globalAlpha = 1;
+      }
+    } else if (c === "H") ctx.drawImage(ART.lad[Y % 4], X, Y);
+    else if (c === "S") { if (g.exitsOpen) ctx.drawImage(ART.lad[Y % 4], X, Y); else if (ed) ctx.drawImage(ART.ladEd[Y % 4], X, Y); }
+    else if (c === "D") ctx.drawImage(ART.lock, X, Y);
+    else if (c === "=") drawLiquid(X, Y, t, x);
+    else if (c >= "5" && c <= "9") drawPad(X, Y, t, c, ed);
+    else if (c === "-") ctx.drawImage(ART.rope, X, Y);
+    else if (c === "E") { if (g.exitsOpen) ctx.drawImage(ART.door, X, Y); else if (ed) ctx.drawImage(ART.doorEd, X, Y); }
+    if (g.gold[k]) ctx.drawImage(g.gold[k] > 1 ? ART.nugget : ART.gold, X, Y);
+  }
+  for (const it of g.items) if (!it.gone) {
+    if (it.k === "B" && it.t < 2.5 && Math.floor(t * (it.t < 1 ? 16 : 8)) % 2) continue; // fuse is burning
+    ctx.drawImage(ICON_IMG[it.k], it.x * TW, it.y * TH);
+    if (it.lock >= 0) { ctx.fillStyle = PCOL[it.lock]; ctx.fillRect(it.x * TW, it.y * TH + TH - 1, TW, 1); ctx.fillRect(it.x * TW, it.y * TH + 2, 1, TH - 3); ctx.fillRect(it.x * TW + TW - 1, it.y * TH + 2, 1, TH - 3); }
+  }
+  for (const s of g.snares) {
+    const mine = view.mine && view.mine.includes(s.by);
+    if (!isVs(g) || mine || ed) { ctx.fillStyle = mine && isVs(g) ? PCOL[s.by] : "#9a9a9a"; for (let i = 0; i < 4; i++) ctx.fillRect(s.x * TW + 1 + i * 2, s.y * TH + TH - 2, 1, 2); ctx.fillRect(s.x * TW + 1, s.y * TH + TH - 1, 8, 1); }
+  }
+  for (const b of g.bombs) {
+    ctx.drawImage(ICON_IMG[b.mega ? "m" : "b"], b.x * TW, b.y * TH);
+    if (Math.floor(b.t * 8) % 2) { ctx.fillStyle = "#fff"; ctx.fillRect(b.x * TW + 6, b.y * TH + 3, 2, 1); }
+  }
+  if (view.starts) view.starts.forEach((s, i) => s && ctx.drawImage(sprite("st", PCOL[i], false, false), s[0] * TW, s[1] * TH));
+  for (const m of g.monks) {
+    if (m.st === "dead") continue;
+    let img = sprite(frameOf(m), m.stun > 0 ? "#8a6aa0" : "#c46bff", m.face < 0, true);
+    let X = Math.round(m.x * TW), Y = Math.round(m.y * TH);
+    if (m.st === "trap") X += Math.floor(t * 10) % 2;
+    ctx.drawImage(img, X, Y);
+    if (m.carry) { ctx.fillStyle = "#ffd23f"; ctx.fillRect(X + 4, Y + 5, 2, 2); }
+    if (m.item) { ctx.fillStyle = "#fff"; ctx.fillRect(X + (m.face > 0 ? 8 : 1), Y + 5, 1, 2); }
+    if (m.stun > 0) { ctx.fillStyle = "#ffd23f"; const a = t * 6; ctx.fillRect(X + 5 + Math.round(Math.cos(a) * 3), Y - 1, 1, 1); ctx.fillRect(X + 5 - Math.round(Math.cos(a) * 3), Y, 1, 1); }
+  }
+  const multi = g.players.length > 1;
+  for (const p of g.players) {
+    if (p.st === "out" || p.st === "gone") continue;
+    let X = Math.round(p.x * TW), Y = Math.round(p.y * TH);
+    if (p.st === "dead") {
+      if (p.deadT < 1) { const cut = Math.floor(p.deadT * TH); const img = sprite("st", p.col, p.face < 0, false); ctx.drawImage(img, 0, 0, TW, TH - cut, X, Y + cut, TW, TH - cut); }
+      continue;
+    }
+    if (p.inv > 0 && Math.floor(t * 10) % 2) continue;
+    ctx.drawImage(sprite(frameOf(p), p.col, p.face < 0, false), X, Y);
+    if (p.tool) { ctx.fillStyle = "#ffd23f"; ctx.fillRect(X + (p.face > 0 ? 8 : 1), Y + 5, 1, 1); }
+    if (multi && (g.t < g.ready + 2 || view.marks)) { ctx.fillStyle = p.col; ctx.fillRect(X + 3, Y - 4, 4, 1); ctx.fillRect(X + 4, Y - 3, 2, 1); }
+    if (p.emoT > 0 && p.emo) { const w = textW(p.emo) + 4, bx = clamp(X + 5 - (w >> 1), 0, SW - w), by = Math.max(0, Y - 12); ctx.fillStyle = "#fff"; ctx.fillRect(bx, by, w, 10); text(ctx, p.emo, bx + 2, by + 1, "#000"); }
+  }
+  for (const f of g.fx) {
+    if (f.k === "boom") { const r = (0.5 - f.t) * 30 + 4; ctx.fillStyle = Math.floor(f.t * 20) % 2 ? "#ffd23f" : "#fff"; for (let i = 0; i < 14; i++) { const a = i / 14 * 6.283; ctx.fillRect(f.x * TW + 5 + Math.cos(a) * r, f.y * TH + 5 + Math.sin(a) * r * 0.9, 2, 2); } }
+    else if (f.k === "gas") { ctx.fillStyle = "#9cffb0"; for (let x = f.x; x <= f.x2; x++) for (let i = 0; i < 5; i++) ctx.fillRect(x * TW + ((i * 7 + Math.floor(f.t * 30)) % 10), f.y * TH + 2 + ((i * 3 + x) % 7), 1, 1); }
+    else if (f.k === "cloud") { ctx.fillStyle = "#c9b8ff"; for (let i = 0; i < 26; i++) { const a = i * 2.4, r = (0.9 - f.t) * 28 * ((i % 5) / 5 + 0.3); ctx.fillRect(f.x * TW + 5 + Math.cos(a) * r, f.y * TH + 5 + Math.sin(a) * r * 0.8, 1, 1); } }
+    else if (f.k === "tele") { ctx.fillStyle = "#fff"; for (let i = 0; i < 6; i++) ctx.fillRect(f.x * TW + 1 + i * 1.5, f.y * TH + (f.t * 25 + i * 3) % TH, 1, 1); }
+    else if (f.k === "dust") { ctx.fillStyle = "#e0621e"; for (let i = 0; i < 6; i++) ctx.fillRect(f.x * TW + i * 2, f.y * TH + (1 - f.t) * 10 - i % 3, 1, 1); }
+  }
+  if (g.night && !ed) {
+    nctx.globalCompositeOperation = "source-over"; nctx.fillStyle = "rgba(0,0,0,0.93)"; nctx.fillRect(0, 0, SW, PH);
+    nctx.globalCompositeOperation = "destination-out";
+    const lights = g.players.filter(p => p.st === "ok" && (!view.mine || view.mine.includes(p.idx))).map(p => [p.x * TW + 5, p.y * TH + 5, p.lamp ? 56 : 26]);
+    if (g.exitsOpen) g.map.forEach((c, k) => { if (c === "S" || c === "E") lights.push([(k % W) * TW + 5, ((k / W) | 0) * TH + 5, 12]); });
+    for (const [x, y, r] of lights) { const gr = nctx.createRadialGradient(x, y, r * 0.4, x, y, r); gr.addColorStop(0, "rgba(0,0,0,1)"); gr.addColorStop(1, "rgba(0,0,0,0)"); nctx.fillStyle = gr; nctx.fillRect(x - r, y - r, r * 2, r * 2); }
+    ctx.drawImage(nightCv, 0, 0);
+  }
+  drawStatus(g, view);
+  drawBanner(g, view);
+}
+const pad = (n, l) => String(Math.max(0, Math.floor(n))).padStart(l, "0");
+const clock = s => Math.floor(s / 60) + ":" + pad(s % 60, 2);
+function drawStatus(g, view) {
+  ctx.fillStyle = "#000"; ctx.fillRect(0, PH, SW, SH - PH);
+  const y = PH + 5;
+  if (view.editor) { text(ctx, "EDITOR  " + (view.name || "").slice(0, 24), 2, y, "#fff"); return; }
+  const left = g.gold.reduce((a, v) => a + (v ? 1 : 0), 0) + g.monks.filter(m => m.carry).length;
+  if (g.mode === "solo") {
+    text(ctx, "SCORE" + pad(g.score, 7) + " MEN" + pad(g.lives, 3) + " LEVEL" + pad(g.no + 1, 3), 2, y);
+    const p0 = g.players[0], tool = p0.tool; if (tool) ctx.drawImage(ICON_IMG[tool], SW - 12, PH + 2);
+    if (p0.keys) { ctx.drawImage(ICON_IMG.k, SW - 36, PH + 2); text(ctx, p0.keys, SW - 25, y, "#ffd23f"); }
+    return;
+  }
+  let x = 2;
+  if (g.mode === "coop") { text(ctx, "SCORE" + pad(g.score, 7) + " MEN" + pad(g.lives, 2), x, y); x += 18 * 6; }
+  for (const p of g.players) {
+    const s = PNAME[p.idx] + (g.mode === "coop" ? "" : " " + pad(p.pts, 2));
+    text(ctx, s, x, y, p.left ? "#555" : p.col);
+    x += (s.length + 1) * 6;
+    if (p.tool) ctx.drawImage(ICON_IMG[p.tool], x - 2, PH + 2); x += 12;
+  }
+  const right = g.mode === "rush" ? clock(Math.ceil(g.timeLeft)) : g.mode === "race" ? (g.exitsOpen ? "EXIT!" : "$" + pad(left, 2)) + " " + clock(Math.ceil(g.timeLeft)) : "$" + pad(left, 2);
+  text(ctx, right, SW - textW(right) - 2, y);
+}
+function banner(lines, col) {
+  const w = Math.max(...lines.map(textW)) + 12, h = lines.length * 10 + 8, x = (SW - w) >> 1, y = (PH - h) >> 1;
+  ctx.fillStyle = "#000"; ctx.fillRect(x, y, w, h); ctx.fillStyle = col || "#fff"; ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y + h - 1, w, 1); ctx.fillRect(x, y, 1, h); ctx.fillRect(x + w - 1, y, 1, h);
+  lines.forEach((l, i) => text(ctx, l, (SW - textW(l)) >> 1, y + 5 + i * 10, col));
+}
+function drawBanner(g, view) {
+  if (view.editor) return;
+  if (g.t < g.ready) {
+    if (g.mode === "solo") banner(["LEVEL " + pad(g.no + 1, 2), g.name]);
+    else banner([MODES[g.mode] + "  " + g.name, view.mine && view.mine.length === 1 ? "YOU ARE " + PNAME[view.mine[0]] : "GET READY", String(Math.ceil(g.ready - g.t))], view.mine && view.mine.length === 1 ? PCOL[view.mine[0]] : "#fff");
+    return;
+  }
+  if (g.exitsOpen && g.t - (g.openAt || 0) < 2 && g.mode !== "rush") banner(["ALL GOLD TAKEN", "RUN FOR THE EXIT"], "#ffd23f");
+  const o = g.over; if (!o) return;
+  if (o.k === "clear") banner(["LEVEL CLEAR"], "#ffd23f");
+  else if (o.k === "gameover") banner(["GAME OVER"]);
+  else if (o.k === "time") banner(["TIME UP"]);
+  else if (o.k === "race") banner([PNAME[o.w] + " ESCAPED FIRST"], PCOL[o.w]);
+}
+
+// ---------------------------------------------------------------- sound (square-wave beeps in the Apple II spirit)
+const Sfx = {
+  ac: null, on: Store.get("sound", true), fallOsc: null,
+  init() { if (this.ac) return; try { this.ac = new (window.AudioContext || window.webkitAudioContext)(); this.gain = this.ac.createGain(); this.gain.gain.value = 0.18; this.gain.connect(this.ac.destination); } catch (e) {} },
+  tone(f, d, { type = "square", vol = 0.5, to = 0, at = 0 } = {}) {
+    if (!this.ac || !this.on) return;
+    const t = this.ac.currentTime + at, o = this.ac.createOscillator(), v = this.ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + d);
+    v.gain.setValueAtTime(vol, t); v.gain.exponentialRampToValueAtTime(0.001, t + d);
+    o.connect(v); v.connect(this.gain); o.start(t); o.stop(t + d + 0.02);
+  },
+  noise(d, vol = 0.5, at = 0, hp = 300) {
+    if (!this.ac || !this.on) return;
+    const t = this.ac.currentTime + at, n = Math.floor(this.ac.sampleRate * d), b = this.ac.createBuffer(1, n, this.ac.sampleRate), a = b.getChannelData(0);
+    for (let i = 0; i < n; i++) a[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    const s = this.ac.createBufferSource(), f = this.ac.createBiquadFilter(), v = this.ac.createGain();
+    s.buffer = b; f.type = "highpass"; f.frequency.value = hp; v.gain.value = vol; s.connect(f); f.connect(v); v.connect(this.gain); s.start(t);
+  },
+  play(s) {
+    switch (s) {
+      case "dig": this.tone(900, 0.12, { to: 180, vol: 0.35 }); break;
+      case "gold": this.tone(988, 0.05); this.tone(1319, 0.08, { at: 0.05 }); break;
+      case "nugget": [784, 988, 1175, 1568].forEach((f, i) => this.tone(f, 0.07, { at: i * 0.05 })); break;
+      case "nugspawn": this.tone(1568, 0.06, { vol: 0.25 }); this.tone(1976, 0.06, { at: 0.07, vol: 0.25 }); break;
+      case "die": this.tone(600, 0.6, { to: 60, type: "sawtooth", vol: 0.4 }); this.noise(0.3, 0.2); break;
+      case "trap": this.tone(220, 0.12, { vol: 0.35 }); break;
+      case "kill": this.tone(160, 0.18, { to: 60, vol: 0.4 }); break;
+      case "fill": this.tone(120, 0.05, { vol: 0.12 }); break;
+      case "open": [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, 0.1, { at: i * 0.08 })); break;
+      case "exit": [784, 1047, 1568].forEach((f, i) => this.tone(f, 0.12, { at: i * 0.1 })); break;
+      case "tool": this.tone(660, 0.05); this.tone(880, 0.05, { at: 0.06 }); break;
+      case "jack": this.noise(0.25, 0.4, 0, 1200); this.tone(70, 0.25, { vol: 0.3 }); break;
+      case "pick": this.tone(300, 0.08, { vol: 0.4 }); this.tone(200, 0.08, { at: 0.06, vol: 0.3 }); break;
+      case "snare": this.tone(500, 0.04, { vol: 0.3 }); break;
+      case "snap": this.tone(1200, 0.03, { vol: 0.5 }); this.tone(400, 0.1, { at: 0.03, vol: 0.3 }); break;
+      case "gas": this.noise(0.45, 0.25, 0, 2000); break;
+      case "goo": this.tone(140, 0.2, { to: 90, type: "triangle", vol: 0.5 }); break;
+      case "fuse": this.noise(0.15, 0.15, 0, 4000); break;
+      case "boom": this.noise(0.6, 0.7, 0, 60); this.tone(90, 0.4, { to: 40, vol: 0.5 }); break;
+      case "strug": this.tone(330, 0.03, { vol: 0.2 }); break;
+      case "clear": [523, 659, 784, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.12, { at: i * 0.11 })); break;
+      case "emote": this.tone(1047, 0.04, { vol: 0.2 }); break;
+    }
+  },
+  falling(on, y) { // the classic descending whistle while the local runner falls
+    if (!this.ac || !this.on) on = false;
+    if (on && !this.fallOsc) { const o = this.ac.createOscillator(), v = this.ac.createGain(); o.type = "square"; v.gain.value = 0.08; o.connect(v); v.connect(this.gain); o.start(); this.fallOsc = { o, v }; }
+    if (this.fallOsc) { if (on) this.fallOsc.o.frequency.setTargetAtTime(1400 - y * 70, this.ac.currentTime, 0.02); else { this.fallOsc.o.stop(); this.fallOsc = null; } }
+  },
+};
+
+// ---------------------------------------------------------------- input
+const KEYS = {
+  single: { l: ["ArrowLeft", "KeyA"], r: ["ArrowRight", "KeyD"], u: ["ArrowUp", "KeyW"], d: ["ArrowDown", "KeyS"], dl: ["KeyZ", "KeyQ", "Comma"], dr: ["KeyX", "KeyE", "Period"], use: ["Space", "KeyC", "KeyF", "Slash", "Enter"] },
+  p1: { l: ["KeyA"], r: ["KeyD"], u: ["KeyW"], d: ["KeyS"], dl: ["KeyQ"], dr: ["KeyE"], use: ["KeyF", "Space"] },
+  p2: { l: ["ArrowLeft", "KeyJ"], r: ["ArrowRight", "KeyL"], u: ["ArrowUp", "KeyI"], d: ["ArrowDown", "KeyK"], dl: ["Comma", "KeyU"], dr: ["Period", "KeyO"], use: ["Slash", "Enter", "ShiftRight"] },
+};
+const GAME_CODES = new Set(Object.values(KEYS).flatMap(s => Object.values(s).flat()));
+const held = new Set();
+const touch = { l: 0, r: 0, u: 0, d: 0, dl: 0, dr: 0, use: 0 };
+const pads = [];
+// Local slots: each has an input object fed by a keyboard scheme, a gamepad and (slot 0) the touch pad.
+const slots = [];
+function setSlots(n) {
+  slots.length = 0;
+  for (let i = 0; i < n; i++) slots.push({ scheme: n === 1 ? "single" : i === 0 ? "p1" : i === 1 ? "p2" : null, in: { l: 0, r: 0, u: 0, d: 0, dl: 0, dr: 0, use: 0, useN: 0, upN: 0 }, prevUse: 0, prevUp: 0 });
+}
+function readSlots() {
+  const gps = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+  slots.forEach((s, i) => {
+    const K = s.scheme && KEYS[s.scheme], I = s.in, gp = gps[i];
+    const k = a => K ? K[a].some(c => held.has(c)) : false;
+    const b = n => gp && gp.buttons[n] && gp.buttons[n].pressed;
+    const ax = gp ? gp.axes[0] || 0 : 0, ay = gp ? gp.axes[1] || 0 : 0;
+    const t = i === 0 ? touch : {};
+    I.l = +(k("l") || b(14) || ax < -0.5 || !!t.l); I.r = +(k("r") || b(15) || ax > 0.5 || !!t.r);
+    I.u = +(k("u") || b(12) || ay < -0.5 || !!t.u); I.d = +(k("d") || b(13) || ay > 0.5 || !!t.d);
+    I.dl = +(k("dl") || b(2) || b(4) || !!t.dl); I.dr = +(k("dr") || b(1) || b(5) || !!t.dr);
+    I.use = +(k("use") || b(0) || b(3) || !!t.use);
+    if (I.use && !s.prevUse) I.useN++; if (I.u && !s.prevUp) I.upN++;
+    s.prevUse = I.use; s.prevUp = I.u;
+    if (gp && b(9) && !s.prevStart) togglePause(); s.prevStart = gp && b(9);
+  });
+}
+addEventListener("keydown", e => {
+  Sfx.init();
+  if (e.target.matches && e.target.matches("input,textarea,select")) return;
+  if (App.screen === "play" && GAME_CODES.has(e.code)) e.preventDefault();
+  held.add(e.code);
+  if (e.repeat) return;
+  if (e.code === "Escape" || e.code === "KeyP") { if (App.screen === "play") togglePause(); else if (App.screen === "test") Editor.open(); }
+  if (e.code === "KeyM") toggleSound();
+  if (e.code === "KeyR" && App.screen === "play" && App.game && App.game.mode === "solo" && !App.paused) { const p = App.game.players[0]; if (p.st === "ok") killPlayer(App.game, p, -1); }
+  if (App.screen === "play" && /^Digit[1-4]$/.test(e.code) && App.net) Online.emote(+e.code[5] - 1);
+});
+addEventListener("keyup", e => held.delete(e.code));
+addEventListener("blur", () => held.clear());
+document.querySelectorAll("#pad button").forEach(b => {
+  const k = b.dataset.k;
+  const on = e => { e.preventDefault(); Sfx.init(); touch[k] = 1; b.classList.add("on"); b.setPointerCapture && b.setPointerCapture(e.pointerId); };
+  const off = e => { touch[k] = 0; b.classList.remove("on"); };
+  b.addEventListener("pointerdown", on); b.addEventListener("pointerup", off); b.addEventListener("pointercancel", off); b.addEventListener("lostpointercapture", off);
+  b.addEventListener("contextmenu", e => e.preventDefault());
+});
+addEventListener("pointerdown", e => { if (e.pointerType === "touch") document.documentElement.classList.add("touch"); Sfx.init(); }, { capture: true, passive: true });
+
+// ---------------------------------------------------------------- networking: WebRTC data channels, signalling over a public PeerJS broker
+// No server of ours: the broker only relays the offer/answer/ICE messages; game traffic goes peer to peer.
+const qs = new URLSearchParams(location.search);
+const BROKER = qs.get("broker") || "wss://0.peerjs.com:443/peerjs";
+const ICE = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] };
+const ROOM_ABC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const roomId = code => "goldraid-v1-" + code.toLowerCase();
+function genCode() { let s = ""; for (let i = 0; i < 5; i++) s += ROOM_ABC[rnd(ROOM_ABC.length)]; return s; }
+class Signal {
+  constructor(id) { this.id = id; this.h = {}; }
+  open() {
+    return new Promise((res, rej) => {
+      let ws; const token = Math.random().toString(36).slice(2);
+      try { ws = new WebSocket(`${BROKER}?key=peerjs&id=${encodeURIComponent(this.id)}&token=${token}&version=1.5.4`); } catch (e) { rej(new Error("Could not reach the room server.")); return; }
+      this.ws = ws;
+      const to = setTimeout(() => { rej(new Error("The room server did not answer.")); ws.close(); }, 9000);
+      ws.onmessage = e => {
+        let m; try { m = JSON.parse(e.data); } catch (_) { return; }
+        if (m.type === "OPEN") { clearTimeout(to); this.hb = setInterval(() => this.raw({ type: "HEARTBEAT" }), 5000); res(this); }
+        else if (m.type === "ID-TAKEN") { clearTimeout(to); rej(new Error("taken")); }
+        else if (m.type === "ERROR") { clearTimeout(to); rej(new Error((m.payload && m.payload.msg) || "Room server error.")); }
+        else if (this.h[m.type]) this.h[m.type](m);
+      };
+      ws.onerror = () => { clearTimeout(to); rej(new Error("Could not reach the room server.")); };
+      ws.onclose = () => { clearInterval(this.hb); this.closed = true; };
+    });
+  }
+  on(t, f) { this.h[t] = f; }
+  raw(m) { if (this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify(m)); }
+  send(type, dst, payload) { this.raw({ type, dst, payload }); }
+  close() { clearInterval(this.hb); try { this.ws.close(); } catch (e) {} }
+}
+function waitIce(pc, ms = 4000) {
+  return new Promise(res => {
+    if (pc.iceGatheringState === "complete") return res();
+    const t = setTimeout(res, ms);
+    pc.addEventListener("icegatheringstatechange", () => { if (pc.iceGatheringState === "complete") { clearTimeout(t); res(); } });
+  });
+}
+const enc = o => btoa(unescape(encodeURIComponent(JSON.stringify(o))));
+const dec = s => JSON.parse(decodeURIComponent(escape(atob(s.trim().replace(/\s+/g, "")))));
+
+const Online = {
+  role: null, sig: null, peers: new Map(), host: null, me: 0, name: Store.get("name", ""),
+  members: [], settings: { mode: "coop", level: "c0" }, snaps: [],
+  reset() {
+    for (const p of this.peers.values()) { try { p.pc.close(); } catch (e) {} }
+    this.peers.clear(); if (this.sig) this.sig.close();
+    if (this.host) { try { this.host.pc.close(); } catch (e) {} }
+    Object.assign(this, { role: null, sig: null, host: null, members: [], snaps: [], code: null });
+    App.net = null;
+  },
+  newPeer(id) {
+    const p = { id, pc: new RTCPeerConnection(ICE), dc: null, pend: [], remote: false, name: "?" };
+    p.pc.onconnectionstatechange = () => { if (["failed", "closed"].includes(p.pc.connectionState)) this.drop(p); };
+    return p;
+  },
+  async addCand(p, c) { if (!c) return; if (p.remote) { try { await p.pc.addIceCandidate(c); } catch (e) {} } else p.pend.push(c); },
+  async setRemote(p, sdp) { await p.pc.setRemoteDescription(sdp); p.remote = true; for (const c of p.pend) { try { await p.pc.addIceCandidate(c); } catch (e) {} } p.pend = []; },
+  bind(p, dc) {
+    p.dc = dc;
+    dc.onopen = () => { if (this.role === "client" && !p.hello) { p.hello = true; this.send(p, { t: "hello", name: this.name }); } };
+    dc.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (_) { return; } this.role === "host" ? this.hostMsg(p, m) : this.clientMsg(m); };
+    dc.onclose = () => this.drop(p);
+  },
+  send(p, m) { if (p.dc && p.dc.readyState === "open") { try { p.dc.send(typeof m === "string" ? m : JSON.stringify(m)); } catch (e) {} } },
+  // ---- host
+  async createRoom() {
+    this.reset(); this.role = "host"; App.net = this;
+    this.members = [{ id: "me", name: this.name || "Host" }];
+    let err;
+    for (let i = 0; i < 4; i++) {
+      const code = genCode();
+      try { this.sig = await new Signal(roomId(code)).open(); this.code = code; break; } catch (e) { err = e; if (e.message !== "taken") break; }
+    }
+    if (!this.sig) { this.signalError = err ? err.message : "Room server unavailable."; return false; }
+    this.sig.on("OFFER", async m => {
+      const p = this.newPeer(m.src); this.peers.set(m.src, p);
+      p.pc.onicecandidate = e => e.candidate && this.sig.send("CANDIDATE", m.src, { candidate: e.candidate });
+      p.pc.ondatachannel = e => this.bind(p, e.channel);
+      await this.setRemote(p, m.payload.sdp);
+      await p.pc.setLocalDescription(await p.pc.createAnswer());
+      this.sig.send("ANSWER", m.src, { sdp: p.pc.localDescription });
+    });
+    this.sig.on("CANDIDATE", m => { const p = this.peers.get(m.src); if (p) this.addCand(p, m.payload.candidate); });
+    return true;
+  },
+  async manualInvite() { // host side of copy-paste signalling
+    if (this.role !== "host") { this.reset(); this.role = "host"; App.net = this; this.members = [{ id: "me", name: this.name || "Host" }]; }
+    const id = "m" + Date.now(), p = this.newPeer(id); this.peers.set(id, p); this.pendingManual = p;
+    this.bind(p, p.pc.createDataChannel("g", { ordered: true }));
+    await p.pc.setLocalDescription(await p.pc.createOffer()); await waitIce(p.pc);
+    return enc({ o: p.pc.localDescription });
+  },
+  async manualAccept(code) { const p = this.pendingManual; if (!p) throw new Error("Make an invite first."); await this.setRemote(p, dec(code).a); this.pendingManual = null; },
+  hostMsg(p, m) {
+    if (m.t === "hello") {
+      if (this.members.some(x => x.id === p.id)) return;
+      if (this.members.length >= 4) { this.send(p, { t: "bye", why: "That room is full." }); return; }
+      if (App.screen === "play" && App.game && !App.game.over) { this.send(p, { t: "bye", why: "That room is in the middle of a match. Try again in a moment." }); return; }
+      p.name = String(m.name || "Player").slice(0, 14); this.members.push({ id: p.id, name: p.name });
+      this.lobby(); toast(p.name + " joined");
+    } else if (m.t === "in") {
+      const g = App.game, i = this.members.findIndex(x => x.id === p.id);
+      if (g && g.players[i] && g.net) Object.assign(g.players[i].in, m.i);
+    } else if (m.t === "emo") this.applyEmote(this.members.findIndex(x => x.id === p.id), m.k);
+    else if (m.t === "ping") this.send(p, { t: "pong", ts: m.ts });
+  },
+  drop(p) {
+    if (this.role === "host") {
+      if (!this.peers.has(p.id)) return;
+      this.peers.delete(p.id);
+      const i = this.members.findIndex(x => x.id === p.id);
+      if (i > 0) {
+        toast(this.members[i].name + " left");
+        const g = App.game; if (g && g.net && g.players[i]) { g.players[i].left = true; g.players[i].st = "gone"; }
+        this.members[i].left = true;
+        if (App.screen !== "play") { this.members.splice(i, 1); this.lobby(); }
+      }
+    } else if (this.role === "client" && p === this.host) {
+      this.reset(); App.toMenu(); toast("Disconnected from the host.");
+    }
+  },
+  lobby() {
+    this.members = this.members.filter(m => !m.left);
+    const msg = JSON.stringify({ t: "lobby", members: this.members.map(m => m.name), settings: this.settings, code: this.code });
+    let i = 0; for (const m of this.members) { if (m.id !== "me") { const p = this.peers.get(m.id); if (p) this.send(p, msg.slice(0, -1) + ',"you":' + i + "}"); } i++; }
+    if (App.screen === "lobby") UI.lobby();
+  },
+  broadcast(m) { const s = JSON.stringify(m); for (const p of this.peers.values()) this.send(p, s); },
+  startMatch() {
+    const lv = levelById(this.settings.level); if (!lv) return;
+    const names = this.members.map(m => ({ name: m.name }));
+    this.broadcast({ t: "start", lv, mode: this.settings.mode });
+    App.play(lv, { mode: this.settings.mode, players: names, no: levelNo(this.settings.level), levelId: this.settings.level, net: true }, [0]);
+  },
+  snap(g) {
+    const s = {
+      t: "s", name: g.name, night: g.night, mode: g.mode, no: g.no, tt: g.t, ready: g.ready, ex: g.exitsOpen, tl: g.timeLeft,
+      lv: g.lives, sc: g.score, ov: g.over, mv: g.mapVer, gold: g.gold.join(""), openAt: g.openAt,
+      holes: g.holes, items: g.items.filter(i => !i.gone).map(i => [i.x, i.y, i.k, i.lock, i.t != null ? +i.t.toFixed(1) : 0]), sn: g.snares, bo: g.bombs.map(b => [b.x, b.y, b.t, b.mega]), fx: g.fx,
+      P: g.players.map(p => [+p.x.toFixed(3), +p.y.toFixed(3), p.face, p.an, p.tool, p.st, +p.inv.toFixed(2), p.pts, p.gold, p.kills, p.deaths, p.emoT > 0 ? p.emo : "", +p.emoT.toFixed(2), +p.deadT.toFixed(2), p.name, p.left ? 1 : 0, p.keys, p.lamp ? 1 : 0]),
+      M: g.monks.map(m => [+m.x.toFixed(3), +m.y.toFixed(3), m.face, m.an, m.carry, m.st, +m.stun.toFixed(2), m.item ? 1 : 0]),
+      ev: g.netEv.splice(0),
+    };
+    if (g.mapVer !== g.sentVer) { s.map = g.map.join(""); g.sentVer = g.mapVer; this.forceMap = false; }
+    this.broadcast(s);
+  },
+  applyEmote(i, k) { const g = App.game; if (!g || !g.players[i]) return; g.players[i].emo = ["!", "HELP", "GG", "NICE"][k] || "!"; g.players[i].emoT = 2.2; g.ev.push("emote"); },
+  emote(k) { if (this.role === "host") this.applyEmote(0, k); else if (this.host) this.send(this.host, { t: "emo", k }); },
+  // ---- client
+  async join(code) {
+    this.reset(); this.role = "client"; App.net = this; this.code = code.toUpperCase();
+    this.sig = await new Signal("gr-" + Math.random().toString(36).slice(2, 12)).open();
+    const hostId = roomId(code), p = this.newPeer(hostId); this.host = p;
+    this.bind(p, p.pc.createDataChannel("g", { ordered: true }));
+    p.pc.onicecandidate = e => e.candidate && this.sig.send("CANDIDATE", hostId, { candidate: e.candidate });
+    this.sig.on("ANSWER", m => this.setRemote(p, m.payload.sdp));
+    this.sig.on("CANDIDATE", m => this.addCand(p, m.payload.candidate));
+    await p.pc.setLocalDescription(await p.pc.createOffer());
+    this.sig.send("OFFER", hostId, { sdp: p.pc.localDescription });
+    return new Promise((res, rej) => {
+      const to = setTimeout(() => rej(new Error("No room with that code answered. Check the code, or use a manual invite.")), 15000);
+      this.sig.on("EXPIRE", () => { clearTimeout(to); rej(new Error("No room with that code.")); });
+      this.onJoined = () => { clearTimeout(to); res(); };
+    });
+  },
+  async manualAnswer(code) { // client side of copy-paste signalling
+    this.reset(); this.role = "client"; App.net = this;
+    const p = this.newPeer("host"); this.host = p;
+    p.pc.ondatachannel = e => { this.bind(p, e.channel); if (e.channel.readyState === "open") e.channel.onopen(); };
+    await this.setRemote(p, dec(code).o);
+    await p.pc.setLocalDescription(await p.pc.createAnswer()); await waitIce(p.pc);
+    return enc({ a: p.pc.localDescription });
+  },
+  clientMsg(m) {
+    if (m.t === "lobby") {
+      this.members = m.members; this.settings = m.settings; this.me = m.you; if (m.code) this.code = m.code;
+      if (this.onJoined) { this.onJoined(); this.onJoined = null; if (this.sig) setTimeout(() => this.sig && this.sig.close(), 3000); }
+      if (App.screen !== "play" || (App.game && App.game.over)) { App.screen = "lobby"; UI.lobby(); }
+    } else if (m.t === "start") {
+      this.snaps = []; this.view = null; this.lastIn = "";
+      App.screen = "play"; App.paused = false; App.game = null; App.level = m.lv; App.opt = { mode: m.mode }; setSlots(1);
+      UI.hide();
+    } else if (m.t === "s") this.recv(m);
+    else if (m.t === "bye") { this.reset(); App.toMenu(); toast(m.why || "The host closed the room."); }
+    else if (m.t === "pong") this.rtt = performance.now() - m.ts;
+  },
+  recv(s) {
+    const prev = this.view;
+    if (s.map) this.mapStr = s.map;
+    if (!this.mapStr) return;
+    const v = {
+      name: s.name, night: s.night, mode: s.mode, no: s.no, t: s.tt, ready: s.ready, exitsOpen: s.ex, timeLeft: s.tl, lives: s.lv, score: s.sc, over: s.ov, openAt: s.openAt,
+      map: this.mapStr.split(""), holes: s.holes, gold: s.gold.split("").map(Number), items: s.items.map(([x, y, k, lock, t]) => ({ x, y, k, lock, t })),
+      snares: s.sn, bombs: s.bo.map(([x, y, t, mega]) => ({ x, y, t, mega })), fx: s.fx,
+      players: s.P.map((a, idx) => ({ idx, x: a[0], y: a[1], face: a[2], an: a[3], tool: a[4], st: a[5], inv: a[6], pts: a[7], gold: a[8], kills: a[9], deaths: a[10], emo: a[11], emoT: a[12], deadT: a[13], name: a[14], left: a[15], keys: a[16], lamp: a[17], col: PCOL[idx] })),
+      monks: s.M.map(a => ({ x: a[0], y: a[1], face: a[2], an: a[3], carry: a[4], st: a[5], stun: a[6], item: a[7] })),
+      recvAt: performance.now(),
+    };
+    v.prev = prev && prev.players.length === v.players.length ? prev : null;
+    this.view = v;
+    for (const e of s.ev) Sfx.play(e);
+    if (s.ov && !(prev && prev.over)) setTimeout(() => { if (this.view && this.view.over && App.screen === "play") App.matchOver(this.view); }, s.ov.k === "clear" && s.mode === "coop" ? 3200 : 2300);
+  },
+  viewNow() { // interpolate entity positions between the last two snapshots
+    const v = this.view; if (!v) return null;
+    const a = Math.min(1, (performance.now() - v.recvAt) / 50), p = v.prev;
+    if (!p || a >= 1) return v;
+    const lerp = (o, n) => Math.abs(o.x - n.x) + Math.abs(o.y - n.y) > 1.5 ? n : Object.assign({}, n, { x: o.x + (n.x - o.x) * a, y: o.y + (n.y - o.y) * a });
+    return Object.assign({}, v, { players: v.players.map((n, i) => lerp(p.players[i], n)), monks: v.monks.map((n, i) => p.monks[i] ? lerp(p.monks[i], n) : n) });
+  },
+  sendInput(I) {
+    const s = [I.l, I.r, I.u, I.d, I.dl, I.dr, I.use, I.useN, I.upN].join();
+    const now = performance.now();
+    if (s !== this.lastIn || now - (this.lastInT || 0) > 250) { this.lastIn = s; this.lastInT = now; this.send(this.host, { t: "in", i: { l: I.l, r: I.r, u: I.u, d: I.d, dl: I.dl, dr: I.dr, use: I.use, useN: I.useN, upN: I.upN } }); }
+  },
+};
+
+// ---------------------------------------------------------------- levels and progress
+const custom = () => Store.get("levels", []);
+function levelById(id) {
+  if (!id) return null;
+  const n = +id.slice(1);
+  if (id[0] === "c") return LEVELS.campaign[n];
+  if (id[0] === "a") return LEVELS.arenas[n];
+  if (id[0] === "u") return custom()[n];
+  return null;
+}
+const levelNo = id => id && id[0] === "c" ? +id.slice(1) : 0;
+function levelChoices(mode) {
+  const out = [];
+  const add = (lv, id, tag) => out.push({ id, lv, tag });
+  if (mode === "rush") LEVELS.arenas.forEach((lv, i) => add(lv, "a" + i, "Arena"));
+  if (mode === "race") LEVELS.arenas.forEach((lv, i) => lv.race && add(lv, "a" + i, "Arena"));
+  LEVELS.campaign.forEach((lv, i) => add(lv, "c" + i, "Level " + (i + 1)));
+  if (mode !== "rush" && mode !== "race") {} // co-op and race also accept every campaign level
+  custom().forEach((lv, i) => add(lv, "u" + i, "My level"));
+  return out;
+}
+const progress = () => Store.get("progress", { unlocked: 1, best: {} });
+
+// ---------------------------------------------------------------- app flow
+const App = {
+  screen: "menu", game: null, paused: false, net: null, level: null, opt: null, speed: Store.get("speed", 1),
+  play(lv, opt, mine) {
+    this.level = lv; this.opt = opt; this.mine = mine;
+    this.game = newGame(lv, opt); this.game.net = !!opt.net; this.game.netEv = []; this.game.sentVer = 0;
+    this.screen = opt.test ? "test" : "play"; this.paused = false; this.acc = 0; this.ticks = 0;
+    setSlots(mine.length);
+    UI.hide();
+  },
+  toMenu() { this.screen = "menu"; this.game = null; Sfx.falling(false); UI.menu(); },
+  frame(dt) {
+    readSlots();
+    const g = this.game;
+    if ((this.screen === "play" || this.screen === "test") && !this.paused) {
+      if (this.net && this.net.role === "client") {
+        if (slots[0]) this.net.sendInput(slots[0].in);
+      } else if (g) {
+        this.mine.forEach((pi, si) => { if (slots[si] && g.players[pi]) Object.assign(g.players[pi].in, slots[si].in); });
+        this.acc += dt * (g.net ? 1 : this.speed);
+        let n = 0;
+        while (this.acc >= STEP && n++ < 8) {
+          const wasOpen = g.exitsOpen; tick(g, STEP); if (!wasOpen && g.exitsOpen) g.openAt = g.t;
+          this.acc -= STEP; this.ticks++;
+          if (g.net) { g.netEv.push(...g.ev); if (this.ticks % 3 === 0) this.net.snap(g); }
+          for (const e of g.ev) Sfx.play(e); g.ev.length = 0;
+          if (g.over && g.overT === 0) { g.overT = 1e-6; this.onOver(g); }
+        }
+        if (n >= 8) this.acc = 0;
+      }
+    }
+    // draw
+    const view = this.net && this.net.role === "client" ? this.net.viewNow() : g;
+    if (this.screen === "editor") Editor.draw();
+    else if (view && (this.screen === "play" || this.screen === "test" || this.screen === "results" || this.screen === "lobby")) {
+      const mine = this.net && this.net.role === "client" ? [this.net.me] : this.mine;
+      drawWorld(view, { mine });
+      const me = view.players[mine[0]];
+      Sfx.falling(!this.paused && me && me.st === "ok" && me.an === "fall", me ? me.y : 0);
+    } else { Sfx.falling(false); drawAttract(dt); }
+  },
+  onOver(g) {
+    const o = g.over;
+    const delay = ms => new Promise(r => setTimeout(r, ms));
+    if (o.k === "clear") Sfx.play("clear");
+    if (g.mode === "solo") {
+      if (this.opt.test) { delay(o.k === "clear" ? 1500 : 1700).then(() => { if (this.game === g) Editor.open(o.k === "clear" ? "Cleared. Nice level." : null); }); return; }
+      if (o.k === "dead") {
+        delay(200).then(() => {
+          if (this.game !== g) return;
+          if (g.lives <= 0) { this.screen = "results"; UI.soloOver(g); }
+          else this.play(this.level, Object.assign({}, this.opt, { lives: g.lives - 1, score: g.score }), this.mine);
+        });
+      } else if (o.k === "clear") {
+        const pr = progress(), no = this.opt.no, id = this.opt.levelId;
+        const next = id && id[0] === "c" ? (g.exitTo != null ? g.exitTo : no + 1) : -1;
+        if (id && id[0] === "c") { pr.unlocked = Math.max(pr.unlocked, no + 2, next + 1); const tm = Math.round(g.t - g.ready); if (!pr.best[no] || tm < pr.best[no]) pr.best[no] = tm; Store.set("progress", pr); }
+        delay(2200).then(() => {
+          if (this.game !== g) return;
+          if (next > 0 && next < LEVELS.campaign.length) this.play(LEVELS.campaign[next], Object.assign({}, this.opt, { no: next, levelId: "c" + next, lives: g.lives + 1, score: g.score + 1500 }), this.mine);
+          else { this.screen = "results"; g.score += 1500; UI.soloOver(g, next >= LEVELS.campaign.length); }
+        });
+      }
+      return;
+    }
+    if (g.mode === "coop" && o.k === "clear") {
+      const id = this.opt.levelId, next = id && id[0] === "c" ? (g.exitTo != null ? g.exitTo : +id.slice(1) + 1) : -1;
+      if (next > 0 && next < LEVELS.campaign.length) {
+        delay(2600).then(() => {
+          if (this.game !== g) return;
+          const lv = LEVELS.campaign[next], opt = Object.assign({}, this.opt, { no: next, levelId: "c" + next, lives: g.lives + 1, score: g.score + 1500 });
+          if (g.net) { this.net.settings.level = "c" + next; this.net.members = this.net.members.filter(m => !m.left); opt.players = this.net.members.map(m => ({ name: m.name })); this.net.broadcast({ t: "start", lv, mode: "coop" }); }
+          this.play(lv, opt, this.mine);
+        });
+        return;
+      }
+    }
+    delay(2200).then(() => { if (this.game === g) this.matchOver(g); });
+  },
+  matchOver(g) { this.screen = "results"; UI.results(g); },
+};
+function togglePause() {
+  if (App.screen !== "play" && App.screen !== "test") return;
+  if (App.net) { // online play does not stop; the menu still opens
+    if (UI.shown) UI.hide(); else UI.pause(true);
+    return;
+  }
+  App.paused = !App.paused;
+  if (App.paused) UI.pause(); else UI.hide();
+}
+function toggleSound() { Sfx.init(); Sfx.on = !Sfx.on; Store.set("sound", Sfx.on); if (!Sfx.on) Sfx.falling(false); $("#bSound").textContent = "Sound: " + (Sfx.on ? "on" : "off"); }
+$("#bSound").textContent = "Sound: " + (Sfx.on ? "on" : "off");
+$("#bSound").onclick = e => { e.currentTarget.blur(); toggleSound(); };
+$("#bPause").onclick = e => { e.currentTarget.blur(); if (App.screen === "test") Editor.open(); else togglePause(); };
+let toastT;
+function toast(s) { const t = $("#toast"); t.textContent = s; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2600); }
+
+// Attract screen behind menus: a level drawn with monks wandering.
+let attract = null;
+function drawAttract(dt) {
+  if (!attract) { attract = newGame(LEVELS.campaign[0], { mode: "coop", players: [] }); attract.ready = 0; }
+  attract.t += dt;
+  for (const m of attract.monks) { m.an = "run"; m.x += m.face * dt * 2.2; if (m.x < 0.5 || m.x > W - 1.5 || solid(attract, Math.round(m.x + m.face * 0.6), Math.round(m.y))) m.face = -m.face; }
+  drawWorld(attract, { marks: false, mine: [] });
+  ctx.fillStyle = "#000"; ctx.fillRect(0, PH, SW, SH - PH); text(ctx, "GOLD RAID", (SW - textW("GOLD RAID")) >> 1, PH + 5, "#ffd23f");
+}
+
+// ---------------------------------------------------------------- menus
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const UI = {
+  shown: true,
+  show(html, bind, menu = true) {
+    const ov = $("#ov"); $("#panel").innerHTML = html; ov.hidden = false; this.shown = true;
+    $("#stage").classList.toggle("menu", menu);
+    if (bind) bind($("#panel"));
+    const f = $("#panel").querySelector("[autofocus]") || $("#panel").querySelector("button"); if (f && !document.documentElement.classList.contains("touch")) f.focus({ preventScroll: true });
+  },
+  hide() { $("#ov").hidden = true; this.shown = false; $("#stage").classList.remove("menu"); cv.focus && cv.focus(); },
+  on(root, sel, f) { root.querySelectorAll(sel).forEach(b => b.addEventListener("click", e => { Sfx.init(); f(b, e); })); },
+  menu() {
+    App.screen = "menu";
+    $("#edbar").hidden = true;
+    this.show(`<h2>GOLD RAID</h2>
+      <p>Grab every chest of gold, dig traps for the mad monks, then climb out. Built on the 1983 original, with the sequel's tools, phase blocks, goo and bombs.</p>
+      <div class="menu-list">
+        <button class="primary" data-go="solo">Solo<small>${LEVELS.campaign.length} levels</small></button>
+        <button data-go="online">Play online<small>Room code, 2 to 4 players</small></button>
+        <button data-go="coop">Local co-op<small>Same keyboard or gamepads</small></button>
+        <button data-go="versus">Local versus<small>Gold Rush and Race</small></button>
+        <button data-go="editor">Level editor<small>Build, test, share</small></button>
+        <button data-go="help">How to play<small>Controls, tools, modes</small></button>
+      </div>`, r => this.on(r, "[data-go]", b => {
+        const go = b.dataset.go;
+        if (go === "solo") this.solo(); else if (go === "online") this.online(); else if (go === "coop") this.local("coop");
+        else if (go === "versus") this.local("rush"); else if (go === "editor") Editor.open(); else this.help();
+      }));
+  },
+  solo() {
+    const pr = progress();
+    const lv = LEVELS.campaign.map((l, i) => `<button data-i="${i}" ${i >= pr.unlocked ? "disabled" : ""}>${i + 1}. ${esc(l.name)}<small>${i >= pr.unlocked ? "Locked" : pr.best[i] != null ? "Best " + clock(pr.best[i]) : l.night ? "Night level" : "Not cleared"}</small></button>`).join("");
+    const cu = custom().map((l, i) => `<button data-u="${i}">${esc(l.name)}<small>My level</small></button>`).join("");
+    this.show(`<h2>Solo</h2><p>Five lives; clearing a level gives one back. Press R to give up a life when you're stuck.</p>
+      <div class="grid">${lv}</div>${cu ? `<h3>My levels</h3><div class="grid">${cu}</div>` : ""}
+      <div class="row"><button data-back>Back</button></div>`, r => {
+      this.on(r, "[data-i]", b => App.play(LEVELS.campaign[+b.dataset.i], { mode: "solo", players: [{}], no: +b.dataset.i, levelId: "c" + b.dataset.i }, [0]));
+      this.on(r, "[data-u]", b => App.play(custom()[+b.dataset.u], { mode: "solo", players: [{}], no: 0, levelId: "u" + b.dataset.u }, [0]));
+      this.on(r, "[data-back]", () => this.menu());
+    });
+  },
+  local(mode, sel) {
+    const st = this.localSt = Object.assign({ mode, n: 2, level: null }, this.localSt && this.localSt.mode === mode ? this.localSt : {}, sel || {});
+    const vs = st.mode !== "coop";
+    const ch = levelChoices(st.mode); if (!st.level || !ch.find(c => c.id === st.level)) st.level = ch[0].id;
+    const gp = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean).length : 0;
+    this.show(`<h2>${vs ? "Local versus" : "Local co-op"}</h2>
+      ${vs ? `<div class="row"><button data-m="rush" class="${st.mode === "rush" ? "sel" : ""}">Gold Rush</button><button data-m="race" class="${st.mode === "race" ? "sel" : ""}">Race</button></div>
+      <p>${st.mode === "rush" ? "2:30 on the clock. Gold respawns, a big nugget worth 3 drops every 30 seconds, and trapping a rival in a hole scores 2." : "Everyone on one level. Gold scores 1, and the first runner out of the exit after the last chest scores 3 and ends the round."}</p>`
+        : `<p>Shared score and lives. A runner who dies comes back while lives last; the level clears when everyone still standing is out.</p>`}
+      <div class="row">Players: ${[2, 3, 4].map(n => `<button data-n="${n}" class="${st.n === n ? "sel" : ""}">${n}</button>`).join("")}</div>
+      <p class="note">P1 <kbd>WASD</kbd> dig <kbd>Q</kbd>/<kbd>E</kbd> tool <kbd>F</kbd>. P2 arrows, dig <kbd>,</kbd>/<kbd>.</kbd> tool <kbd>/</kbd>. Gamepad 1 joins P1, gamepad 2 joins P2, and so on. ${st.n > 2 ? `<span class="${gp >= st.n ? "" : "err"}">P3 and P4 need gamepads (${gp} connected).</span>` : ""}</p>
+      <div class="grid">${ch.map(c => `<button data-l="${c.id}" class="${st.level === c.id ? "sel" : ""}">${esc(c.lv.name)}<small>${c.tag}</small></button>`).join("")}</div>
+      <div class="row"><button class="primary" data-start>Start</button><button data-back>Back</button></div>`, r => {
+      this.on(r, "[data-m]", b => this.local(b.dataset.m, { mode: b.dataset.m }));
+      this.on(r, "[data-n]", b => this.local(st.mode, { n: +b.dataset.n }));
+      this.on(r, "[data-l]", b => this.local(st.mode, { level: b.dataset.l }));
+      this.on(r, "[data-back]", () => this.menu());
+      this.on(r, "[data-start]", () => {
+        const players = Array.from({ length: st.n }, (_, i) => ({ name: PNAME[i] }));
+        App.play(levelById(st.level), { mode: st.mode, players, no: levelNo(st.level), levelId: st.level, lives: 3 + st.n }, players.map((_, i) => i));
+      });
+    });
+  },
+  online(err) {
+    const code = (qs.get("room") || "").toUpperCase();
+    this.show(`<h2>Play online</h2>
+      <p>One player makes a room and shares the code; up to three friends join with it. Everyone connects straight to the host's browser.</p>
+      <div class="row"><label>Your name <input type="text" id="oName" maxlength="14" value="${esc(Online.name)}" placeholder="Runner"></label></div>
+      <div class="row"><button class="primary" data-create>Create room</button></div>
+      <div class="row"><input type="text" id="oCode" maxlength="5" placeholder="CODE" value="${esc(code)}" style="width:7em;text-transform:uppercase;font-family:var(--mono)" aria-label="Room code"><button data-join>Join room</button></div>
+      ${err ? `<p class="err">${esc(err)}</p>` : ""}
+      <details><summary>No luck with codes? Connect by copy and paste</summary>
+        <p class="note">Works without the room server. The host makes an invite, sends it to a friend by chat, and pastes back the reply.</p>
+        <div class="row"><button data-minv>Host: make an invite</button></div>
+        <textarea id="mOut" readonly placeholder="Invite or reply code appears here"></textarea>
+        <div class="row"><button data-mcopy>Copy</button></div>
+        <textarea id="mIn" placeholder="Paste the code you received"></textarea>
+        <div class="row"><button data-mans>Friend: answer an invite</button><button data-macc>Host: accept the reply</button></div>
+        <p class="note" id="mMsg"></p>
+      </details>
+      <p class="note">Rooms use a free public signalling server only to introduce players; game traffic goes peer to peer. Some strict networks block direct connections. Keep the host's tab in front: browsers slow down background tabs.</p>
+      <div class="row"><button data-back>Back</button></div>`, r => {
+      const nm = () => { Online.name = ($("#oName").value.trim() || "Runner").slice(0, 14); Store.set("name", Online.name); };
+      const msg = s => { $("#mMsg").textContent = s; };
+      this.on(r, "[data-back]", () => { Online.reset(); this.menu(); });
+      this.on(r, "[data-create]", async b => {
+        nm(); b.disabled = true; b.textContent = "Opening room…";
+        const ok = await Online.createRoom();
+        if (!ok) { this.online("Could not open a room: " + Online.signalError + " Try the copy-and-paste option below."); return; }
+        App.screen = "lobby"; this.lobby();
+      });
+      this.on(r, "[data-join]", async b => {
+        nm(); const c = $("#oCode").value.trim().toUpperCase();
+        if (!/^[A-Z0-9]{5}$/.test(c)) { this.online("Room codes are 5 letters and digits."); return; }
+        b.disabled = true; b.textContent = "Joining…";
+        try { await Online.join(c); } catch (e) { Online.reset(); this.online(e.message); }
+      });
+      this.on(r, "[data-minv]", async () => { nm(); msg("Gathering connection details…"); $("#mOut").value = await Online.manualInvite(); msg("Send this invite to your friend, then paste their reply below and press accept."); });
+      this.on(r, "[data-mans]", async () => { nm(); try { msg("Working…"); $("#mOut").value = await Online.manualAnswer($("#mIn").value); msg("Send this reply back to the host. You'll join the lobby once they accept."); Online.onJoined = () => {}; } catch (e) { msg("That invite code didn't work."); } });
+      this.on(r, "[data-macc]", async () => { try { await Online.manualAccept($("#mIn").value); msg("Connecting…"); const t = setInterval(() => { if (Online.members.length > 1) { clearInterval(t); App.screen = "lobby"; this.lobby(); } }, 300); } catch (e) { msg(e.message || "That reply code didn't work."); } });
+      this.on(r, "[data-mcopy]", () => { navigator.clipboard && navigator.clipboard.writeText($("#mOut").value).then(() => toast("Copied")); });
+    });
+  },
+  lobby() {
+    const N = Online, host = N.role === "host", s = N.settings;
+    const ch = levelChoices(s.mode); if (host && !ch.find(c => c.id === s.level)) s.level = ch[0].id;
+    const link = location.origin + location.pathname + "?room=" + N.code;
+    const lvName = host ? "" : (levelById(s.level) || {}).name || "";
+    this.show(`<h2>Room ${N.code ? `<span class="code">${esc(N.code)}</span>` : ""}</h2>
+      ${N.code ? `<div class="row"><button data-copy>Copy invite link</button><span class="note">${esc(link)}</span></div>` : ""}
+      <h3>Players</h3>
+      <ul class="players">${N.members.map((m, i) => `<li><span class="dot" style="background:${PCOL[i]}"></span>${esc(typeof m === "string" ? m : m.name)}${i === 0 ? " (host)" : ""}${!host && i === N.me ? " (you)" : ""}</li>`).join("")}</ul>
+      ${host ? `<details><summary>Invite without the room server</summary>
+          <div class="row"><button data-minv>Make an invite</button><button data-mcopy>Copy</button></div>
+          <textarea id="mOut" readonly></textarea><textarea id="mIn" placeholder="Paste the reply"></textarea>
+          <div class="row"><button data-macc>Accept the reply</button></div></details>
+        <h3>Mode</h3>
+        <div class="row">${["coop", "rush", "race"].map(m => `<button data-m="${m}" class="${s.mode === m ? "sel" : ""}">${MODES[m]}</button>`).join("")}</div>
+        <p class="note">${{ coop: "Shared lives and score through the campaign; clear a level and the next one starts.", rush: "2:30 of respawning gold and nuggets. Trap rivals in holes for 2 points.", race: "First out of the exit after the last chest wins the round." }[s.mode]}</p>
+        <h3>Level</h3><div class="grid">${ch.map(c => `<button data-l="${c.id}" class="${s.level === c.id ? "sel" : ""}">${esc(c.lv.name)}<small>${c.tag}</small></button>`).join("")}</div>
+        <div class="row"><button class="primary" data-start>${N.members.length < 2 ? "Start alone" : "Start"}</button><button data-leave>Close room</button></div>`
+      : `<p>${MODES[s.mode]} · ${esc(lvName)}</p><p>Waiting for the host to start.</p><div class="row"><button data-leave>Leave</button></div>`}
+      <p class="note">Quick chat in game: keys 1 to 4.</p>`, r => {
+      this.on(r, "[data-copy]", () => navigator.clipboard && navigator.clipboard.writeText(link).then(() => toast("Link copied")));
+      this.on(r, "[data-m]", b => { s.mode = b.dataset.m; N.lobby(); });
+      this.on(r, "[data-l]", b => { s.level = b.dataset.l; N.lobby(); });
+      this.on(r, "[data-start]", () => N.startMatch());
+      this.on(r, "[data-leave]", () => { if (host) N.broadcast({ t: "bye", why: "The host closed the room." }); setTimeout(() => { N.reset(); this.menu(); }, 100); });
+      this.on(r, "[data-minv]", async () => { $("#mOut").value = "…"; $("#mOut").value = await N.manualInvite(); });
+      this.on(r, "[data-mcopy]", () => navigator.clipboard && navigator.clipboard.writeText($("#mOut").value).then(() => toast("Copied")));
+      this.on(r, "[data-macc]", async () => { try { await N.manualAccept($("#mIn").value); toast("Connecting…"); } catch (e) { toast("That reply code didn't work."); } });
+    });
+  },
+  pause(online) {
+    const solo = App.game && App.game.mode === "solo";
+    this.show(`<h2>${online ? "Menu" : "Paused"}</h2>
+      ${online ? `<p>The game keeps running while this is open.</p>` : ""}
+      <div class="row"><button class="primary" data-resume>Resume</button>
+      ${!App.net && App.opt && !App.opt.test ? `<button data-restart>Restart level</button>` : ""}
+      ${App.opt && App.opt.test ? `<button data-edit>Back to editor</button>` : ""}
+      <button data-quit>${App.net ? "Leave match" : "Quit to menu"}</button></div>
+      ${!App.net ? `<div class="row">Game speed: ${[[0.75, "Slow"], [1, "Normal"], [1.25, "Fast"]].map(([v, l]) => `<button data-speed="${v}" class="${App.speed === v ? "sel" : ""}">${l}</button>`).join("")}</div>` : ""}
+      ${solo ? `<p class="note">Restarting costs a life.</p>` : ""}`, r => {
+      this.on(r, "[data-resume]", () => togglePause());
+      this.on(r, "[data-speed]", b => { App.speed = +b.dataset.speed; Store.set("speed", App.speed); this.pause(online); });
+      this.on(r, "[data-restart]", () => { const g = App.game; const opt = Object.assign({}, App.opt, solo ? { lives: Math.max(0, g.lives - 1), score: g.score } : {}); App.play(App.level, opt, App.mine); });
+      this.on(r, "[data-edit]", () => Editor.open());
+      this.on(r, "[data-quit]", () => { if (App.net) { if (App.net.role === "host") App.net.broadcast({ t: "bye", why: "The host left." }); setTimeout(() => App.net && App.net.reset(), 100); } App.toMenu(); });
+    }, false);
+  },
+  soloOver(g, won) {
+    this.show(`<h2>${won ? "Campaign complete" : "Game over"}</h2>
+      <p>${won ? "Every vault emptied." : "Out of runners on " + esc(g.name) + "."}</p>
+      <table class="res"><tr><th>Score</th><td>${g.score}</td></tr><tr><th>Reached</th><td>Level ${g.no + 1}</td></tr></table>
+      <div class="row">${won ? "" : `<button class="primary" data-retry>Try this level again</button>`}<button data-levels>Levels</button><button data-menu>Menu</button></div>`, r => {
+      this.on(r, "[data-retry]", () => App.play(App.level, Object.assign({}, App.opt, { lives: 5, score: 0 }), App.mine));
+      this.on(r, "[data-levels]", () => this.solo());
+      this.on(r, "[data-menu]", () => App.toMenu());
+    }, false);
+  },
+  results(g) {
+    const N = App.net, client = N && N.role === "client", host = N && N.role === "host";
+    const ps = g.players.slice().sort((a, b) => b.pts - a.pts || b.gold - a.gold);
+    const vs = isVs(g);
+    let title = g.over.k === "clear" ? "Level clear" : g.over.k === "gameover" ? "Game over" : vs ? (ps[0].pts > (ps[1] ? ps[1].pts : -1) ? (ps[0].name || PNAME[ps[0].idx]) + " wins" : "Draw") : "Time up";
+    if (g.over.k === "race") title = (g.players[g.over.w].name || PNAME[g.over.w]) + " escaped first";
+    const rows = (vs ? ps : g.players).map(p => `<tr><td><span class="dot" style="display:inline-block;vertical-align:-2px;background:${p.col}"></span> ${esc(p.name || PNAME[p.idx])}</td>${vs ? `<td>${p.pts}</td>` : ""}<td>${p.gold}</td>${vs ? `<td>${p.kills}</td>` : ""}<td>${p.deaths}</td></tr>`).join("");
+    this.show(`<h2>${esc(title)}</h2>
+      <p>${MODES[g.mode]} · ${esc(g.name)}${g.mode === "coop" ? " · score " + g.score : ""}</p>
+      <table class="res"><tr><th>Runner</th>${vs ? "<th>Points</th>" : ""}<th>Gold</th>${vs ? "<th>Traps</th>" : ""}<th>Deaths</th></tr>${rows}</table>
+      <div class="row">${client ? `<span class="note">Waiting for the host…</span><button data-leave>Leave</button>` :
+        `<button class="primary" data-again>Play again</button>${host ? `<button data-lobby>Back to lobby</button>` : `<button data-change>Change level</button>`}<button data-menu>${host ? "Close room" : "Menu"}</button>`}</div>`, r => {
+      this.on(r, "[data-again]", () => { if (host) N.startMatch(); else App.play(App.level, Object.assign({}, App.opt), App.mine); });
+      this.on(r, "[data-lobby]", () => { App.screen = "lobby"; App.game = null; N.lobby(); });
+      this.on(r, "[data-change]", () => this.local(App.opt.mode));
+      this.on(r, "[data-menu]", () => { if (host) { N.broadcast({ t: "bye", why: "The host closed the room." }); setTimeout(() => N.reset(), 100); } App.toMenu(); });
+      this.on(r, "[data-leave]", () => { N.reset(); App.toMenu(); });
+    }, false);
+  },
+  help() {
+    this.show(`<h2>How to play</h2>
+      <p>Take every chest of gold. When the last one is gone, exit ladders appear (climb off the top) and exit doors open. Monks kill on touch. Dig a hole beside you and a monk that falls in is stuck for a moment and drops any gold it carried; if the hole closes on it, it reappears at the top. Holes close on you too.</p>
+      <h3>Terrain</h3>
+      <div class="grid" id="hTiles"></div>
+      <h3>Tools (carry one at a time)</h3>
+      <div class="grid" id="hTools"></div>
+      <h3>Other pick-ups</h3>
+      <div class="grid" id="hExtras"></div>
+      <h3>Tricks</h3>
+      <p>Monks wait until you make your first move, and they pocket tools they walk over. Stand on a trapped monk's head to cross a hole, or to keep it there until the hole closes. Stuck in a hole? Tap up quickly to climb out before it closes. Phase blocks blink before they change; whatever is inside when one returns is crushed.</p>
+      <h3>Modes</h3>
+      <p><b>Co-op</b>: shared lives through the campaign. <b>Gold Rush</b>: respawning gold, nuggets worth 3, trap rivals for 2. <b>Race</b>: first out after the last chest scores 3 and wins. In versus, outlined tools belong to the runner of that colour, snares are invisible to rivals, gas and snares stop rivals too, and tools come back 12 seconds after pickup.</p>
+      <div class="row"><button data-back>Back</button></div>`, r => {
+      const tile = (img, name, tip) => `<button disabled style="opacity:1;cursor:default"><span style="display:flex;gap:8px;align-items:center"><img src="${img.toDataURL()}" width="20" height="22" style="image-rendering:pixelated;background:#000;border-radius:2px">${name}</span><small>${tip}</small></button>`;
+      $("#hTiles").innerHTML = [[ART.brick, "Brick", "dig it; it grows back"], [ART.rock, "Bedrock", "only a jackhammer or mega bomb"], [ART.brick, "Trapdoor", "looks like brick, drops you"], [ART.phaseA, "Phase block", "vanishes and returns on a timer"], [ART.goo, "Goo", "slows anyone walking on it; can't be dug"], [ART.ladder, "Ladder and rope", "climb, slide down; hang and drop"], [ART.lock, "Locked door", "walk into it with a key"], [mk(TW, TH, c => { c.fillStyle = "#1d7a2a"; c.fillRect(0, 3, TW, 8); c.fillStyle = "#5fe05f"; c.fillRect(0, 2, TW, 1); }), "Acid", "deadly to touch, for monks too"], [mk(TW, TH, c => { c.fillStyle = TELE_COL[5]; c.fillRect(1, 10, 8, 1); c.fillRect(2, 9, 1, 1); c.fillRect(7, 9, 1, 1); c.fillRect(4, 5, 1, 1); }), "Teleporter", "step on it to appear at its twin"]].map(a => tile(...a)).join("");
+      $("#hTools").innerHTML = Object.entries(TOOLS).map(([k, t]) => tile(ICON_IMG[k], t.name, t.tip)).join("");
+      $("#hExtras").innerHTML = Object.entries(EXTRAS).map(([k, t]) => tile(ICON_IMG[k], t.name, t.tip)).join("");
+      this.on(r, "[data-back]", () => this.menu());
+    });
+  },
+};
+
+// ---------------------------------------------------------------- level editor
+const PALETTE = [[" ", "Erase"], ["#", "Brick"], ["@", "Bedrock"], ["X", "Trapdoor"], ["H", "Ladder"], ["-", "Rope"], ["S", "Exit ladder"], ["E", "Exit door"], ["$", "Gold"], ["0", "Monk"],
+  ["1", "Start P1"], ["2", "P2"], ["3", "P3"], ["4", "P4"], ["%", "Phase A"], ["&", "Phase B"], ["~", "Goo"], ["=", "Acid"], ["D", "Locked door"],
+  ["5", "Pad 5"], ["6", "Pad 6"], ["7", "Pad 7"], ["8", "Pad 8"], ["9", "Pad 9"], ...Object.entries(TOOLS).map(([k, t]) => [k, t.name]), ...Object.entries(EXTRAS).map(([k, t]) => [k, t.name])];
+const Editor = {
+  map: null, tool: "#", name: "My level", night: false, slot: -1,
+  blank() { const m = new Array(W * H).fill(" "); for (let x = 0; x < W; x++) m[(H - 1) * W + x] = "#"; m[(H - 2) * W + 2] = "1"; return m; },
+  open(msg) {
+    if (!this.map) { const d = Store.get("draft", null); if (d) Object.assign(this, d); else this.map = this.blank(); }
+    App.screen = "editor"; App.game = null; Sfx.falling(false); UI.hide();
+    $("#edbar").hidden = false; $("#edName").value = this.name; $("#edNight").checked = this.night;
+    this.palette(); this.list();
+    if (msg) toast(msg);
+  },
+  close() { $("#edbar").hidden = true; this.saveDraft(); UI.menu(); },
+  saveDraft() { Store.set("draft", { map: this.map, name: this.name, night: this.night, slot: this.slot }); },
+  palette() {
+    $("#palette").innerHTML = "";
+    for (const [c, label] of PALETTE) {
+      const b = document.createElement("button"); b.className = this.tool === c ? "sel" : ""; b.title = label;
+      const k = mk(TW, TH, x => this.cell(x, c, 0, 0)); k.style.cssText = "width:20px;height:22px";
+      const ic = document.createElement("canvas"); ic.width = TW; ic.height = TH; ic.getContext("2d").drawImage(k, 0, 0);
+      b.append(ic, document.createTextNode(label));
+      b.onclick = () => { this.tool = c; this.palette(); };
+      $("#palette").append(b);
+    }
+  },
+  list() {
+    const s = $("#edOpen"); s.innerHTML = `<option value="">Open…</option>` + custom().map((l, i) => `<option value="${i}">${esc(l.name)}</option>`).join("");
+  },
+  cell(x, c, X, Y) { // draw one palette/map cell
+    const img = { "#": ART.brick, "@": ART.rock, X: ART.trapEd, H: ART.lad[Y % 4], "-": ART.rope, S: ART.ladEd[Y % 4], E: ART.doorEd, $: ART.gold, "%": ART.phaseA, "&": ART.phaseB, "~": ART.goo, D: ART.lock }[c];
+    if (img) x.drawImage(img, X, Y);
+    else if (c === "=" || (c >= "5" && c <= "9")) { const o = ctx; ctx = x; c === "=" ? drawLiquid(X, Y, 0, 0) : drawPad(X, Y, 0, c, true); ctx = o; }
+    else if (ICON_IMG[c]) x.drawImage(ICON_IMG[c], X, Y);
+    else if (c === "0") x.drawImage(sprite("st", "#c46bff", false, true), X, Y);
+    else if ("1234".includes(c)) x.drawImage(sprite("st", PCOL[+c - 1], false, false), X, Y);
+  },
+  level() { const rows = []; for (let y = 0; y < H; y++) rows.push(this.map.slice(y * W, y * W + W).join("").replace(/ /g, ".")); return { name: this.name.trim() || "My level", map: rows, night: this.night || undefined }; },
+  load(lv) { this.map = lv.map.join("").replace(/\./g, " ").split(""); while (this.map.length < W * H) this.map.push(" "); this.name = lv.name; this.night = !!lv.night; $("#edName").value = this.name; $("#edNight").checked = this.night; this.saveDraft(); },
+  paint(x, y, c) {
+    if (!inb(x, y)) return;
+    const k = y * W + x; if (this.map[k] === c) return;
+    if ("1234".includes(c)) { const o = this.map.indexOf(c); if (o >= 0) this.map[o] = " "; }
+    this.map[k] = c; this.dirty = true;
+  },
+  draw() {
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, SW, SH);
+    ctx.fillStyle = "#101010"; for (let x = 0; x <= W; x++) ctx.fillRect(x * TW, 0, 1, PH); for (let y = 0; y <= H; y++) ctx.fillRect(0, y * TH, SW, 1);
+    for (let k = 0; k < W * H; k++) this.cell(ctx, this.map[k], (k % W) * TW, ((k / W) | 0) * TH);
+    if (this.hover) { ctx.fillStyle = "rgba(255,210,63,.5)"; const [x, y] = this.hover; ctx.fillRect(x * TW, y * TH, TW, 1); ctx.fillRect(x * TW, y * TH + TH - 1, TW, 1); ctx.fillRect(x * TW, y * TH, 1, TH); ctx.fillRect(x * TW + TW - 1, y * TH, 1, TH); }
+    drawStatus({ gold: [], monks: [] }, { editor: true, name: this.name });
+    const gold = this.map.filter(c => c === "$").length, mk2 = this.map.filter(c => c === "0").length;
+    const info = gold + "$ " + mk2 + "M"; text(ctx, info, SW - textW(info) - 2, PH + 5, "#ffd23f");
+  },
+  test() {
+    const lv = this.level();
+    if (!lv.map.join("").includes("1")) { toast("Place a P1 start first."); return; }
+    if (!lv.map.join("").includes("$")) { toast("Add some gold."); return; }
+    const flat = lv.map.join("");
+    if (!flat.includes("S") && !flat.includes("E") && !lv.map[0].includes("H")) toast("Tip: add an exit ladder or door, or a ladder reaching the top row.");
+    this.saveDraft(); $("#edbar").hidden = true;
+    App.play(lv, { mode: "solo", players: [{}], no: 0, lives: 0, test: true }, [0]);
+  },
+};
+(() => {
+  const cellAt = e => { const r = cv.getBoundingClientRect(); return [Math.floor((e.clientX - r.left) / r.width * SW / TW), Math.floor((e.clientY - r.top) / r.height * SH / TH)]; };
+  let painting = null;
+  cv.addEventListener("pointerdown", e => {
+    if (App.screen !== "editor") return; e.preventDefault();
+    painting = e.button === 2 ? " " : Editor.tool; const [x, y] = cellAt(e);
+    if (y < H) Editor.paint(x, y, painting);
+    cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener("pointermove", e => {
+    if (App.screen !== "editor") return; const [x, y] = cellAt(e);
+    Editor.hover = y < H ? [x, y] : null;
+    if (painting != null && y < H && !"1234".includes(painting)) Editor.paint(x, y, painting);
+  });
+  const up = () => { if (painting != null) { painting = null; Editor.saveDraft(); } };
+  cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+  cv.addEventListener("pointerleave", () => { Editor.hover = null; });
+  cv.addEventListener("contextmenu", e => { if (App.screen === "editor") e.preventDefault(); });
+  $("#edName").oninput = e => { Editor.name = e.target.value; Editor.saveDraft(); };
+  $("#edNight").onchange = e => { Editor.night = e.target.checked; Editor.saveDraft(); };
+  $("#edTest").onclick = () => Editor.test();
+  $("#edDone").onclick = () => Editor.close();
+  $("#edNew").onclick = () => { if (!confirm("Start a new empty level? Unsaved changes are lost.")) return; Editor.map = Editor.blank(); Editor.name = "My level"; Editor.night = false; Editor.slot = -1; $("#edName").value = Editor.name; $("#edNight").checked = false; Editor.saveDraft(); };
+  $("#edSave").onclick = () => {
+    const all = custom(), lv = Editor.level();
+    if (Editor.slot >= 0 && all[Editor.slot] && all[Editor.slot].name === lv.name) all[Editor.slot] = lv; else { all.push(lv); Editor.slot = all.length - 1; }
+    Store.set("levels", all); Editor.list(); Editor.saveDraft(); toast("Saved \"" + lv.name + "\". It's in Solo, local and online level lists.");
+  };
+  $("#edOpen").onchange = e => { const i = e.target.value; if (i === "") return; Editor.load(custom()[+i]); Editor.slot = +i; e.target.value = ""; toast("Opened " + Editor.name); };
+  $("#edDelete").onclick = () => {
+    const all = custom(); if (Editor.slot < 0 || !all[Editor.slot]) { toast("Open a saved level to delete it."); return; }
+    if (!confirm("Delete \"" + all[Editor.slot].name + "\"?")) return;
+    all.splice(Editor.slot, 1); Store.set("levels", all); Editor.slot = -1; Editor.list(); toast("Deleted");
+  };
+  $("#edExport").onclick = () => { const s = "GR1:" + enc(Editor.level()); navigator.clipboard ? navigator.clipboard.writeText(s).then(() => toast("Level code copied"), () => prompt("Copy this level code", s)) : prompt("Copy this level code", s); };
+  $("#edImport").onclick = () => {
+    const s = prompt("Paste a level code (starts with GR1:)"); if (!s) return;
+    try { const lv = dec(s.replace(/^GR1:/, "")); if (!Array.isArray(lv.map) || lv.map.length !== H) throw 0; lv.map = lv.map.map(r => String(r).slice(0, W).padEnd(W, ".")); lv.name = String(lv.name || "Imported").slice(0, 24); Editor.load(lv); Editor.slot = -1; toast("Imported " + lv.name); }
+    catch (e) { toast("That code didn't work."); }
+  };
+})();
+
+// ---------------------------------------------------------------- main loop
+let last = performance.now();
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  App.frame(dt);
+}
+UI.menu();
+if (qs.get("room")) UI.online();
+requestAnimationFrame(loop);
+// Hooks for the smoke test and screenshot tools.
+window.GoldRaid = { App, LEVELS, newGame, tick, Online, Editor, UI, solid, ladder, held, touch };
+</script>
+</body>
+</html>
