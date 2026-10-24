@@ -49,6 +49,15 @@ def arctic_adventure(pg):
     return "#c"
 
 
+def lode_runner(pg):
+    pg.click("text=Solo")
+    pg.click("#panel [data-i='0']")
+    pg.wait_for_timeout(1500)
+    pg.keyboard.down("ArrowRight"); pg.wait_for_timeout(500); pg.keyboard.up("ArrowRight")
+    pg.keyboard.press("KeyX"); pg.wait_for_timeout(150)
+    return "#c"
+
+
 def spacewar(pg):
     pg.click("#b1")
     pg.wait_for_timeout(300)
@@ -78,7 +87,7 @@ def default(pg):
 
 RECIPES = {"elasto-mania": elasto_mania, "clockwerx": clockwerx,
            "excitebike": excitebike, "arctic-adventure": arctic_adventure,
-           "spacewar": spacewar, "spy-vs-spy": spy_vs_spy}
+           "lode-runner": lode_runner, "spacewar": spacewar, "spy-vs-spy": spy_vs_spy}
 
 # Scale the element shot down in the page and encode it as WebP there, so no image library is needed.
 ENCODE = """async ([src, w]) => {
