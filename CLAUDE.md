@@ -4,7 +4,7 @@ Browser remakes of old games. Live site: https://morbeo.github.io/remakes/
 
 ## Layout
 
-- One folder per game (`elasto-mania/`, `clockwerx/`, `excitebike/`), each with a self-contained `index.html`: no external libraries, graphics drawn in code, sound synthesised.
+- One folder per game (`elasto-mania/`, `clockwerx/`, `excitebike/`, `spy-vs-spy/`, ...), each with a self-contained `index.html`: no external libraries, graphics drawn in code, sound synthesised.
 - Root `index.html` is the landing page; root `README.md` has a table of games. Both must list every game folder.
 - `.github/workflows/pages.yml` deploys on push to `master`: it copies the root `index.html` and every top-level folder that has an `index.html`.
 - Larger games may keep sources and tools beside the built page. `clockwerx/` does: edit `src/`, then run `node tools/build.js`; never hand-edit its `index.html`. See `clockwerx/README.md` for verify, generate and smoke-test commands.
