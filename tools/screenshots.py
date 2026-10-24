@@ -49,6 +49,13 @@ def arctic_adventure(pg):
     return "#c"
 
 
+def little_computer_people(pg):
+    pg.click("#startBtn")
+    pg.evaluate("__tt.S.arrived = true; Object.assign(__tt.DOG, {x: 183, y: 138, state: 'sleep', t: 99}); __tt.act('piano'); __tt.sim(25)")
+    pg.wait_for_timeout(1200)
+    return "#c"
+
+
 def lode_runner(pg):
     pg.click("text=Solo")
     pg.click("#panel [data-i='0']")
@@ -87,7 +94,8 @@ def default(pg):
 
 RECIPES = {"elasto-mania": elasto_mania, "clockwerx": clockwerx,
            "excitebike": excitebike, "arctic-adventure": arctic_adventure,
-           "lode-runner": lode_runner, "spacewar": spacewar, "spy-vs-spy": spy_vs_spy}
+           "little-computer-people": little_computer_people, "lode-runner": lode_runner,
+           "spacewar": spacewar, "spy-vs-spy": spy_vs_spy}
 
 # Scale the element shot down in the page and encode it as WebP there, so no image library is needed.
 ENCODE = """async ([src, w]) => {
