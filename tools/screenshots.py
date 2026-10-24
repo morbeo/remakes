@@ -56,6 +56,18 @@ def little_computer_people(pg):
     return "#c"
 
 
+def spacewar(pg):
+    pg.click("#b1")
+    pg.wait_for_timeout(300)
+    pg.keyboard.down("KeyE")
+    pg.keyboard.down("KeyW"); pg.keyboard.down("KeyD"); pg.wait_for_timeout(500); pg.keyboard.up("KeyD")
+    pg.keyboard.down("KeyS"); pg.wait_for_timeout(900); pg.keyboard.up("KeyS"); pg.keyboard.up("KeyW")
+    pg.keyboard.down("KeyX")
+    pg.add_style_tag(content="#pauseBtn{display:none!important}")
+    pg.wait_for_timeout(300)
+    return "#c"
+
+
 def spy_vs_spy(pg):
     pg.click("#bSolo")
     pg.wait_for_timeout(300)
@@ -73,7 +85,8 @@ def default(pg):
 
 RECIPES = {"elasto-mania": elasto_mania, "clockwerx": clockwerx,
            "excitebike": excitebike, "arctic-adventure": arctic_adventure,
-           "little-computer-people": little_computer_people, "spy-vs-spy": spy_vs_spy}
+           "little-computer-people": little_computer_people, "spacewar": spacewar,
+           "spy-vs-spy": spy_vs_spy}
 
 # Scale the element shot down in the page and encode it as WebP there, so no image library is needed.
 ENCODE = """async ([src, w]) => {
