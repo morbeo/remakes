@@ -94,6 +94,11 @@ def virtua_cop(pg):
     pg.wait_for_timeout(13000)
     return "#stage"
 
+def marble_madness(pg):
+    pg.evaluate("RR.start('opal-pine-42', 4); RR.sim(11, true); RR.S.autoplay = false; RR.snap()")
+    pg.wait_for_timeout(120)
+    return "#c"
+
 
 def default(pg):
     pg.wait_for_timeout(1000)
@@ -103,7 +108,8 @@ def default(pg):
 RECIPES = {"elasto-mania": elasto_mania, "clockwerx": clockwerx,
            "excitebike": excitebike, "arctic-adventure": arctic_adventure,
            "little-computer-people": little_computer_people, "lode-runner": lode_runner,
-           "spacewar": spacewar, "spy-vs-spy": spy_vs_spy, "virtua-cop": virtua_cop}
+           "spacewar": spacewar, "spy-vs-spy": spy_vs_spy, "virtua-cop": virtua_cop,
+           "marble-madness": marble_madness}
 
 # Scale the element shot down in the page and encode it as WebP there, so no image library is needed.
 ENCODE = """async ([src, w]) => {

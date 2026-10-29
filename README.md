@@ -9,6 +9,7 @@ Browser remakes of old games. Each game lives in its own folder as a self-contai
 | Gold Raid | Lode Runner | [lode-runner/](lode-runner/) |
 | Heatline MX | Excitebike | [excitebike/](excitebike/) |
 | Polar Delve | Arctic Adventure | [arctic-adventure/](arctic-adventure/) |
+| Ridge Roller | Marble Madness | [marble-madness/](marble-madness/) |
 | Spring Rider | Elasto Mania | [elasto-mania/](elasto-mania/) |
 | Sunwell Duel | Spacewar | [spacewar/](spacewar/) |
 | Tiny Tenant | Little Computer People | [little-computer-people/](little-computer-people/) |
