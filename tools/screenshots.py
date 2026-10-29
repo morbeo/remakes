@@ -87,6 +87,14 @@ def spy_vs_spy(pg):
     return "#c", (0, 0.03, 0.734, 0.44)
 
 
+def virtua_cop(pg):
+    pg.fill("#seed", "42")
+    pg.wait_for_timeout(800)
+    pg.click("#startBtn")
+    pg.wait_for_timeout(13000)
+    return "#stage"
+
+
 def default(pg):
     pg.wait_for_timeout(1000)
     return "canvas"
@@ -95,7 +103,7 @@ def default(pg):
 RECIPES = {"elasto-mania": elasto_mania, "clockwerx": clockwerx,
            "excitebike": excitebike, "arctic-adventure": arctic_adventure,
            "little-computer-people": little_computer_people, "lode-runner": lode_runner,
-           "spacewar": spacewar, "spy-vs-spy": spy_vs_spy}
+           "spacewar": spacewar, "spy-vs-spy": spy_vs_spy, "virtua-cop": virtua_cop}
 
 # Scale the element shot down in the page and encode it as WebP there, so no image library is needed.
 ENCODE = """async ([src, w]) => {
