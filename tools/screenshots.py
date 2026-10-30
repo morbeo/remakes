@@ -100,6 +100,18 @@ def marble_madness(pg):
     return "#c"
 
 
+def diamond_mine(pg):
+    pg.evaluate("""() => { GS.startRun('quartz-vein-42', 6); const S = GS.S; S.god = true;
+      const d = GS.bfs(S.map, 13, 1, t => t === 0 || t === 4);
+      for (let i = 0; i < d.length; i++) if (d[i] >= 0 && d[i] <= 20) S.dust[i / 27 | 0][i % 27] = false;
+      for (const k of [...S.gems.keys()]) if (d[k] >= 0 && d[k] <= 10) S.gems.delete(k);
+      S.queue.forEach(q => q.wait = 0); S.relT = 0; S.L.release = 0.6; S.score = 4350;
+      GS.sim(5); const k = d.findIndex(v => v === 9); Object.assign(S.P, { x: k % 27, y: k / 27 | 0, inv: 0 });
+      S.carried = [1, 1, 3]; S.msgT = 0; GS.press(1); GS.sim(0.1); GS.release(1); GS.fire(); GS.sim(0.05); }""")
+    pg.wait_for_timeout(100)
+    return "#c"
+
+
 def default(pg):
     pg.wait_for_timeout(1000)
     return "canvas"
@@ -109,7 +121,7 @@ RECIPES = {"elasto-mania": elasto_mania, "clockwerx": clockwerx,
            "excitebike": excitebike, "arctic-adventure": arctic_adventure,
            "little-computer-people": little_computer_people, "lode-runner": lode_runner,
            "spacewar": spacewar, "spy-vs-spy": spy_vs_spy, "virtua-cop": virtua_cop,
-           "marble-madness": marble_madness}
+           "marble-madness": marble_madness, "diamond-mine": diamond_mine}
 
 # Scale the element shot down in the page and encode it as WebP there, so no image library is needed.
 ENCODE = """async ([src, w]) => {

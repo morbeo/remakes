@@ -6,6 +6,7 @@ Browser remakes of old games. Each game lives in its own folder as a self-contai
 | --- | --- | --- |
 | ClockWerx | ClockWerx | [clockwerx/](clockwerx/) |
 | Dead Drop | Spy vs Spy | [spy-vs-spy/](spy-vs-spy/) |
+| Glint Shaft | Diamond Mine | [diamond-mine/](diamond-mine/) |
 | Gold Raid | Lode Runner | [lode-runner/](lode-runner/) |
 | Heatline MX | Excitebike | [excitebike/](excitebike/) |
 | Polar Delve | Arctic Adventure | [arctic-adventure/](arctic-adventure/) |

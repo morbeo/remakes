@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Glint Shaft</title>
+<meta name="theme-color" content="#f4f1ea">
+<style>
+/* Layout: header, pixel canvas with an overlay for menus, touch pad, key legend */
+:root{
+  --paper:#f4f1ea; --panel:#ffffff; --ink:#1c1b19; --muted:#6b665c; --line:#d8d2c4;
+  --accent:#6a3fb5; --accent-soft:#eee6fa;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Courier New",monospace;
+  color-scheme: light;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink)}
+body{font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.wrap{max-width:980px;margin:0 auto;padding-block:16px 28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:12px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 16px}
+h1{margin:0;font:800 clamp(26px,5vw,38px)/1 var(--mono);letter-spacing:.08em}
+h1 span{color:var(--accent)}
+.tag{margin:4px 0 0;color:var(--muted);max-width:62ch}
+.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+button,select,input{font:600 15px/1.2 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink)}
+button{border:2px solid var(--ink);background:var(--panel);border-radius:6px;padding:7px 14px;cursor:pointer}
+button:hover{background:var(--accent-soft)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover{filter:brightness(1.08)}
+select,input[type=text]{border:2px solid var(--line);border-radius:6px;padding:6px 8px;background:#fff;min-width:0}
+.stage{position:relative;border:3px solid var(--ink);border-radius:6px;overflow:hidden;background:#000;width:100%;aspect-ratio:280/192;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#c{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:12px;background:rgba(244,241,234,.6);overflow:auto}
+.overlay[hidden]{display:none}
+.stage.menu{aspect-ratio:auto;min-height:min(70vw,640px);background:var(--paper)}
+.stage.menu #c{position:absolute;inset:0;opacity:.35}
+.stage.menu .overlay{position:relative;min-height:inherit;background:transparent}
+.panel{background:var(--panel);border:2px solid var(--ink);border-radius:8px;padding:16px 18px;width:100%;max-width:600px;box-shadow:0 5px 0 rgba(28,27,25,.18)}
+.panel h2{margin:0 0 4px;font:800 24px/1.1 var(--mono);letter-spacing:.04em}
+.panel h3{margin:14px 0 6px;font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.panel p{margin:0 0 10px;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.menu-list{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));margin-top:10px}
+.menu-list button{padding:12px;text-align:left}
+.menu-list button small{display:block;font-weight:500;color:var(--muted);font-size:13px;margin-top:2px}
+.menu-list button.primary small{color:#e9defa}
+table.res{border-collapse:collapse;width:100%;margin:8px 0;font-variant-numeric:tabular-nums}
+table.res th,table.res td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:right}
+table.res th:first-child,table.res td:first-child{text-align:left}
+.note{font-size:13px;color:var(--muted)}
+details{margin-top:10px}
+summary{cursor:pointer;font-weight:600}
+.pad{display:none;justify-content:space-between;align-items:center;gap:12px;user-select:none;-webkit-user-select:none}
+.pad .dir{display:grid;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,52px);gap:5px}
+.pad .dir .u{grid-column:2;grid-row:1}.pad .dir .l{grid-column:1;grid-row:2}.pad .dir .r{grid-column:3;grid-row:2}.pad .dir .d{grid-column:2;grid-row:3}
+.pad button{padding:0;font-size:16px;touch-action:none;-webkit-touch-callout:none}
+.pad .fire{width:96px;height:96px;border-radius:50%;background:var(--accent);border-color:var(--accent);color:#fff}
+.pad button.on{transform:translateY(2px);filter:brightness(.85)}
+html.touch .pad{display:flex}
+.keys{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:4px 18px;color:var(--muted);font-size:15px;margin:0;padding:0;list-style:none}
+kbd{font:600 13px/1.4 var(--mono);background:var(--panel);border:1px solid var(--line);border-bottom-width:2px;border-radius:3px;padding:0 5px;color:var(--ink)}
+html.touch .keys{display:none}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 14px;border-radius:6px;font-weight:600;z-index:10;max-width:90vw}
+.toast[hidden]{display:none}
+@media (max-width:600px){.panel{padding:12px}.pad .dir{grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,48px)}.pad .fire{width:84px;height:84px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>GLINT <span>SHAFT</span></h1>
+      <p class="tag">A Diamond Mine remake: walk the dust off the tunnels, shoot what crawls out of the den, and bank your diamonds before something takes them.</p>
+    </div>
+    <div class="bar">
+      <button id="bPause" title="Pause (Esc)">Pause</button>
+      <button id="bSound" title="Sound on or off (M)">Sound: on</button>
+    </div>
+  </header>
+  <div class="stage menu" id="stage">
+    <canvas id="c" width="280" height="192" aria-label="Game screen"></canvas>
+    <div class="overlay" id="ov"><div class="panel" id="panel"></div></div>
+  </div>
+  <div class="pad" id="pad">
+    <div class="dir">
+      <button class="u" data-k="0" aria-label="Up">▲</button>
+      <button class="l" data-k="3" aria-label="Left">◀</button>
+      <button class="r" data-k="1" aria-label="Right">▶</button>
+      <button class="d" data-k="2" aria-label="Down">▼</button>
+    </div>
+    <button class="fire" data-k="fire" aria-label="Fire">Fire</button>
+  </div>
+  <ul class="keys" id="keys">
+    <li><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> or <kbd>WASD</kbd> walk (turns are buffered)</li>
+    <li><kbd>Space</kbd>, <kbd>X</kbd> or <kbd>J</kbd> fire the way you face</li>
+    <li><kbd>Esc</kbd> or <kbd>P</kbd> pause, <kbd>M</kbd> sound</li>
+    <li>Gamepad: stick or d-pad, <kbd>A</kbd>/<kbd>B</kbd> fire, <kbd>Start</kbd> pause</li>
+  </ul>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- constants
+const COLS = 27, ROWS = 17, T = 10, OX = 5, OY = 13, W = 280, H = 192;
+const FLOOR = 0, WALL = 1, GATE = 2, DEN = 3, LIFT = 4;
+const LIFT_X = 13, LIFT_Y = 1, EXIT_X = 13, EXIT_Y = 5;
+const DX = [0, 1, 0, -1], DY = [-1, 0, 1, 0];
+const RUN_LEN = 20, STEP = 1 / 120, P_SPEED = 5, B_SPEED = 16;
+const C = { white: "#fff", green: "#3fe03f", violet: "#c45cff", orange: "#ff7a2a", blue: "#3d9cff", deep: "#1f4fc0", night: "#0b2466", dust: "#c0662c", grey: "#8a8a8a" };
+// Monster kinds: speed factor, chance to steer toward the player at a junction, points; dusters lay dust back down
+const MT = {
+  crawler: { col: C.green, sp: 1, chase: 0.3, pts: 100 },
+  stalker: { col: C.violet, sp: 0.82, chase: 0.8, pts: 150 },
+  duster: { col: C.orange, sp: 1.12, chase: 0.15, pts: 200, dusts: true },
+};
+
+// ---------------------------------------------------------------- seeded random
+function hashStr(s) { let h = 1779033703 ^ s.length; for (let i = 0; i < s.length; i++) { h = Math.imul(h ^ s.charCodeAt(i), 3432918353); h = h << 13 | h >>> 19; } h = Math.imul(h ^ h >>> 16, 2246822507); h = Math.imul(h ^ h >>> 13, 3266489909); return (h ^ h >>> 16) >>> 0; }
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const rngFor = s => mulberry(hashStr(s));
+const WORDS_A = ["amber", "basalt", "cobalt", "dusky", "ember", "flint", "garnet", "hollow", "iron", "jade", "lantern", "marble", "nickel", "onyx", "pyrite", "quartz", "rusty", "slate", "topaz", "umber"];
+const WORDS_B = ["adit", "bore", "cavern", "delve", "drift", "gallery", "lode", "pit", "reef", "seam", "shaft", "stope", "tunnel", "vein", "winze"];
+function randomSeed() { const r = Math.random; return WORDS_A[r() * WORDS_A.length | 0] + "-" + WORDS_B[r() * WORDS_B.length | 0] + "-" + (10 + (r() * 90 | 0)); }
+const cleanSeed = s => String(s || "").toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 24);
+function today() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+
+// ---------------------------------------------------------------- mine generation
+const key = (x, y) => y * COLS + x;
+const inDen = (x, y) => x >= 9 && x <= 17 && y >= 5 && y <= 11;
+function bfs(map, sx, sy, ok) {
+  const d = new Int16Array(COLS * ROWS).fill(-1), q = [key(sx, sy)];
+  d[q[0]] = 0;
+  for (let i = 0; i < q.length; i++) {
+    const k = q[i], x = k % COLS, y = k / COLS | 0;
+    for (let dir = 0; dir < 4; dir++) {
+      const nx = x + DX[dir], ny = y + DY[dir];
+      if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) continue;
+      const nk = key(nx, ny);
+      if (d[nk] < 0 && ok(map[ny][nx])) { d[nk] = d[k] + 1; q.push(nk); }
+    }
+  }
+  return d;
+}
+// A shaft: a carved maze over the odd cells, a few walls knocked through for loops, the monster den in
+// the middle behind a corridor ring, the lift at the top. Diamonds favour dead ends away from the lift.
+function generate(seed, s) {
+  const r = rngFor(seed + "/" + s);
+  const map = []; for (let y = 0; y < ROWS; y++) map.push(new Array(COLS).fill(WALL));
+  const stack = [[1, 1]]; map[1][1] = FLOOR;
+  while (stack.length) {
+    const [x, y] = stack[stack.length - 1], opts = [];
+    for (let d = 0; d < 4; d++) { const nx = x + DX[d] * 2, ny = y + DY[d] * 2; if (nx > 0 && nx < COLS - 1 && ny > 0 && ny < ROWS - 1 && map[ny][nx] === WALL) opts.push(d); }
+    if (!opts.length) { stack.pop(); continue; }
+    const d = opts[r() * opts.length | 0];
+    map[y + DY[d]][x + DX[d]] = FLOOR; map[y + DY[d] * 2][x + DX[d] * 2] = FLOOR; stack.push([x + DX[d] * 2, y + DY[d] * 2]);
+  }
+  const loops = Math.max(0.07, 0.16 - s * 0.004);
+  for (let y = 1; y < ROWS - 1; y++) for (let x = 1; x < COLS - 1; x++)
+    if (map[y][x] === WALL && (x + y) % 2 === 1 && r() < loops) map[y][x] = FLOOR;
+  for (let y = 5; y <= 11; y++) for (let x = 9; x <= 17; x++) {
+    const ring = y === 5 || y === 11 || x === 9 || x === 17, inner = y >= 7 && y <= 9 && x >= 11 && x <= 15;
+    map[y][x] = ring ? FLOOR : inner ? DEN : WALL;
+  }
+  map[6][13] = GATE; map[LIFT_Y][LIFT_X] = LIFT;
+  const walk = t => t === FLOOR || t === LIFT;
+  const dist = bfs(map, LIFT_X, LIFT_Y, walk);
+  const dust = [];
+  for (let y = 0; y < ROWS; y++) { dust.push([]); for (let x = 0; x < COLS; x++) dust[y].push(map[y][x] === FLOOR); }
+  const cands = [];
+  for (let y = 1; y < ROWS - 1; y++) for (let x = 1; x < COLS - 1; x++) {
+    const dd = dist[key(x, y)];
+    if (map[y][x] !== FLOOR || dd < 5 || inDen(x, y)) continue;
+    let deg = 0; for (let d = 0; d < 4; d++) if (walk(map[y + DY[d]][x + DX[d]])) deg++;
+    cands.push({ x, y, sc: (deg === 1 ? 14 : 0) + dd * 0.35 + r() * 20 });
+  }
+  cands.sort((a, b) => b.sc - a.sc);
+  const n = Math.min(8 + Math.floor(s * 0.7), 20), gems = new Map(), picked = [];
+  for (const c of cands) {
+    if (picked.length >= n) break;
+    if (picked.some(p => Math.abs(p.x - c.x) + Math.abs(p.y - c.y) < 3)) continue;
+    picked.push(c);
+  }
+  // the farthest pick becomes the amethyst, worth three diamonds
+  let far = 0; picked.forEach((p, i) => { if (dist[key(p.x, p.y)] > dist[key(picked[far].x, picked[far].y)]) far = i; });
+  picked.forEach((p, i) => gems.set(key(p.x, p.y), i === far ? 3 : 1));
+  return { map, dust, gems };
+}
+
+// ---------------------------------------------------------------- pixel font (5x7)
+const FONT = {};
+("A0E11111F111111 B1E11111E11111E C0E11101010110E D1C12111111121C E1F10101E10101F F1F10101E101010 G0E11101711110F " +
+ "H1111111F111111 I0E04040404040E J0702020202120C K11121418141211 L1010101010101F M111B1515111111 N11111915131111 " +
+ "O0E11111111110E P1E11111E101010 Q0E11111115120D R1E11111E141211 S0F10100E01011E T1F040404040404 U1111111111110E " +
+ "V11111111110A04 W1111111515150A X11110A040A1111 Y1111110A040404 Z1F01020408101F 00E11131519110E 1040C040404040E " +
+ "20E11010204081F 31F02040201110E 402060A121F0202 51F101E0101110E 60608101E11110E 71F010204080808 80E11110E11110E " +
+ "90E11110F01020C :000C0C000C0C00 -0000001F000000 .00000000000C0C /01010204081010 !04040404040004 ?0E110102040004 " +
+ "+0004041F040400 '04040800000000 ,000000000C0408 (02040808080402 )08040202020408 >08040201020408 <02040810080402")
+  .split(" ").forEach(s => { const c = s[0], h = s.slice(1); FONT[c] = []; for (let i = 0; i < 7; i++) FONT[c].push(parseInt(h.substr(i * 2, 2) || "0", 16)); });
+function text(ctx, s, x, y, col) {
+  ctx.fillStyle = col || C.white;
+  s = String(s).toUpperCase();
+  for (let i = 0; i < s.length; i++) {
+    const f = FONT[s[i]]; if (f) for (let r = 0; r < 7; r++) { const b = f[r]; if (b) for (let c = 0; c < 5; c++) if (b & (16 >> c)) ctx.fillRect(x + i * 6 + c, y + r, 1, 1); }
+  }
+}
+const textW = s => String(s).length * 6 - 1;
+
+// ---------------------------------------------------------------- art: tiles and sprites drawn in code
+function mk(w, h, f) { const c = document.createElement("canvas"); c.width = w; c.height = h; f(c.getContext("2d")); return c; }
+function pix(ctx, rows, cmap, ox = 0, oy = 0) {
+  rows.forEach((r, y) => { for (let x = 0; x < r.length; x++) { const col = cmap[r[x]]; if (col) { ctx.fillStyle = col; ctx.fillRect(ox + x, oy + y, 1, 1); } } });
+}
+function rockArt(v) {
+  return mk(T, T, c => {
+    const r = mulberry(v * 77 + 5);
+    c.fillStyle = C.deep; c.fillRect(0, 0, T, T);
+    c.fillStyle = C.night; for (let i = 0; i < 9; i++) c.fillRect(r() * T | 0, r() * T | 0, 2, 1);
+    c.fillStyle = C.blue; for (let i = 0; i < 4; i++) c.fillRect(r() * T | 0, r() * T | 0, 1, 1);
+  });
+}
+function dustArt(v) {
+  return mk(T, T, c => {
+    const r = mulberry(v * 131 + 9);
+    c.fillStyle = C.dust;
+    for (let y = 0; y < T; y += 2) for (let x = (y / 2 + v) % 2; x < T; x += 2) if (r() < 0.55) c.fillRect(x, y, 1, 1);
+  });
+}
+const MINER = [
+  ["....ww....", "...oooo...", "..oooooo..", "...wkwk...", "...wwww...", "..wwwwww..", ".w.wwww.w.", "...wwww...", "...w..w...", "..ww..ww.."],
+  ["....ww....", "...oooo...", "..oooooo..", "...wkwk...", "...wwww...", "..wwwwww..", ".w.wwww.w.", "...wwww...", "...w.w....", "...ww.ww.."],
+];
+const BUGS = {
+  crawler: [["..m....m..", "...m..m...", "..mmmmmm..", ".mwkmmwkm.", ".mmmmmmmm.", "mm.mmmm.mm", "..mmmmmm..", ".m.m..m.m.", "m..m..m..m", ""],
+            ["..m....m..", "...m..m...", "..mmmmmm..", ".mwkmmwkm.", ".mmmmmmmm.", ".m.mmmm.m.", "mmmmmmmmmm", "..m.mm.m..", ".m..mm..m.", ""]],
+  stalker: [["...mmmm...", "..mmmmmm..", ".mwwmmwwm.", ".mwkmmwkm.", ".mmmmmmmm.", ".mmmmmmmm.", ".mmmmmmmm.", ".mm.mm.mm.", ".m..m..m..", ""],
+            ["...mmmm...", "..mmmmmm..", ".mwwmmwwm.", ".mkwmmkwm.", ".mmmmmmmm.", ".mmmmmmmm.", ".mmmmmmmm.", ".mmm.mm.m.", "..m..m..m.", ""]],
+  duster: [["m...mm...m", ".m.mmmm.m.", "..mwmmwm..", ".mmmmmmmm.", "mmmmmmmmmm", ".mmmmmmmm.", "..m.mm.m..", ".m..mm..m.", "m........m", ""],
+           ["....mm....", "m..mmmm..m", ".mmwmmwmm.", "..mmmmmm..", "mmmmmmmmmm", ".mmmmmmmm.", "m.m.mm.m.m", "..m.mm.m..", ".m......m.", ""]],
+};
+const GEM = ["", "...wbbb...", "..wbbbbbb.", ".bbbbbbbbb", "..bbbbbbb.", "...bbbbb..", "....bbb...", ".....b....", "", ""];
+const ART = {
+  rock: [0, 1, 2, 3].map(rockArt),
+  dust: [0, 1, 2, 3].map(dustArt),
+  miner: MINER.map(f => mk(T, T, c => pix(c, f, { w: C.white, o: C.orange, k: "#000" }))),
+  bugs: Object.fromEntries(Object.entries(BUGS).map(([k, fs]) => [k, fs.map(f => mk(T, T, c => pix(c, f, { m: MT[k].col, w: C.white, k: "#000" })))])),
+  gem: mk(T, T, c => pix(c, GEM, { w: C.white, b: C.blue })),
+  big: mk(T, T, c => pix(c, GEM, { w: C.white, b: C.violet })),
+  lamp: mk(5, 7, c => pix(c, [".w.", "ooo", "ooo", "o.o"].map(r => "." + r + "."), { w: C.white, o: C.orange })),
+};
+
+// ---------------------------------------------------------------- sound: square-wave blips like the Apple II speaker
+const Sfx = {
+  ac: null, on: true,
+  init() { if (this.ac) { if (this.ac.state === "suspended") this.ac.resume(); return; } try { this.ac = new (window.AudioContext || window.webkitAudioContext)(); this.gain = this.ac.createGain(); this.gain.gain.value = 0.16; this.gain.connect(this.ac.destination); } catch (e) {} },
+  tone(f0, f1, dur, vol = 0.5, delay = 0, type = "square") {
+    if (!this.ac || !this.on) return;
+    const t = this.ac.currentTime + delay, o = this.ac.createOscillator(), g = this.ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(this.gain); o.start(t); o.stop(t + dur + 0.02);
+  },
+  play(n) {
+    switch (n) {
+      case "step": this.tone(1800 + Math.random() * 600, 900, 0.02, 0.12); break;
+      case "shot": this.tone(1400, 300, 0.09, 0.4); break;
+      case "puff": this.tone(220, 90, 0.08, 0.35, 0, "sawtooth"); break;
+      case "kill": this.tone(500, 60, 0.18, 0.5); this.tone(900, 200, 0.1, 0.3, 0.05); break;
+      case "gem": this.tone(1320, 1320, 0.05, 0.35); this.tone(1980, 1980, 0.07, 0.35, 0.05); break;
+      case "bank": [660, 880, 1100, 1320].forEach((f, i) => this.tone(f, f, 0.07, 0.35, i * 0.06)); break;
+      case "hurt": this.tone(700, 70, 0.6, 0.55); break;
+      case "release": this.tone(110, 140, 0.25, 0.3, 0, "sawtooth"); break;
+      case "clear": [523, 659, 784, 1046, 784, 1046].forEach((f, i) => this.tone(f, f, 0.11, 0.4, i * 0.1)); break;
+      case "over": [392, 330, 262, 196].forEach((f, i) => this.tone(f, f * 0.98, 0.22, 0.45, i * 0.2)); break;
+    }
+  },
+};
+
+// ---------------------------------------------------------------- storage (best scores)
+const Store = {
+  get(k, d) { try { const v = localStorage.getItem("glint-shaft-" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("glint-shaft-" + k, JSON.stringify(v)); } catch (e) {} },
+};
+
+// ---------------------------------------------------------------- game state
+const S = { mode: "menu", seed: "", depth: 1, shaft: 1, score: 0, lamps: 3, god: false, t: 0, pops: [], parts: [], mons: [], queue: [] };
+const level = s => ({
+  mSpeed: Math.min(4.4, 2.4 + s * 0.1),
+  maxActive: Math.min(2 + Math.floor(s / 3), 7),
+  release: Math.max(2.5, 8 - s * 0.3),
+  par: 50 + s * 6,
+});
+function pickKind(s, r) {
+  const w = [["crawler", 4], ["stalker", s >= 3 ? 2 + s / 6 : 0], ["duster", s >= 7 ? 1 + s / 8 : 0]];
+  let tot = w.reduce((a, b) => a + b[1], 0), x = r() * tot;
+  for (const [k, v] of w) { if ((x -= v) < 0) return k; }
+  return "crawler";
+}
+function startRun(seed, depth) {
+  Sfx.init();
+  Object.assign(S, { seed: cleanSeed(seed) || randomSeed(), depth, shaft: depth, score: 0, lamps: 3, endless: false, runId: Date.now() });
+  try { history.replaceState(null, "", "?seed=" + S.seed + (depth > 1 ? "&depth=" + depth : "")); } catch (e) {}
+  newShaft();
+  setMode("play");
+}
+function newShaft() {
+  const g = generate(S.seed, S.shaft), L = level(S.shaft);
+  Object.assign(S, g, { L, total: g.gems.size, banked: 0, carried: [], t: 0, mons: [], queue: [], relT: 3, bullet: null, parts: [], pops: [], msg: "SHAFT " + S.shaft, msgT: 2.5, kills: 0, lost: 0, bestCarry: 0,
+    rng: rngFor(S.seed + "/play/" + S.shaft) });
+  for (let i = 0; i < L.maxActive; i++) S.queue.push({ kind: pickKind(S.shaft, S.rng), wait: i * L.release });
+  S.P = { x: LIFT_X, y: LIFT_Y, dir: -1, face: 2, inv: 1.5, anim: 0, cool: 0, buf: -1, bufT: 0 };
+  S.exitF = bfs(S.map, EXIT_X, EXIT_Y, t => t !== WALL && t !== LIFT);
+  S.pTile = -1;
+  bakeWalls();
+}
+
+// ---------------------------------------------------------------- movement on the tile grid
+// Entities sit on tile centres (integers) or between two of them. At each centre choose() picks the next direction.
+function moveEnt(e, sp, dt, pass, choose) {
+  let rem = sp * dt;
+  for (let g = 0; g < 6; g++) {
+    const cx = Math.round(e.x), cy = Math.round(e.y);
+    if (Math.abs(e.x - cx) < 1e-6 && Math.abs(e.y - cy) < 1e-6) {
+      e.x = cx; e.y = cy;
+      const d = choose(e, cx, cy);
+      if (d < 0 || !pass(e, cx + DX[d], cy + DY[d])) { e.dir = -1; return; }
+      e.dir = d;
+    }
+    if (e.dir < 0 || rem <= 1e-9) return;
+    const d = e.dir;
+    const tx = DX[d] > 0 ? Math.floor(e.x + 1e-9) + 1 : DX[d] < 0 ? Math.ceil(e.x - 1e-9) - 1 : e.x;
+    const ty = DY[d] > 0 ? Math.floor(e.y + 1e-9) + 1 : DY[d] < 0 ? Math.ceil(e.y - 1e-9) - 1 : e.y;
+    const dist = Math.abs(tx - e.x) + Math.abs(ty - e.y);
+    if (rem >= dist) { e.x = tx; e.y = ty; rem -= dist; e.anim += dist; }
+    else { e.x += DX[d] * rem; e.y += DY[d] * rem; e.anim += rem; return; }
+  }
+}
+const tileAt = (x, y) => (x < 0 || y < 0 || x >= COLS || y >= ROWS) ? WALL : S.map[y][x];
+const plPass = (e, x, y) => { const t = tileAt(x, y); return t === FLOOR || t === LIFT; };
+const monPass = (m, x, y) => { const t = tileAt(x, y); return t === FLOOR || (m.inDen && (t === DEN || t === GATE)); };
+
+// ---------------------------------------------------------------- input
+const held = [];   // directions in press order; the last one wins
+let fireHeld = false, firePressed = false;
+function press(d) { const i = held.indexOf(d); if (i >= 0) held.splice(i, 1); held.push(d); S.P && (S.P.buf = d, S.P.bufT = 0.2); }
+function release(d) { const i = held.indexOf(d); if (i >= 0) held.splice(i, 1); }
+const KEYDIR = { ArrowUp: 0, KeyW: 0, ArrowRight: 1, KeyD: 1, ArrowDown: 2, KeyS: 2, ArrowLeft: 3, KeyA: 3 };
+addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") { if (e.key === "Enter") clickPrimary(); return; }
+  Sfx.init();
+  if (e.code in KEYDIR) { e.preventDefault(); if (!e.repeat) press(KEYDIR[e.code]); return; }
+  if (e.code === "Space" || e.code === "KeyX" || e.code === "KeyJ") {
+    e.preventDefault();
+    if (S.mode === "play") { if (!e.repeat) firePressed = true; fireHeld = true; }
+    else if (!e.repeat) clickPrimary();
+    return;
+  }
+  if (e.code === "Enter" && S.mode !== "play") { e.preventDefault(); clickPrimary(); }
+  if (e.code === "Escape" || e.code === "KeyP") { e.preventDefault(); togglePause(); }
+  if (e.code === "KeyM") toggleSound();
+});
+addEventListener("keyup", e => {
+  if (e.code in KEYDIR) release(KEYDIR[e.code]);
+  if (e.code === "Space" || e.code === "KeyX" || e.code === "KeyJ") fireHeld = false;
+});
+addEventListener("blur", () => { held.length = 0; fireHeld = false; });
+addEventListener("pointerdown", e => { if (e.pointerType === "touch") document.documentElement.classList.add("touch"); Sfx.init(); }, { capture: true, passive: true });
+if (matchMedia("(pointer:coarse)").matches) document.documentElement.classList.add("touch");
+document.querySelectorAll("#pad button").forEach(b => {
+  const k = b.dataset.k;
+  const down = e => { e.preventDefault(); b.setPointerCapture && b.setPointerCapture(e.pointerId); b.classList.add("on"); if (k === "fire") { firePressed = true; fireHeld = true; } else press(+k); };
+  const up = () => { b.classList.remove("on"); if (k === "fire") fireHeld = false; else release(+k); };
+  b.addEventListener("pointerdown", down); b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up);
+  b.addEventListener("contextmenu", e => e.preventDefault());
+});
+// Swipe on the screen to walk (held until you lift the finger), tap to fire
+const canvas = document.getElementById("c"), ctx = canvas.getContext("2d");
+let swipe = null;
+canvas.addEventListener("pointerdown", e => { if (S.mode !== "play") return; swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, d: -1 }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener("pointermove", e => {
+  if (!swipe || e.pointerId !== swipe.id) return;
+  const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+  if (Math.hypot(dx, dy) < 16) return;
+  const d = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0);
+  if (d !== swipe.d) { if (swipe.d >= 0) release(swipe.d); press(d); swipe.d = d; }
+  swipe.x = e.clientX; swipe.y = e.clientY;
+});
+const endSwipe = e => { if (!swipe || e.pointerId !== swipe.id) return; if (swipe.d >= 0) release(swipe.d); else if (S.mode === "play") firePressed = true; swipe = null; };
+canvas.addEventListener("pointerup", endSwipe); canvas.addEventListener("pointercancel", endSwipe);
+let gpPrev = {}, gpDir = -1;
+function pollPad() {
+  const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(Boolean) : null;
+  if (!gp) return;
+  const b = i => gp.buttons[i] && gp.buttons[i].pressed, ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+  let d = b(12) ? 0 : b(15) ? 1 : b(13) ? 2 : b(14) ? 3 : -1;
+  if (d < 0 && Math.hypot(ax, ay) > 0.5) d = Math.abs(ax) > Math.abs(ay) ? (ax > 0 ? 1 : 3) : (ay > 0 ? 2 : 0);
+  if (d !== gpDir) { if (gpDir >= 0) release(gpDir); if (d >= 0) press(d); gpDir = d; }
+  const f = b(0) || b(1) || b(2);
+  if (f && !gpPrev.f) { if (S.mode === "play") firePressed = true; else clickPrimary(); }
+  if (S.mode === "play") fireHeld = f;
+  if (b(9) && !gpPrev.st) togglePause();
+  gpPrev = { f, st: b(9) };
+}
+
+// ---------------------------------------------------------------- update
+function pop(x, y, txt, col) { S.pops.push({ x, y, txt, col, life: 1.2 }); }
+function burst(x, y, col, n, sp = 40) { for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, v = sp * (0.3 + Math.random()); S.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.3 + Math.random() * 0.4, col }); } }
+const px = x => OX + x * T + T / 2, py = y => OY + y * T + T / 2;
+const multOf = n => 1 + 0.25 * Math.max(0, n - 1);
+function arrive(cx, cy) {
+  if (S.dust[cy][cx]) { S.dust[cy][cx] = false; Sfx.play("step"); if (Math.random() < 0.6) burst(px(cx), py(cy), C.dust, 2, 15); }
+  const k = key(cx, cy);
+  if (S.gems.has(k)) {
+    const v = S.gems.get(k); S.gems.delete(k); S.carried.push(v);
+    S.bestCarry = Math.max(S.bestCarry, S.carried.length);
+    Sfx.play("gem"); burst(px(cx), py(cy), v > 1 ? C.violet : C.blue, 6, 30);
+  }
+  if (S.map[cy][cx] === LIFT && S.carried.length) bank();
+}
+function bank() {
+  const n = S.carried.length, v = S.carried.reduce((a, b) => a + b, 0), m = multOf(n), pts = Math.round(v * 50 * m);
+  S.score += pts; S.banked += n; S.carried = [];
+  pop(px(LIFT_X), py(LIFT_Y) + 6, "+" + pts + (n > 1 ? " X" + m : ""), C.green);
+  Sfx.play("bank");
+  if (!S.gems.size) clearShaft();
+}
+function hurt() {
+  S.lamps--; S.lost += S.carried.length; Sfx.play("hurt");
+  const P = S.P, cx = Math.round(P.x), cy = Math.round(P.y);
+  burst(px(P.x), py(P.y), C.white, 16, 60);
+  // carried diamonds spill into nearby tunnels, so a careful player can win them back
+  if (S.carried.length) {
+    const d = bfs(S.map, cx, cy, t => t === FLOOR), spots = [];
+    for (let i = 0; i < d.length; i++) if (d[i] >= 2 && d[i] <= 7 && !S.gems.has(i) && !inDen(i % COLS, i / COLS | 0)) spots.push(i);
+    for (let i = spots.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [spots[i], spots[j]] = [spots[j], spots[i]]; }
+    S.carried.forEach((v, i) => { const k = spots[i] != null ? spots[i] : key(cx, cy); S.gems.set(k, v); burst(px(k % COLS), py(k / COLS | 0), C.blue, 3, 20); });
+    S.carried = [];
+  }
+  if (S.lamps <= 0) { S.msg = ""; gameOver(); return; }
+  Object.assign(P, { x: LIFT_X, y: LIFT_Y, dir: -1, inv: 2.5 });
+  // the den calls everything home, so a fresh lamp never starts surrounded
+  S.mons.forEach((m, i) => S.queue.push({ kind: m.kind, wait: 1.5 + i * 1.2 }));
+  S.mons = []; S.relT = 2;
+  S.msg = "LAMP LOST"; S.msgT = 1.6;
+}
+function clearShaft() {
+  const bonus = Math.max(0, Math.round(S.L.par - S.t)) * 10;
+  S.score += bonus; S.lastBonus = bonus;
+  Sfx.play("clear");
+  S.extraLamp = S.shaft % 4 === 0 && S.lamps < 5; if (S.extraLamp) S.lamps++;
+  saveBest();
+  setMode(S.shaft >= RUN_LEN && !S.endless ? "win" : "between");
+}
+function gameOver() { Sfx.play("over"); saveBest(); setMode("over"); }
+function nextShaft() { S.shaft++; newShaft(); setMode("play"); }
+function fire() {
+  const P = S.P;
+  if (S.bullet || P.cool > 0) return;
+  P.cool = 0.18;
+  S.bullet = { x: P.x, y: P.y, dir: P.face };
+  Sfx.play("shot");
+}
+function updateBullet(dt) {
+  const b = S.bullet; if (!b) return;
+  let rem = B_SPEED * dt;
+  while (rem > 0) {
+    const st = Math.min(0.25, rem); rem -= st;
+    b.x += DX[b.dir] * st; b.y += DY[b.dir] * st;
+    const cx = Math.round(b.x), cy = Math.round(b.y), t = tileAt(cx, cy);
+    if (t !== FLOOR && t !== LIFT) { burst(px(b.x - DX[b.dir] * 0.5), py(b.y - DY[b.dir] * 0.5), C.white, 3, 25); S.bullet = null; return; }
+    if (S.dust[cy][cx]) { burst(px(b.x), py(b.y), C.dust, 7, 30); Sfx.play("puff"); S.bullet = null; return; }
+    for (const m of S.mons) if (!m.inDen && Math.abs(m.x - b.x) + Math.abs(m.y - b.y) < 0.7) { killMon(m); S.bullet = null; return; }
+  }
+}
+function killMon(m) {
+  const k = MT[m.kind];
+  S.mons.splice(S.mons.indexOf(m), 1);
+  S.score += k.pts; S.kills++;
+  pop(px(m.x), py(m.y) - 4, "+" + k.pts, k.col);
+  burst(px(m.x), py(m.y), k.col, 14, 50);
+  Sfx.play("kill");
+  S.queue.push({ kind: pickKind(S.shaft, S.rng), wait: 4 + S.rng() * 3 });
+}
+function monChoose(m, cx, cy) {
+  if (S.map[cy][cx] === FLOOR) m.inDen = false;
+  if (!m.inDen && MT[m.kind].dusts && !S.dust[cy][cx] && S.rng() < 0.5 && !(Math.round(S.P.x) === cx && Math.round(S.P.y) === cy)) S.dust[cy][cx] = true;
+  const opts = []; for (let d = 0; d < 4; d++) if (monPass(m, cx + DX[d], cy + DY[d])) opts.push(d);
+  if (!opts.length) return -1;
+  const score = f => d => { const v = f[key(cx + DX[d], cy + DY[d])]; return v < 0 ? 9999 : v; };
+  const best = (os, f) => os.reduce((a, d) => f(d) < f(a) ? d : a);
+  if (m.inDen) return best(opts, score(S.exitF));
+  let o = opts.filter(d => d !== (m.dir + 2) % 4); if (!o.length) o = opts;
+  if (S.rng() < MT[m.kind].chase && S.map[S.pTile / COLS | 0][S.pTile % COLS] !== LIFT) return best(o, score(S.pF));
+  return o[S.rng() * o.length | 0];
+}
+function update(dt) {
+  S.t += dt;
+  const P = S.P, L = S.L;
+  P.inv = Math.max(0, P.inv - dt); P.cool = Math.max(0, P.cool - dt);
+  if (S.msgT > 0) S.msgT -= dt;
+  // player
+  const hd = held.length ? held[held.length - 1] : -1;
+  P.bufT -= dt;
+  const want = hd >= 0 ? hd : P.bufT > 0 ? P.buf : -1;
+  if (want >= 0 && P.dir >= 0 && want === (P.dir + 2) % 4) P.dir = want;
+  moveEnt(P, P_SPEED, dt, plPass, (e, cx, cy) => {
+    arrive(cx, cy);
+    if (S.mode !== "play") return -1;
+    if (want >= 0 && plPass(e, cx + DX[want], cy + DY[want])) return want;
+    if (hd >= 0 && e.dir >= 0 && plPass(e, cx + DX[e.dir], cy + DY[e.dir])) return e.dir;
+    if (hd >= 0) e.face = hd;
+    return -1;
+  });
+  if (S.mode !== "play") return;
+  if (P.dir >= 0) P.face = P.dir;
+  const pk = key(Math.round(P.x), Math.round(P.y));
+  if (pk !== S.pTile) { S.pTile = pk; S.pF = bfs(S.map, pk % COLS, pk / COLS | 0, t => t === FLOOR); }
+  if (firePressed || fireHeld) fire();
+  firePressed = false;
+  updateBullet(dt);
+  // den releases
+  for (const q of S.queue) q.wait -= dt;
+  S.relT -= dt;
+  if (S.relT <= 0 && S.mons.length < L.maxActive) {
+    const i = S.queue.findIndex(q => q.wait <= 0);
+    if (i >= 0) {
+      const q = S.queue.splice(i, 1)[0];
+      S.mons.push({ kind: q.kind, x: 13, y: 8, dir: -1, inDen: true, anim: 0 });
+      S.relT = L.release; Sfx.play("release");
+    }
+  }
+  for (const m of S.mons) moveEnt(m, L.mSpeed * MT[m.kind].sp * (m.inDen ? 0.6 : 1), dt, monPass, monChoose);
+  updateBullet(0);
+  if (P.inv <= 0 && !S.god) for (const m of S.mons) if (!m.inDen && Math.abs(m.x - P.x) + Math.abs(m.y - P.y) < 0.75) { hurt(); break; }
+}
+function updateFx(dt) {
+  for (const p of S.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.9; p.vy *= 0.9; p.life -= dt; }
+  S.parts = S.parts.filter(p => p.life > 0);
+  for (const p of S.pops) { p.y -= 12 * dt; p.life -= dt; }
+  S.pops = S.pops.filter(p => p.life > 0);
+}
+
+// ---------------------------------------------------------------- drawing
+let wallLayer = null;
+function bakeWalls() {
+  wallLayer = mk(W, H, c => {
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+      const t = S.map[y][x], X = OX + x * T, Y = OY + y * T;
+      if (t === WALL) c.drawImage(ART.rock[(x * 7 + y * 13) % 4], X, Y);
+    }
+    // den: violet frame, white bars on the gate
+    c.fillStyle = C.violet;
+    c.fillRect(OX + 10 * T + 4, OY + 6 * T + 4, 7 * T - 8, 1); c.fillRect(OX + 10 * T + 4, OY + 11 * T - 5, 7 * T - 8, 1);
+    c.fillRect(OX + 10 * T + 4, OY + 6 * T + 4, 1, 5 * T - 8); c.fillRect(OX + 17 * T - 5, OY + 6 * T + 4, 1, 5 * T - 8);
+    c.fillStyle = "#000"; c.fillRect(OX + 13 * T, OY + 6 * T, T, T);
+    c.fillStyle = C.white; for (let i = 1; i < T; i += 3) c.fillRect(OX + 13 * T + i, OY + 6 * T + 2, 1, T - 4);
+    // lift cage and its cable up through the rock
+    const LX = OX + LIFT_X * T, LY = OY + LIFT_Y * T;
+    c.fillStyle = "#000"; c.fillRect(LX + 4, OY, 2, T);
+    c.fillStyle = C.white; c.fillRect(LX + 4, OY, 1, T + 1);
+    c.fillRect(LX, LY + 1, T, 1); c.fillRect(LX, LY + T - 1, T, 1); c.fillRect(LX, LY + 1, 1, T - 1); c.fillRect(LX + T - 1, LY + 1, 1, T - 1);
+    c.fillStyle = C.green; c.fillRect(LX + 2, LY + 3, 6, 1); c.fillRect(LX + 3, LY + 4, 4, 1); c.fillRect(LX + 4, LY + 5, 2, 1);
+  });
+}
+function draw() {
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+  if (!S.map) { drawAttract(); return; }
+  ctx.drawImage(wallLayer, 0, 0);
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) if (S.dust[y][x]) ctx.drawImage(ART.dust[(x * 3 + y * 5) % 4], OX + x * T, OY + y * T);
+  const tw = S.t * 3;
+  for (const [k, v] of S.gems) {
+    const x = k % COLS, y = k / COLS | 0, X = OX + x * T, Y = OY + y * T;
+    ctx.drawImage(v > 1 ? ART.big : ART.gem, X, Y);
+    if (((tw + k * 0.37) % 4) < 0.25) { ctx.fillStyle = C.white; ctx.fillRect(X + 7, Y, 1, 3); ctx.fillRect(X + 6, Y + 1, 3, 1); }
+  }
+  // monsters waiting in the den
+  const seats = [[11, 8], [15, 8], [12, 9], [14, 9], [11, 7], [15, 7], [12, 7], [14, 7]];
+  S.queue.forEach((q, i) => { if (i < seats.length) ctx.drawImage(ART.bugs[q.kind][(S.t * 3 + i) & 1], OX + seats[i][0] * T, OY + seats[i][1] * T + (((S.t * 4 + i) & 1) ? 1 : 0)); });
+  for (const m of S.mons) ctx.drawImage(ART.bugs[m.kind][(m.anim * 2 | 0) & 1], Math.round(OX + m.x * T), Math.round(OY + m.y * T));
+  const P = S.P;
+  if (S.mode !== "over" && !(P.inv > 0 && ((S.t * 12) | 0) % 2)) {
+    const X = Math.round(OX + P.x * T), Y = Math.round(OY + P.y * T);
+    ctx.drawImage(ART.miner[(P.anim * 2 | 0) & 1], X, Y);
+    // lamp beam shows which way you face
+    ctx.fillStyle = C.white;
+    const bx = X + 4 + DX[P.face] * 6, by = Y + 4 + DY[P.face] * 6;
+    ctx.fillRect(bx, by, DX[P.face] ? 2 : 2, DY[P.face] ? 2 : 2);
+    if (S.carried.length) text(ctx, S.carried.length, X + T - 1, Y - 6, C.blue);
+  }
+  if (S.bullet) { const b = S.bullet; ctx.fillStyle = C.white; ctx.fillRect(Math.round(px(b.x)) - 1, Math.round(py(b.y)) - 1, 2, 2); ctx.fillStyle = C.orange; ctx.fillRect(Math.round(px(b.x - DX[b.dir] * 0.3)) - 1, Math.round(py(b.y - DY[b.dir] * 0.3)) - 1, 2, 2); }
+  for (const p of S.parts) { ctx.fillStyle = p.col; ctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); }
+  for (const p of S.pops) text(ctx, p.txt, Math.round(p.x - textW(p.txt) / 2), Math.round(p.y), p.col);
+  drawHud();
+}
+function drawHud() {
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, OY - 1); ctx.fillRect(0, OY + ROWS * T, W, H);
+  text(ctx, "SCORE " + String(S.score).padStart(6, "0"), 4, 3);
+  const sh = "SHAFT " + String(S.shaft).padStart(2, "0");
+  text(ctx, sh, (W - textW(sh)) / 2, 3, C.orange);
+  for (let i = 0; i < S.lamps; i++) ctx.drawImage(ART.lamp, W - 8 - i * 7, 3);
+  const left = S.gems.size + S.carried.length;
+  text(ctx, "LEFT " + left, 4, OY + ROWS * T + 1, C.blue);
+  if (S.carried.length) { const c = "CARRY " + S.carried.length + " X" + multOf(S.carried.length); text(ctx, c, W - 4 - textW(c), OY + ROWS * T + 1, C.green); }
+  else { const c = "BANKED " + S.banked + "/" + S.total; text(ctx, c, W - 4 - textW(c), OY + ROWS * T + 1, C.grey); }
+  if (S.msgT > 0 && S.msg) {
+    const w = textW(S.msg) + 8, x = (W - w) / 2 | 0, y = OY + 3 * T + 2;
+    ctx.fillStyle = "#000"; ctx.fillRect(x, y, w, 11); ctx.fillStyle = C.white; ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y + 10, w, 1);
+    text(ctx, S.msg, x + 4, y + 2);
+  }
+}
+// title screen backdrop: a mine generated from the clock
+let attract = null;
+function drawAttract() {
+  if (!attract) attract = generate("attract", 4);
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+    const t = attract.map[y][x], X = OX + x * T, Y = OY + y * T;
+    if (t === WALL) ctx.drawImage(ART.rock[(x * 7 + y * 13) % 4], X, Y);
+    else if (attract.dust[y][x]) ctx.drawImage(ART.dust[(x * 3 + y * 5) % 4], X, Y);
+    if (attract.gems.has(key(x, y))) ctx.drawImage(attract.gems.get(key(x, y)) > 1 ? ART.big : ART.gem, X, Y);
+  }
+}
+
+// ---------------------------------------------------------------- menus
+const stage = document.getElementById("stage"), ov = document.getElementById("ov"), panel = document.getElementById("panel");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+function bestList() { return Store.get("best", []); }
+function saveBest() {
+  const b = bestList(), entry = { run: S.runId, score: S.score, seed: S.seed, shaft: S.shaft, depth: S.depth, date: today() };
+  const prev = b.find(e => e.run === S.runId);
+  if (prev) Object.assign(prev, entry); else b.push(entry);
+  b.sort((a, c) => c.score - a.score);
+  Store.set("best", b.slice(0, 8));
+}
+function shareUrl() { const u = new URL(location.href); u.search = "?seed=" + S.seed + (S.depth > 1 ? "&depth=" + S.depth : ""); return u.href; }
+function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, 1800); }
+const params = new URLSearchParams(location.search);
+function menuHtml() {
+  const shared = cleanSeed(params.get("seed")), depth = Math.min(17, Math.max(1, +params.get("depth") || 1));
+  const best = bestList();
+  return `<h2>GLINT SHAFT</h2>
+  <p>Twenty shafts, each one a fresh mine dug from a seed. Walk the tunnels to blow the dust away, carry diamonds back to the lift, and shoot the crawlers that leave the den. Your shots die in dust, so clear a corridor before you fight in it.</p>
+  <div class="menu-list">
+    ${shared ? `<button class="primary" data-act="shared">Play shared seed<small>${esc(shared)}${depth > 1 ? ", from shaft " + depth : ""}</small></button>` : ""}
+    <button class="${shared ? "" : "primary"}" data-act="new">New run<small>A random seed, from shaft 1</small></button>
+    <button data-act="daily">Daily mine<small>Everyone gets the same seed today</small></button>
+  </div>
+  <details><summary>Choose a seed and starting shaft</summary>
+    <div class="row"><input type="text" id="seedIn" maxlength="24" placeholder="any word or number" aria-label="Seed" value="${esc(shared)}">
+    <select id="depthIn" aria-label="Starting shaft">${[1, 5, 9, 13, 17].map(d => `<option value="${d}"${d === depth ? " selected" : ""}>Shaft ${d}</option>`).join("")}</select>
+    <button data-act="custom">Start</button></div>
+  </details>
+  ${best.length ? `<h3>Best runs on this device</h3><table class="res"><tr><th>Seed</th><th>Shaft</th><th>Score</th></tr>${best.slice(0, 5).map(e => `<tr><td>${esc(e.seed)}</td><td>${e.shaft}</td><td>${e.score}</td></tr>`).join("")}</table>` : ""}
+  <details><summary>How to play</summary>
+    <ul class="note">
+      <li>Every tunnel starts thick with dust. Walking over a tile clears it; bullets stop dead in dust.</li>
+      <li>Diamonds you pick up are only carried. Step onto the lift at the top to bank them. Banking several at once multiplies the points (x1.25 per extra diamond).</li>
+      <li>If a crawler touches you, you lose a lamp and the diamonds you carry spill into nearby tunnels.</li>
+      <li>Green crawlers wander, violet stalkers hunt you, and orange dusters lay dust back down from shaft 7.</li>
+      <li>The violet stone is worth three diamonds. Clear a shaft fast for a time bonus. Every fourth shaft returns a lamp.</li>
+    </ul>
+  </details>`;
+}
+function setMode(m) {
+  S.mode = m;
+  held.length = 0; fireHeld = false;
+  const showPanel = m !== "play";
+  ov.hidden = !showPanel;
+  stage.classList.toggle("menu", m === "menu");
+  document.getElementById("bPause").textContent = m === "pause" ? "Resume" : "Pause";
+  if (!showPanel) { canvas.focus && canvas.focus(); return; }
+  if (m === "menu") panel.innerHTML = menuHtml();
+  if (m === "pause") panel.innerHTML = `<h2>PAUSED</h2><p>Seed <b>${esc(S.seed)}</b>, shaft ${S.shaft}.</p>
+    <div class="row"><button class="primary" data-act="resume">Resume</button><button data-act="copy">Copy seed link</button><button data-act="menu">Quit to menu</button></div>`;
+  if (m === "between" || m === "win") panel.innerHTML = `<h2>${m === "win" ? "THE MINE IS EMPTY" : "SHAFT " + S.shaft + " CLEARED"}</h2>
+    ${m === "win" ? `<p>You emptied all ${RUN_LEN} shafts of seed <b>${esc(S.seed)}</b>. The tunnels go deeper if you want them.</p>` : ""}
+    <table class="res"><tr><td>Time</td><td>${S.t.toFixed(1)} s</td></tr><tr><td>Time bonus</td><td>${S.lastBonus}</td></tr>
+    <tr><td>Crawlers shot</td><td>${S.kills}</td></tr><tr><td>Biggest haul carried</td><td>${S.bestCarry}</td></tr>
+    <tr><td>Score</td><td><b>${S.score}</b></td></tr></table>
+    ${S.extraLamp ? `<p>You found a spare lamp.</p>` : ""}
+    <div class="row"><button class="primary" data-act="${m === "win" ? "endless" : "next"}">${m === "win" ? "Keep digging" : "Descend to shaft " + (S.shaft + 1)}</button>${m === "win" ? `<button data-act="copy">Copy seed link</button><button data-act="menu">Menu</button>` : ""}</div>`;
+  if (m === "over") panel.innerHTML = `<h2>OUT OF LAMPS</h2><p>You reached shaft ${S.shaft} of seed <b>${esc(S.seed)}</b>.</p>
+    <table class="res"><tr><td>Score</td><td><b>${S.score}</b></td></tr><tr><td>Best on this device</td><td>${(bestList()[0] || {}).score || S.score}</td></tr></table>
+    <div class="row"><button class="primary" data-act="retry">Same seed again</button><button data-act="new">New run</button><button data-act="copy">Copy seed link</button><button data-act="menu">Menu</button></div>`;
+  const p = panel.querySelector(".primary"); if (p) p.focus({ preventScroll: true });
+}
+function clickPrimary() { const b = panel.querySelector(".primary"); if (!ov.hidden && b) b.click(); }
+panel.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const a = b.dataset.act;
+  if (a === "new") startRun(randomSeed(), 1);
+  if (a === "daily") startRun("daily-" + today(), 1);
+  if (a === "shared") startRun(params.get("seed"), Math.min(17, Math.max(1, +params.get("depth") || 1)));
+  if (a === "custom") startRun(document.getElementById("seedIn").value, +document.getElementById("depthIn").value);
+  if (a === "retry") startRun(S.seed, S.depth);
+  if (a === "resume") setMode("play");
+  if (a === "next") nextShaft();
+  if (a === "endless") { S.endless = true; nextShaft(); }
+  if (a === "menu") { S.map = null; setMode("menu"); }
+  if (a === "copy") { const u = shareUrl(); (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => toast("Link copied"), () => toast(u)); }
+});
+function togglePause() { if (S.mode === "play") setMode("pause"); else if (S.mode === "pause") setMode("play"); }
+function toggleSound() { Sfx.on = !Sfx.on; document.getElementById("bSound").textContent = "Sound: " + (Sfx.on ? "on" : "off"); Store.set("sound", Sfx.on); }
+document.getElementById("bPause").onclick = e => { e.currentTarget.blur(); togglePause(); };
+document.getElementById("bSound").onclick = e => { e.currentTarget.blur(); Sfx.init(); toggleSound(); };
+if (Store.get("sound", true) === false) { Sfx.on = false; document.getElementById("bSound").textContent = "Sound: off"; }
+document.addEventListener("visibilitychange", () => { if (document.hidden && S.mode === "play") setMode("pause"); });
+
+// ---------------------------------------------------------------- main loop
+let last = 0, acc = 0;
+function frame(ts) {
+  const dt = Math.min(0.1, (ts - last) / 1000 || 0); last = ts;
+  pollPad();
+  if (S.mode === "play") { acc += dt; while (acc >= STEP && S.mode === "play") { update(STEP); acc -= STEP; } } else acc = 0;
+  updateFx(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+setMode("menu");
+requestAnimationFrame(frame);
+
+// hooks for smoke tests and the screenshot tool
+window.GS = {
+  S, generate, startRun, setMode, bfs,
+  sim(sec) { for (let i = 0; i < sec / STEP && S.mode === "play"; i++) { update(STEP); updateFx(STEP); } draw(); },
+  press, release, fire() { firePressed = true; },
+};
+</script>
+</body>
+</html>
