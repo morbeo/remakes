@@ -1,24 +1,35 @@
 # Glint Shaft
 
-A browser remake of Diamond Mine, the 1983 Roklan maze game for the Apple II, Atari 8-bit and Commodore 64. Every shaft is generated from a seed, the graphics are drawn in code in the Apple II hi-res palette and the sound is synthesised square-wave blips, so the page works offline from one file.
+A browser remake of Diamond Mine, the 1983 Roklan game for the Apple II, Atari 8-bit and Commodore 64. Every shaft is generated from a seed, the graphics are drawn in code in the Apple II hi-res palette and the sound is synthesised square-wave blips, so the page works offline from one file.
 
 ## Play
 
-Pick **New run** (random seed), **Daily mine** (one seed per calendar day) or enter your own seed and a starting shaft (1, 5, 9, 13 or 17, like the original's five starting screens). A run is 20 shafts; after that you can keep digging.
+Pick 1 player, 2 players co-op or 2 players versus, then **New run** (random seed), **Daily mine** (one seed per calendar day) or your own seed and starting shaft. A run is 20 shafts; after that you can keep digging.
 
-- Every tunnel starts thick with dust. Walking over a tile clears it, and bullets stop dead in dust, so clear a corridor before you fight in it.
-- Diamonds you pick up are carried, not scored. Step onto the lift at the top to bank them. Banking several at once multiplies the points (x1.25 for each extra diamond), so greed pays if you survive.
-- A crawler touching you costs a lamp, and the diamonds you carry spill into nearby tunnels where you can win them back. Losing a lamp also calls every crawler back into the den.
-- Green crawlers wander, violet stalkers hunt you, and from shaft 7 orange dusters lay dust back down where they walk.
-- The violet stone is worth three diamonds. Clearing a shaft fast earns a time bonus, and every fourth shaft returns a lamp (up to five).
+- Your drill digs through dirt as it drives. It moves faster in tunnels that are already clear, and shots stop in dirt.
+- Each shaft hides eight diamonds. The ones you dig up trail behind the drill. A monster that touches the trail eats that diamond; one that touches the drill wrecks it and spills everything you tow onto the nearest open ground.
+- Drive into the box's green **IN** door to drop raw diamonds off. They are processed one at a time; collect them at the white **OUT** door and take them up the lift at the top right.
+- U-shaped pads teleport you to their twin. From shaft 6 a key is buried in the dirt: monsters shy away from a drill towing it, and it opens the orange pad into a sealed vault holding two of the eight diamonds. Process the key and bring it out for the top bonus.
+- Green crawlers wander, violet hunters chase, and from shaft 5 orange borers tunnel straight through dirt. Shot monsters return from their nests a few seconds later.
+- If a shaft can't be finished, pause and leave it; diamonds still in the mine count as lost.
 
-| | |
+| Points | |
 | --- | --- |
-| Walk | Arrow keys or `W` `A` `S` `D`; turns are buffered, so press the next direction just before a junction |
-| Fire | `Space`, `X` or `J`, in the direction you face (hold a blocked direction to turn on the spot) |
-| Pause, sound | `Esc` or `P`, `M` |
-| Touch | On-screen pad and Fire button, or swipe on the screen to walk and tap to fire |
-| Gamepad | Stick or d-pad, `A`/`B` fire, `Start` pause |
+| Dig up, process | 25 each |
+| Bring a diamond up the lift | 100 |
+| Monster | 75 crawler, 100 hunter, 150 borer |
+| Leaving bonus | 300, 450, 600, 800, 1000 for 4 to 8 diamonds out; 1200 for all eight and the key |
+
+Points rise by half every four shafts. An extra drill comes every 20,000 points.
+
+| | Player 1 | Player 2 |
+| --- | --- | --- |
+| Drive | Arrow keys or `I` `J` `K` `L` | `W` `A` `S` `D` (also player 1 in solo) |
+| Fire | `Space` or `/` | `F` or `1` |
+| Touch | On-screen pad and Fire, or swipe to drive and tap to fire | |
+| Gamepad | First pad | Second pad |
+
+`Esc` or `P` pauses, `M` toggles sound. Turns are buffered, so press the next direction just before a junction. In versus, shooting the other drill stuns it and makes it drop its trail.
 
 ## Seeds
 
@@ -26,4 +37,4 @@ The seed (in the URL as `?seed=`, with `&depth=` for the starting shaft) fixes e
 
 ## How shafts are built
 
-`generate(seed, shaft)` in `index.html` carves a 27x17 tile maze with a depth-first backtracker over the odd cells, then knocks out a share of the remaining walls to make loops (fewer as you go deeper). The den is stamped into the middle: a 5x3 room behind a barred gate, wrapped in a corridor ring that keeps every tunnel connected. The lift sits at the top centre. Diamonds go to dead ends first, spaced apart and weighted away from the lift, and the farthest one becomes the violet stone. Crawler count, speed, release rate and the mix of kinds scale with the shaft number.
+`generate(seed, shaft)` in `index.html` fills a 27x17 grid with dirt, scatters rock outcrops with short random walks, then places the 5x3 processing box with its IN and OUT doors, the lift at the top right, three monster nests with starter tunnels far from the lift, and teleporter pairs from shaft 3 (two pairs from shaft 10). Any pocket the lift can't reach becomes rock, and the layout is retried if a door, nest or pad is cut off. From shaft 6 a rock-walled vault is stamped in with a pad inside, linked to a locked pad elsewhere. Diamonds and the key go into dirt at least six steps from the lift, spaced apart, two of them inside the vault. Monster count, speed, the mix of kinds and point values scale with the shaft number.

@@ -101,13 +101,17 @@ def marble_madness(pg):
 
 
 def diamond_mine(pg):
-    pg.evaluate("""() => { GS.startRun('quartz-vein-42', 6); const S = GS.S; S.god = true;
-      const d = GS.bfs(S.map, 13, 1, t => t === 0 || t === 4);
-      for (let i = 0; i < d.length; i++) if (d[i] >= 0 && d[i] <= 20) S.dust[i / 27 | 0][i % 27] = false;
-      for (const k of [...S.gems.keys()]) if (d[k] >= 0 && d[k] <= 10) S.gems.delete(k);
-      S.queue.forEach(q => q.wait = 0); S.relT = 0; S.L.release = 0.6; S.score = 4350;
-      GS.sim(5); const k = d.findIndex(v => v === 9); Object.assign(S.P, { x: k % 27, y: k / 27 | 0, inv: 0 });
-      S.carried = [1, 1, 3]; S.msgT = 0; GS.press(1); GS.sim(0.1); GS.release(1); GS.fire(); GS.sim(0.05); }""")
+    # drive to the nearest diamonds for a while so the shot shows tunnels and a towed trail
+    pg.evaluate("""() => { GS.startRun('quartz-vein-42', 6, 'solo'); const S = GS.S, C = 27, DX = [0,1,0,-1], DY = [-1,0,1,0]; S.god = true;
+      for (let i = 0; i < 260; i++) { const P = S.players[0], cx = Math.round(P.x), cy = Math.round(P.y);
+        const d = GS.bfs(S.map, [cy * C + cx], t => t !== 2 && t !== 3);
+        let best = -1; for (const k of S.items.keys()) if (d[k] > 0 && (best < 0 || d[k] < d[best])) best = k;
+        for (let q = 0; q < 4; q++) GS.release(0, q);
+        if (best >= 0 && P.trail.length < 4) { let k = best;
+          while (d[k] > 1) { const x = k % C, y = k / C | 0; for (let q = 0; q < 4; q++) { const nk = (y + DY[q]) * C + x + DX[q]; if (d[nk] === d[k] - 1) { k = nk; break; } } }
+          for (let q = 0; q < 4; q++) if ((cy + DY[q]) * C + cx + DX[q] === k) GS.press(0, q); }
+        GS.fire(); GS.sim(0.05); }
+      S.msgT = 0; GS.sim(0.02); }""")
     pg.wait_for_timeout(100)
     return "#c"
 
