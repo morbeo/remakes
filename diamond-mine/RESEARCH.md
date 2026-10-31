@@ -21,6 +21,6 @@ Not to be confused with **Diamond Mine (MRM Software, 1984)** for the BBC Micro 
 
 ## What the remake keeps and changes
 
-Kept: digging, faster cleared paths, eight diamonds per shaft towed as a trail, monsters that eat towed diamonds and respawn when shot, the processing box with in and out sides, exit at the upper right, paired teleporters, the key that scares monsters and opens a special transporter, the scoring table and leaving bonus, extra vehicles every 20,000, 20 shafts, one or two players in co-op or versus.
+Kept: digging, faster cleared paths, eight diamonds per shaft towed as a trail, monsters that come out of a box and eat towed diamonds, the drive-through processing box, exit at the upper right, paired teleporters, the key that scares monsters and opens a special transporter, the scoring table and leaving bonus, extra vehicles every 20,000, 20 shafts, one or two players in co-op or versus.
 
 Changed or added: every shaft is generated from a seed (no original layouts are used), shot monsters stay dead (the box count is the shaft's whole supply) and the ones outside return to the box when you lose a car, wrecked cars spill their trail where it can be recovered, the vault stays open once the key has been found, daily and shareable seed links in place of passwords, starting shaft choice, a leave-shaft option, a colour screen option, buffered turns, touch, swipe and gamepad controls, and local best runs.
