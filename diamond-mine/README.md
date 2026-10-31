@@ -6,21 +6,23 @@ A browser remake of Diamond Mine, the 1983 Roklan game for the Apple II, Atari 8
 
 Pick 1 player, 2 players co-op or 2 players versus, then **New run** (random seed), **Daily mine** (one seed per calendar day) or your own seed and starting shaft. A run is 20 shafts; after that you can keep digging.
 
-- Your drill digs through dirt as it drives. It moves faster in tunnels that are already clear, and shots stop in dirt.
-- Each shaft hides eight diamonds. The ones you dig up trail behind the drill. A monster that touches the trail eats that diamond; one that touches the drill wrecks it and spills everything you tow onto the nearest open ground.
-- Drive into the box's green **IN** door to drop raw diamonds off. They are processed one at a time; collect them at the white **OUT** door and take them up the lift at the top right.
-- U-shaped pads teleport you to their twin. From shaft 6 a key is buried in the dirt: monsters shy away from a drill towing it, and it opens the orange pad into a sealed vault holding two of the eight diamonds. Process the key and bring it out for the top bonus.
-- Green crawlers wander, violet hunters chase, and from shaft 5 orange borers tunnel straight through dirt. Shot monsters return from their nests a few seconds later.
+- The shaft is a grid of cells divided by thin walls. Your car digs through the dirt in each cell as it drives, slower than along tunnels that are already clear. Nothing passes through walls, and shots also stop in dirt.
+- Each shaft hides eight diamonds. The ones you dig up trail behind the car. A monster that touches the trail eats that diamond; one that touches the car wrecks it and spills everything you tow into nearby cells.
+- The processing box is a one-way drive-through, entered from the left. Driving through drops your raw diamonds in; its counter shows how many are processed, and the next pass hands them out at the far end. Take them up the lift in the top right corner.
+- Each shaft's monster box holds a set number of monsters, shown on the box. They come out one at a time and dig at full speed; green ones wander, violet ones hunt. Shot monsters are gone for good, and when you lose a car the ones outside go back into the box.
+- U-shaped pads teleport you to their twin. From shaft 6 a key is buried in the dirt: monsters shy away from a car towing it, and picking it up opens the locked pad into a walled vault holding two of the eight diamonds. Process the key and bring it out for the top bonus.
 - If a shaft can't be finished, pause and leave it; diamonds still in the mine count as lost.
 
 | Points | |
 | --- | --- |
 | Dig up, process | 25 each |
 | Bring a diamond up the lift | 100 |
-| Monster | 75 crawler, 100 hunter, 150 borer |
+| Monster | 75 crawler, 100 hunter |
 | Leaving bonus | 300, 450, 600, 800, 1000 for 4 to 8 diamonds out; 1200 for all eight and the key |
 
-Points rise by half every four shafts. An extra drill comes every 20,000 points.
+Points rise by half every four shafts. An extra car comes every 20,000 points.
+
+The screen starts as a green monochrome monitor like the original; the **Screen** button or `G` switches to Apple II colour.
 
 | | Player 1 | Player 2 |
 | --- | --- | --- |
@@ -29,7 +31,7 @@ Points rise by half every four shafts. An extra drill comes every 20,000 points.
 | Touch | On-screen pad and Fire, or swipe to drive and tap to fire | |
 | Gamepad | First pad | Second pad |
 
-`Esc` or `P` pauses, `M` toggles sound. Turns are buffered, so press the next direction just before a junction. In versus, shooting the other drill stuns it and makes it drop its trail.
+`Esc` or `P` pauses, `M` toggles sound. Turns are buffered, so press the next direction just before a junction. In versus, shooting the other car stuns it and makes it drop its trail.
 
 ## Seeds
 
@@ -37,4 +39,4 @@ The seed (in the URL as `?seed=`, with `&depth=` for the starting shaft) fixes e
 
 ## How shafts are built
 
-`generate(seed, shaft)` in `index.html` fills a 27x17 grid with dirt, scatters rock outcrops with short random walks, then places the 5x3 processing box with its IN and OUT doors, the lift at the top right, three monster nests with starter tunnels far from the lift, and teleporter pairs from shaft 3 (two pairs from shaft 10). Any pocket the lift can't reach becomes rock, and the layout is retried if a door, nest or pad is cut off. From shaft 6 a rock-walled vault is stamped in with a pad inside, linked to a locked pad elsewhere. Diamonds and the key go into dirt at least six steps from the lift, spaced apart, two of them inside the vault. Monster count, speed, the mix of kinds and point values scale with the shaft number.
+`generate(seed, shaft)` in `index.html` builds a 21x13 cell maze with a depth-first backtracker, then knocks out a share of the remaining walls (fewer deeper down) so the shaft has loops as well as nooks and dead ends. It then stamps in walled structures: the lift in the top right corner, the 3x2 processing box (counter on top, one-way lane below), the 3x1 monster box with a door underneath, teleporter pairs from shaft 3 (two from shaft 10), and from shaft 6 a 3x3 vault with a pad inside linked to a locked pad outside. A layout is retried unless the box doors and the monster door can be reached from the lift without driving over a pad. Diamonds and the key go into dirt cells at least four steps from the lift, spaced apart, two of them inside the vault. Monster count, release rate, speed, the share of hunters and point values scale with the shaft number.

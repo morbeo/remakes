@@ -74,11 +74,12 @@ html.touch .keys{display:none}
   <header>
     <div>
       <h1>GLINT <span>SHAFT</span></h1>
-      <p class="tag">A Diamond Mine remake: drill through the dirt, tow the diamonds you find, process them in the box and haul them up the lift before the monsters eat them.</p>
+      <p class="tag">A Diamond Mine remake: dig through the shaft, tow the diamonds you find through the processing box and up the lift before the monsters eat them.</p>
     </div>
     <div class="bar">
       <button id="bPause" title="Pause (Esc)">Pause</button>
       <button id="bSound" title="Sound on or off (M)">Sound: on</button>
+      <button id="bScreen" title="Green monitor or colour (G)">Screen: green</button>
     </div>
   </header>
   <div class="stage menu" id="stage">
@@ -97,7 +98,7 @@ html.touch .keys{display:none}
   <ul class="keys" id="keys">
     <li>Player 1: <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> or <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> drive, <kbd>Space</kbd> or <kbd>/</kbd> fire</li>
     <li>Player 2: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> drive, <kbd>F</kbd> or <kbd>1</kbd> fire (solo: these drive player 1 too)</li>
-    <li><kbd>Esc</kbd> or <kbd>P</kbd> pause, <kbd>M</kbd> sound</li>
+    <li><kbd>Esc</kbd> or <kbd>P</kbd> pause, <kbd>M</kbd> sound, <kbd>G</kbd> green or colour screen</li>
     <li>Gamepads: stick or d-pad, <kbd>A</kbd>/<kbd>B</kbd> fire, <kbd>Start</kbd> pause; the second pad drives player 2</li>
   </ul>
 </div>
@@ -106,17 +107,21 @@ html.touch .keys{display:none}
 <script>
 "use strict";
 // ---------------------------------------------------------------- constants
-const COLS = 27, ROWS = 17, T = 10, OX = 5, OY = 13, W = 280, H = 192;
-const DIRT = 0, FLOOR = 1, ROCK = 2, BOX = 3, IN = 4, OUT = 5, EXIT = 6, TELE = 7, LOCK = 8, NEST = 9, VPAD = 10;
-const EXIT_X = COLS - 2, EXIT_Y = 1;
+// The mine is a grid of cells with thin walls on the gridlines between them. Cells hold dirt until dug out.
+const COLS = 21, ROWS = 13, T = 12, OX = 20, OY = 3, W = 280, H = 192;
+const NORM = 0, EXIT = 1, LANE = 2, BTOP = 3, MBOX = 4, TELE = 5, LOCK = 6, VPAD = 7;
+const EXIT_X = COLS - 1, EXIT_Y = 0;
 const DX = [0, 1, 0, -1], DY = [-1, 0, 1, 0];
-const RUN_LEN = 20, STEP = 1 / 120, RUN = 5, DIG = 2.6, B_SPEED = 16, GAP = 0.95, PROC_TIME = 0.8, LIFE_EVERY = 20000;
-const C = { white: "#fff", green: "#3fe03f", violet: "#c45cff", orange: "#ff7a2a", blue: "#3d9cff", deep: "#1f4fc0", night: "#0b2466", dirt: "#c0662c", grey: "#8a8a8a" };
-// Monster kinds: speed factor, chance to steer toward a player at a junction, points; borers tunnel through dirt
+const RUN_LEN = 20, STEP = 1 / 120, RUN = 4.2, DIG = 2.2, B_SPEED = 14, GAP = 0.9, PROC_TIME = 0.8, LIFE_EVERY = 20000;
+const PAL = {
+  green: { white: "#a8ffa8", green: "#4dff4d", violet: "#4dff4d", orange: "#4dff4d", blue: "#4dff4d", wall: "#3be03b", dirt: "#1f9a1f", grey: "#1f7a1f", dark: "#0c3a0c", p2: "#4dff4d" },
+  color: { white: "#ffffff", green: "#3fe03f", violet: "#c45cff", orange: "#ff7a2a", blue: "#3d9cff", wall: "#3d9cff", dirt: "#c0662c", grey: "#8a8a8a", dark: "#333333", p2: "#ff7a2a" },
+};
+const C = {};
+// Monster kinds: palette colour, chance to steer toward a drill at a junction, points. All of them dig at full speed.
 const MT = {
-  crawler: { col: C.green, sp: 1, chase: 0.3, pts: 75 },
-  hunter: { col: C.violet, sp: 0.85, chase: 0.8, pts: 100 },
-  borer: { col: C.orange, sp: 0.9, chase: 0.5, pts: 150, digs: true },
+  crawler: { col: "green", chase: 0.3, pts: 75 },
+  hunter: { col: "violet", chase: 0.75, pts: 100 },
 };
 const LEAVE_BONUS = [300, 450, 600, 800, 1000]; // for leaving with 4..8 diamonds out; 1200 with all eight and the key
 
@@ -133,114 +138,144 @@ function today() { const d = new Date(); return d.getFullYear() + "-" + String(d
 // ---------------------------------------------------------------- mine generation
 const key = (x, y) => y * COLS + x;
 const kx = k => k % COLS, ky = k => k / COLS | 0;
-const solid = t => t === ROCK || t === BOX;
-function bfs(map, starts, ok) {
+const far = (a, b) => Math.abs(kx(a) - kx(b)) + Math.abs(ky(a) - ky(b));
+const grid = v => Array.from({ length: ROWS }, () => new Array(COLS).fill(v));
+const solidCell = t => t === BTOP || t === MBOX;
+// walls: wE[y][x] is the wall on the east side of a cell, wS[y][x] the one on its south side
+function hasWall(m, x, y, d) {
+  if (d === 0) return y === 0 || m.wS[y - 1][x];
+  if (d === 1) return x === COLS - 1 || m.wE[y][x];
+  if (d === 2) return y === ROWS - 1 || m.wS[y][x];
+  return x === 0 || m.wE[y][x - 1];
+}
+function setWall(m, x, y, d, v) {
+  if (d === 0 && y > 0) m.wS[y - 1][x] = v;
+  if (d === 1 && x < COLS - 1) m.wE[y][x] = v;
+  if (d === 2 && y < ROWS - 1) m.wS[y][x] = v;
+  if (d === 3 && x > 0) m.wE[y][x - 1] = v;
+}
+// rule: player and monster movement between cells, ignoring dirt (both dig)
+function canStep(m, x, y, d, mon) {
+  if (hasWall(m, x, y, d)) return false;
+  const nx = x + DX[d], ny = y + DY[d], t = m.type[ny][nx], here = m.type[y][x];
+  if (solidCell(t)) return false;
+  if ((t === LANE || here === LANE) && d !== 1) return false; // the processing box is a one-way drive-through, west to east
+  if (mon && (t === LANE || t === EXIT)) return false;
+  return true;
+}
+function bfs(m, starts, mon, block) {
   const d = new Int16Array(COLS * ROWS).fill(-1), q = [];
   for (const k of starts) { d[k] = 0; q.push(k); }
   for (let i = 0; i < q.length; i++) {
     const k = q[i], x = kx(k), y = ky(k);
     for (let dir = 0; dir < 4; dir++) {
-      const nx = x + DX[dir], ny = y + DY[dir];
-      if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) continue;
-      const nk = key(nx, ny);
-      if (d[nk] < 0 && ok(map[ny][nx])) { d[nk] = d[k] + 1; q.push(nk); }
+      if (!canStep(m, x, y, dir, mon)) continue;
+      const nk = key(x + DX[dir], y + DY[dir]);
+      if (d[nk] < 0 && !(block && block.has(nk))) { d[nk] = d[k] + 1; q.push(nk); }
     }
   }
   return d;
 }
-function walk(map, r, x, y, len, from, to) {
-  for (let i = 0; i < len; i++) {
-    if (map[y][x] === from) map[y][x] = to;
-    const d = r() * 4 | 0, nx = x + DX[d], ny = y + DY[d];
-    if (nx > 0 && ny > 0 && nx < COLS - 1 && ny < ROWS - 1) { x = nx; y = ny; }
-  }
-}
-const far = (a, b) => Math.abs(kx(a) - kx(b)) + Math.abs(ky(a) - ky(b));
-// A shaft: dirt with rock outcrops, the processing box with its IN and OUT doors, the lift at the top right,
-// monster nests with short tunnels, teleporter pairs, and from shaft 6 a sealed vault reached by a locked pad.
+// A shaft: a maze with a share of its walls knocked out (fewer deeper down), the lift in the top right
+// corner, the drive-through processing box, the monster box, teleporter pairs, and from shaft 6 a walled
+// vault reached through a locked pad.
 function generate(seed, s) {
   const r = rngFor(seed + "/" + s);
   for (let a = 0; a < 80; a++) { const g = tryGenerate(r, s); if (g) return g; }
   throw new Error("could not generate shaft " + s);
 }
 function tryGenerate(r, s) {
-  const map = [];
-  for (let y = 0; y < ROWS; y++) { map.push([]); for (let x = 0; x < COLS; x++) map[y].push(x === 0 || y === 0 || x === COLS - 1 || y === ROWS - 1 ? ROCK : DIRT); }
-  const blobs = 6 + s % 4 + Math.min(4, s / 4 | 0);
-  for (let i = 0; i < blobs; i++) walk(map, r, 2 + r() * (COLS - 4) | 0, 2 + r() * (ROWS - 4) | 0, 4 + r() * 7 | 0, DIRT, ROCK);
-  const bx = 3 + (r() * (COLS - 11) | 0), by = 6 + (r() * 7 | 0);
-  for (let y = by; y < by + 3; y++) for (let x = bx; x < bx + 5; x++) map[y][x] = BOX;
-  const inK = key(bx - 1, by + 1), outK = key(bx + 5, by + 1);
-  map[by + 1][bx - 1] = IN; map[by + 1][bx + 5] = OUT;
-  if (map[by + 1][bx - 2] === ROCK) map[by + 1][bx - 2] = DIRT;
-  if (map[by + 1][bx + 6] === ROCK) map[by + 1][bx + 6] = DIRT;
-  const exitK = key(EXIT_X, EXIT_Y);
-  map[EXIT_Y][EXIT_X] = EXIT; map[EXIT_Y][EXIT_X - 1] = FLOOR; map[EXIT_Y + 1][EXIT_X] = DIRT;
-  const pick = (ok, tries = 200) => { for (let i = 0; i < tries; i++) { const k = key(1 + r() * (COLS - 2) | 0, 1 + r() * (ROWS - 2) | 0); if (ok(k)) return k; } return -1; };
-  const nearBox = k => kx(k) >= bx - 2 && kx(k) <= bx + 6 && ky(k) >= by - 1 && ky(k) <= by + 3;
-  const isDirt = k => map[ky(k)][kx(k)] === DIRT;
-  // nests with their starter tunnels
-  const nests = [];
-  for (let i = 0; i < 3; i++) {
-    const k = pick(k => isDirt(k) && far(k, exitK) >= 13 && !nearBox(k) && nests.every(n => far(n, k) >= 7));
-    if (k < 0) return null;
-    walk(map, r, kx(k), ky(k), 8 + Math.min(10, s), DIRT, FLOOR);
-    map[ky(k)][kx(k)] = NEST; nests.push(k);
+  const m = { wE: grid(true), wS: grid(true), type: grid(NORM), dirt: grid(true) };
+  const seen = grid(false), stack = [[r() * COLS | 0, r() * ROWS | 0]];
+  seen[stack[0][1]][stack[0][0]] = true;
+  while (stack.length) {
+    const [x, y] = stack[stack.length - 1], opts = [];
+    for (let d = 0; d < 4; d++) { const nx = x + DX[d], ny = y + DY[d]; if (nx >= 0 && ny >= 0 && nx < COLS && ny < ROWS && !seen[ny][nx]) opts.push(d); }
+    if (!opts.length) { stack.pop(); continue; }
+    const d = opts[r() * opts.length | 0];
+    setWall(m, x, y, d, false); seen[y + DY[d]][x + DX[d]] = true; stack.push([x + DX[d], y + DY[d]]);
   }
-  for (let i = 0; i < 2; i++) walk(map, r, 2 + r() * (COLS - 4) | 0, 2 + r() * (ROWS - 4) | 0, 10, DIRT, FLOOR);
+  const open = Math.max(0.3, 0.52 - s * 0.012);
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+    if (x < COLS - 1 && m.wE[y][x] && r() < open) m.wE[y][x] = false;
+    if (y < ROWS - 1 && m.wS[y][x] && r() < open) m.wS[y][x] = false;
+  }
+  const used = grid(false);
+  const fits = (x0, y0, w, h, pad) => {
+    if (x0 < 0 || y0 < 0 || x0 + w > COLS || y0 + h > ROWS) return false;
+    for (let y = y0 - pad; y < y0 + h + pad; y++) for (let x = x0 - pad; x < x0 + w + pad; x++) if (x >= 0 && y >= 0 && x < COLS && y < ROWS && used[y][x]) return false;
+    return true;
+  };
+  const claim = (x0, y0, w, h) => { for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) used[y][x] = true; };
+  const enclose = (x0, y0, w, h) => {
+    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
+      setWall(m, x, y, 0, y === y0); setWall(m, x, y, 3, x === x0); setWall(m, x, y, 2, y === y0 + h - 1); setWall(m, x, y, 1, x === x0 + w - 1);
+    }
+  };
+  const place = (w, h, pad, ok, tries = 120) => { for (let i = 0; i < tries; i++) { const x = r() * (COLS - w + 1) | 0, y = r() * (ROWS - h + 1) | 0; if (fits(x, y, w, h, pad) && ok(x, y)) { claim(x, y, w, h); return [x, y]; } } return null; };
+  // the lift: a closed cell in the corner, open to the west
+  const exitK = key(EXIT_X, EXIT_Y);
+  enclose(EXIT_X, EXIT_Y, 1, 1); setWall(m, EXIT_X, EXIT_Y, 3, false);
+  m.type[EXIT_Y][EXIT_X] = EXIT; m.dirt[EXIT_Y][EXIT_X] = false; m.dirt[EXIT_Y][EXIT_X - 1] = false;
+  claim(EXIT_X - 1, EXIT_Y, 2, 2);
+  // processing box: a counter on top, a one-way lane below it with a door at each end
+  const bp = place(5, 2, 0, (x, y) => y >= 2 && y <= ROWS - 3 && x >= 0);
+  if (!bp) return null;
+  const bx = bp[0] + 1, by = bp[1];
+  enclose(bx, by, 3, 2);
+  for (let x = bx; x < bx + 3; x++) { m.type[by][x] = BTOP; m.type[by + 1][x] = LANE; m.dirt[by][x] = m.dirt[by + 1][x] = false; setWall(m, x, by, 2, true); }
+  setWall(m, bx, by + 1, 3, false); setWall(m, bx + 2, by + 1, 1, false);
+  const inK = key(bx - 1, by + 1), outK = key(bx + 3, by + 1);
+  // monster box with its door underneath
+  const mp = place(3, 2, 1, (x, y) => far(key(x + 1, y), exitK) >= 10);
+  if (!mp) return null;
+  const [mx, my] = mp, door = key(mx + 1, my + 1);
+  enclose(mx, my, 3, 1);
+  for (let x = mx; x < mx + 3; x++) { m.type[my][x] = MBOX; m.dirt[my][x] = false; }
+  setWall(m, mx + 1, my, 2, false); m.dirt[my + 1][mx + 1] = false;
   // teleporter pairs
   const tele = new Map(), pads = [];
   const pairs = s >= 10 ? 2 : s >= 3 ? 1 : 0;
   for (let i = 0; i < pairs; i++) {
-    const a = pick(k => isDirt(k) && far(k, exitK) >= 4 && !nearBox(k));
-    const b = a < 0 ? -1 : pick(k => isDirt(k) && far(k, a) >= 12 && !nearBox(k));
-    if (b < 0) return null;
-    map[ky(a)][kx(a)] = TELE; map[ky(b)][kx(b)] = TELE; tele.set(a, b); tele.set(b, a); pads.push(a, b);
+    const a = place(1, 1, 1, (x, y) => far(key(x, y), exitK) >= 4);
+    const b = a && place(1, 1, 1, (x, y) => far(key(x, y), key(a[0], a[1])) >= 11);
+    if (!b) return null;
+    const ka = key(a[0], a[1]), kb = key(b[0], b[1]);
+    m.type[a[1]][a[0]] = m.type[b[1]][b[0]] = TELE; m.dirt[a[1]][a[0]] = m.dirt[b[1]][b[0]] = false; tele.set(ka, kb); tele.set(kb, ka); pads.push(ka, kb);
   }
-  // everything that matters must be reachable from the lift; sealed pockets become rock
-  const must = [inK, outK, ...nests, ...pads];
-  const sealOff = () => {
-    const d = bfs(map, [exitK], t => !solid(t));
-    if (must.some(k => d[k] < 0)) return null;
-    for (let y = 1; y < ROWS - 1; y++) for (let x = 1; x < COLS - 1; x++) if (d[key(x, y)] < 0 && !solid(map[y][x])) map[y][x] = ROCK;
-    return d;
-  };
-  let dist = sealOff(); if (!dist) return null;
-  // the vault: a rock room you can only enter through the locked pad while towing the key
+  // vault: walled 3x3 room, a pad in the middle linked to a locked pad outside
   let vault = null;
   if (s >= 6) {
-    for (let i = 0; i < 40 && !vault; i++) {
-      const vx = 1 + (r() * (COLS - 6) | 0), vy = 1 + (r() * (ROWS - 6) | 0);
-      let ok = far(key(vx + 2, vy + 2), exitK) > 8;
-      for (let y = vy; y < vy + 5 && ok; y++) for (let x = vx; x < vx + 5 && ok; x++) if (![DIRT, ROCK, FLOOR].includes(map[y][x])) ok = false;
-      if (!ok) continue;
-      const saved = map.map(row => row.slice());
-      for (let y = vy; y < vy + 5; y++) for (let x = vx; x < vx + 5; x++) map[y][x] = (x === vx || y === vy || x === vx + 4 || y === vy + 4) ? ROCK : FLOOR;
-      const vpad = key(vx + 2, vy + 2); map[vy + 2][vx + 2] = VPAD;
-      const d = bfs(map, [exitK], t => !solid(t));
-      if (must.some(k => d[k] < 0)) { saved.forEach((row, y) => map[y] = row); continue; }
-      const lock = pick(k => isDirt(k) && d[k] >= 6 && !nearBox(k) && far(k, vpad) >= 8);
-      if (lock < 0) { saved.forEach((row, y) => map[y] = row); continue; }
-      map[ky(lock)][kx(lock)] = LOCK; tele.set(lock, vpad); tele.set(vpad, lock); must.push(lock);
-      vault = { vx, vy, vpad, lock };
-    }
-    if (!vault) return null;
-    const inside = new Set(); for (let y = vault.vy + 1; y < vault.vy + 4; y++) for (let x = vault.vx + 1; x < vault.vx + 4; x++) inside.add(key(x, y));
-    const d = bfs(map, [exitK], t => !solid(t));
-    for (let y = 1; y < ROWS - 1; y++) for (let x = 1; x < COLS - 1; x++) { const k = key(x, y); if (d[k] < 0 && !solid(map[y][x]) && !inside.has(k)) map[y][x] = ROCK; }
-    dist = d;
+    const vp = place(3, 3, 1, (x, y) => far(key(x + 1, y + 1), exitK) >= 8);
+    if (!vp) return null;
+    const [vx, vy] = vp;
+    enclose(vx, vy, 3, 3);
+    for (let y = vy; y < vy + 3; y++) for (let x = vx; x < vx + 3; x++) m.dirt[y][x] = false;
+    const vpad = key(vx + 1, vy + 1); m.type[vy + 1][vx + 1] = VPAD;
+    const lp = place(1, 1, 1, (x, y) => far(key(x, y), vpad) >= 8);
+    if (!lp) return null;
+    const lock = key(lp[0], lp[1]); m.type[lp[1]][lp[0]] = LOCK; m.dirt[lp[1]][lp[0]] = false;
+    tele.set(lock, vpad); tele.set(vpad, lock); pads.push(lock);
+    vault = { vx, vy, vpad, lock };
   }
-  // eight diamonds in the dirt (two of them in the vault), plus the key
+  // everything that matters must be reachable from the lift without driving over a pad, since a pad would
+  // throw you to its twin; pads themselves must be reachable too
+  const padSet = new Set(pads), dist = bfs(m, [exitK], false, padSet);
+  if ([inK, outK, door].some(k => dist[k] < 0)) return null;
+  const reach = bfs(m, [exitK], false);
+  if (pads.some(k => reach[k] < 0)) return null;
+  if (bfs(m, [outK], false, padSet)[inK] < 0) return null;
+  // eight diamonds in the dirt (two in the vault), plus the key
   const items = new Map(), spots = [];
-  if (vault) { items.set(key(vault.vx + 1, vault.vy + 1), "d"); items.set(key(vault.vx + 3, vault.vy + 3), "d"); }
+  if (vault) { items.set(key(vault.vx, vault.vy), "d"); items.set(key(vault.vx + 2, vault.vy + 2), "d"); }
   const cands = [];
-  for (let y = 1; y < ROWS - 1; y++) for (let x = 1; x < COLS - 1; x++) { const k = key(x, y); if (map[y][x] === DIRT && dist[k] >= 6 && !nearBox(k)) cands.push({ k, sc: r() + Math.min(dist[k], 30) / 60 }); }
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) { const k = key(x, y); if (!used[y][x] && m.type[y][x] === NORM && m.dirt[y][x] && dist[k] >= 4) cands.push({ k, sc: r() + Math.min(dist[k], 30) / 50 }); }
   cands.sort((a, b) => b.sc - a.sc);
   const want = 8 - items.size + (vault ? 1 : 0);
   for (const c of cands) { if (spots.length >= want) break; if (spots.every(o => far(o, c.k) >= 3)) spots.push(c.k); }
   if (spots.length < want) return null;
   spots.forEach((k, i) => items.set(k, vault && i === spots.length - 1 ? "k" : "d"));
-  return { map, items, tele, nests, vault, total: 8, box: { bx, by, inK, outK } };
+  return Object.assign(m, { items, tele, vault, total: 8, box: { bx, by, inK, outK }, mbox: { mx, my, door } });
 }
 
 // ---------------------------------------------------------------- pixel font (5x7)
@@ -262,6 +297,7 @@ function text(ctx, s, x, y, col) {
 }
 const textW = s => String(s).length * 6 - 1;
 
+
 // ---------------------------------------------------------------- art: tiles and sprites drawn in code
 function mk(w, h, f) { const c = document.createElement("canvas"); c.width = w; c.height = h; f(c.getContext("2d")); return c; }
 function pix(ctx, rows, cmap, ox = 0, oy = 0) {
@@ -273,22 +309,15 @@ function turn(rows, d) {
   const at = (x, y) => d === 1 ? g[y][x] : d === 3 ? g[y][n - 1 - x] : d === 2 ? g[n - 1 - x][y] : g[x][n - 1 - y];
   return g.map((_, y) => g.map((_, x) => at(x, y)).join(""));
 }
-function rockArt(v) {
-  return mk(T, T, c => {
-    const r = mulberry(v * 77 + 5);
-    c.fillStyle = C.deep; c.fillRect(0, 0, T, T);
-    c.fillStyle = C.night; for (let i = 0; i < 9; i++) c.fillRect(r() * T | 0, r() * T | 0, 2, 1);
-    c.fillStyle = C.blue; for (let i = 0; i < 4; i++) c.fillRect(r() * T | 0, r() * T | 0, 1, 1);
-  });
-}
 function dirtArt(v) {
+  // the stippled fill of an undug cell, like the original's dotted dirt
   return mk(T, T, c => {
     const r = mulberry(v * 131 + 9);
     c.fillStyle = C.dirt;
-    for (let y = 0; y < T; y++) for (let x = (y + v) % 2; x < T; x += 2) if (r() < 0.62) c.fillRect(x, y, 1, 1);
+    for (let y = 1; y < T - 1; y++) for (let x = 1 + (y + v) % 2; x < T - 1; x += 2) if (r() < 0.6) c.fillRect(x, y, 1, 1);
   });
 }
-const DRILL = [
+const CAR = [
   "..........",
   ".bbbbb....",
   ".bkkkb....",
@@ -300,32 +329,34 @@ const DRILL = [
   "t.t.t.t...",
   "..........",
 ];
-const DRILL2 = DRILL.slice(0, 7).concat(["t.t.t.t...", ".t.t.t.t..", ".........."]);
+const CAR2 = CAR.slice(0, 7).concat(["t.t.t.t...", ".t.t.t.t..", ".........."]);
 const BUGS = {
   crawler: [["..m....m..", "...m..m...", "..mmmmmm..", ".mwkmmwkm.", ".mmmmmmmm.", "mm.mmmm.mm", "..mmmmmm..", ".m.m..m.m.", "m..m..m..m", ""],
             ["..m....m..", "...m..m...", "..mmmmmm..", ".mwkmmwkm.", ".mmmmmmmm.", ".m.mmmm.m.", "mmmmmmmmmm", "..m.mm.m..", ".m..mm..m.", ""]],
   hunter: [["...mmmm...", "..mmmmmm..", ".mwwmmwwm.", ".mwkmmwkm.", ".mmmmmmmm.", ".mmmmmmmm.", ".mmmmmmmm.", ".mm.mm.mm.", ".m..m..m..", ""],
            ["...mmmm...", "..mmmmmm..", ".mwwmmwwm.", ".mkwmmkwm.", ".mmmmmmmm.", ".mmmmmmmm.", ".mmmmmmmm.", ".mmm.mm.m.", "..m..m..m.", ""]],
-  borer: [["m...mm...m", ".m.mmmm.m.", "..mwmmwm..", ".mmmmmmmm.", "mmmmmmmmmm", ".mmmmmmmm.", "..m.mm.m..", ".m..mm..m.", "m........m", ""],
-          ["....mm....", "m..mmmm..m", ".mmwmmwmm.", "..mmmmmm..", "mmmmmmmmmm", ".mmmmmmmm.", "m.m.mm.m.m", "..m.mm.m..", ".m......m.", ""]],
 };
 const ROUGH = ["", "", "...bbb....", "..bwbbbb..", ".bbbbbbbb.", ".bbbbbwbb.", "..bbbbbb..", "...bbbb...", "", ""];
 const CUT = ["", "...wbbb...", "..wbbbbbb.", ".bbbbbbbbb", "..bbbbbbb.", "...bbbbb..", "....bbb...", ".....b....", "", ""];
 const KEY = ["", "", "..ooo.....", ".o...o....", ".o...ooooo", ".o...o.o.o", "..ooo.....", "", "", ""];
 const U = ["", ".m......m.", ".m......m.", ".m......m.", ".m......m.", ".m......m.", ".mm....mm.", "..mmmmmm..", "", ""];
-const PLAYER_COL = [C.white, C.orange];
-const ART = {
-  rock: [0, 1, 2, 3].map(rockArt),
-  dirt: [0, 1, 2, 3].map(dirtArt),
-  drill: PLAYER_COL.map(col => [0, 1, 2, 3].map(d => [DRILL, DRILL2].map(f => mk(T, T, c => pix(c, turn(f, d), { b: col, k: "#000", g: C.green, t: C.grey }))))),
-  bugs: Object.fromEntries(Object.entries(BUGS).map(([k, fs]) => [k, fs.map(f => mk(T, T, c => pix(c, f, { m: MT[k].col, w: C.white, k: "#000" })))])),
-  rough: mk(T, T, c => pix(c, ROUGH, { w: C.white, b: C.blue })),
-  cut: mk(T, T, c => pix(c, CUT, { w: C.white, b: C.blue })),
-  key: mk(T, T, c => pix(c, KEY, { o: C.orange })),
-  tele: mk(T, T, c => pix(c, U, { m: C.violet })),
-  lock: mk(T, T, c => { pix(c, U, { m: C.orange }); c.fillStyle = C.orange; c.fillRect(4, 3, 2, 2); c.fillRect(4, 5, 2, 1); }),
-  life: PLAYER_COL.map(col => mk(6, 5, c => pix(c, [".bb...", "bbbbg.", "bbbbgg", "t.t.t."], { b: col, g: C.green, t: C.grey }))),
-};
+const GEM5 = [".www.", "wwwww", ".www.", "..w.."];
+let ART = null;
+const playerCol = i => i === 0 ? C.white : C.p2;
+function buildArt() {
+  ART = {
+    dirt: [0, 1, 2, 3].map(dirtArt),
+    car: [0, 1].map(i => [0, 1, 2, 3].map(d => [CAR, CAR2].map(f => mk(10, 10, c => pix(c, turn(f, d), { b: playerCol(i), k: "#000", g: C.green, t: C.grey }))))),
+    bugs: Object.fromEntries(Object.entries(BUGS).map(([k, fs]) => [k, fs.map(f => mk(10, 10, c => pix(c, f, { m: C[MT[k].col], w: C.white, k: "#000" })))])),
+    rough: mk(10, 10, c => pix(c, ROUGH, { w: C.white, b: C.blue })),
+    cut: mk(10, 10, c => pix(c, CUT, { w: C.white, b: C.blue })),
+    key: mk(10, 10, c => pix(c, KEY, { o: C.orange })),
+    tele: mk(10, 10, c => pix(c, U, { m: C.violet })),
+    lock: mk(10, 10, c => { pix(c, U, { m: C.orange }); c.fillStyle = C.orange; c.fillRect(4, 3, 2, 2); c.fillRect(4, 5, 2, 1); }),
+    gem5: mk(5, 4, c => pix(c, GEM5, { w: C.white })),
+    life: [0, 1].map(i => mk(6, 5, c => pix(c, [".bb...", "bbbbg.", "bbbbgg", "t.t.t."], { b: playerCol(i), g: C.green, t: C.grey }))),
+  };
+}
 
 // ---------------------------------------------------------------- sound: square-wave blips like the Apple II speaker
 const Sfx = {
@@ -351,6 +382,7 @@ const Sfx = {
       case "tick": this.tone(2600, 2600, 0.025, 0.25); break;
       case "out": [659, 554, 659, 880].forEach((f, i) => this.tone(f, f, 0.06, 0.3, i * 0.05)); break;
       case "bank": [660, 880, 1100, 1320].forEach((f, i) => this.tone(f, f, 0.07, 0.35, i * 0.06)); break;
+      case "release": this.tone(110, 140, 0.25, 0.3, 0, "sawtooth"); break;
       case "tele": this.tone(200, 2400, 0.2, 0.3, 0, "triangle"); break;
       case "hurt": this.tone(700, 70, 0.6, 0.55); break;
       case "life": [784, 988, 1175, 1568].forEach((f, i) => this.tone(f, f, 0.08, 0.35, i * 0.07)); break;
@@ -367,14 +399,17 @@ const Store = {
 };
 
 // ---------------------------------------------------------------- game state
-const S = { mode: "menu", seed: "", depth: 1, shaft: 1, players: [], play: Store.get("players", "solo"), god: false, t: 0, pops: [], parts: [], mons: [], monQ: [], bullets: [] };
-const level = s => ({ mSpeed: Math.min(4.2, 2.3 + s * 0.09), mons: Math.min(2 + Math.floor(s / 2), 7), mult: 1 + Math.floor((s - 1) / 4) * 0.5 });
-function pickKind(s, r) {
-  const w = [["crawler", 4], ["hunter", s >= 2 ? 2 + s / 6 : 0], ["borer", s >= 5 ? 1 + s / 8 : 0]];
-  let x = r() * w.reduce((a, b) => a + b[1], 0);
-  for (const [k, v] of w) { if ((x -= v) < 0) return k; }
-  return "crawler";
-}
+
+// ---------------------------------------------------------------- game state
+const S = { mode: "menu", seed: "", depth: 1, shaft: 1, players: [], play: Store.get("players", "solo"), god: false, t: 0, pops: [], parts: [], mons: [], bullets: [] };
+const level = s => ({
+  mSpeed: Math.min(3.9, 2.4 + s * 0.08),
+  monsters: Math.min(3 + Math.floor(s / 2), 12),   // how many the monster box holds this shaft
+  active: Math.min(2 + Math.floor(s / 4), 5),      // how many may be out at once
+  release: Math.max(2, 6 - s * 0.2),
+  mult: 1 + Math.floor((s - 1) / 4) * 0.5,
+});
+const pickKind = (s, r) => r() < (s >= 2 ? Math.min(0.6, 0.2 + s * 0.03) : 0) ? "hunter" : "crawler";
 const mkPlayer = i => ({ id: i, lives: 3, score: 0, nextLife: LIFE_EVERY });
 function startRun(seed, depth, play) {
   Sfx.init();
@@ -390,16 +425,17 @@ function placePlayer(p) {
 }
 function newShaft() {
   const g = generate(S.seed, S.shaft), L = level(S.shaft);
-  Object.assign(S, g, { L, t: 0, mons: [], monQ: [], bullets: [], parts: [], pops: [], procQ: [], stored: [], procT: 0, out: 0, lost: 0, keyOut: false,
-    msg: "SHAFT " + S.shaft, msgT: 2.5, kills: 0, spawnT: 0, fieldT: 0, rng: rngFor(S.seed + "/play/" + S.shaft) });
-  for (let i = 0; i < L.mons; i++) S.monQ.push({ kind: pickKind(S.shaft, S.rng), wait: 2 + i * 1.6 });
-  for (const p of S.players) { placePlayer(p); if (p.lives <= 0) p.dead = Infinity; }
+  S.map = g;
+  Object.assign(S, { items: g.items, tele: g.tele, box: g.box, mbox: g.mbox, vault: g.vault, total: g.total });
+  Object.assign(S, { L, t: 0, mons: [], bullets: [], parts: [], pops: [], procQ: [], stored: [], procT: 0, out: 0, lost: 0, keyOut: false, unlocked: false,
+    msg: "SHAFT " + S.shaft, msgT: 2.5, kills: 0, inBox: L.monsters, relT: 3, fieldT: 0, rng: rngFor(S.seed + "/play/" + S.shaft) });
+  for (const p of S.players) { const lives = p.lives; placePlayer(p); if (lives <= 0) p.dead = Infinity; }
   bake();
 }
 
-// ---------------------------------------------------------------- movement on the tile grid
-// Entities sit on tile centres (integers) or between two of them. At each centre choose() picks the next
-// direction and enter() reacts to the tile about to be entered; speed() can change per tile.
+// ---------------------------------------------------------------- movement on the cell grid
+// Entities sit on cell centres (integers) or between two of them. At each centre choose() picks the next
+// direction and enter() reacts to the cell about to be entered; speed() can change per cell.
 function moveEnt(e, dt, pass, choose, speed, enter) {
   let rem = dt;
   for (let g = 0; g < 6; g++) {
@@ -408,7 +444,7 @@ function moveEnt(e, dt, pass, choose, speed, enter) {
       e.x = cx; e.y = cy;
       const d = choose(e, cx, cy);
       if (Math.round(e.x) !== cx || Math.round(e.y) !== cy) return; // teleported
-      if (d < 0 || !pass(e, cx + DX[d], cy + DY[d])) { e.dir = -1; return; }
+      if (d < 0 || !pass(e, cx, cy, d)) { e.dir = -1; return; }
       e.dir = d;
       if (enter) enter(e, cx + DX[d], cy + DY[d]);
     }
@@ -421,11 +457,9 @@ function moveEnt(e, dt, pass, choose, speed, enter) {
     else { e.x += DX[d] * can; e.y += DY[d] * can; e.anim += can; return; }
   }
 }
-const tileAt = (x, y) => (x < 0 || y < 0 || x >= COLS || y >= ROWS) ? ROCK : S.map[y][x];
-const plPass = (e, x, y) => !solid(tileAt(x, y));
-const OPEN = new Set([FLOOR, NEST, IN, OUT, TELE, LOCK]);
-const monPass = (m, x, y) => { const t = tileAt(x, y); return OPEN.has(t) || (MT[m.kind].digs && t === DIRT); };
-const shotPass = t => t !== DIRT && !solid(t);
+const plPass = (e, x, y, d) => canStep(S.map, x, y, d, false);
+const monPass = (e, x, y, d) => canStep(S.map, x, y, d, true);
+const cellType = (x, y) => S.map.type[y][x];
 
 // ---------------------------------------------------------------- input
 const held = [[], []];   // per player: directions in press order; the last one wins
@@ -454,6 +488,7 @@ addEventListener("keydown", e => {
   }
   if (e.code === "Escape" || e.code === "KeyP") { e.preventDefault(); togglePause(); }
   if (e.code === "KeyM") toggleSound();
+  if (e.code === "KeyG") setPalette(S.screen === "green" ? "color" : "green"), Store.set("screen", S.screen);
 });
 addEventListener("keyup", e => {
   const kd = keyFor(e.code); if (kd) release(kd[0], kd[1]);
@@ -500,6 +535,7 @@ function pollPads() {
   });
 }
 
+
 // ---------------------------------------------------------------- update
 function pop(x, y, txt, col) { S.pops.push({ x, y, txt, col, life: 1.2 }); }
 function burst(x, y, col, n, sp = 40) { for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, v = sp * (0.3 + Math.random()); S.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.3 + Math.random() * 0.4, col }); } }
@@ -508,9 +544,9 @@ const alive = p => p.dead === 0;
 function addScore(p, pts, x, y, col) {
   pts = Math.round(pts * S.L.mult); p.score += pts;
   if (x != null) pop(px(x), py(y) - 4, "+" + pts, col || C.white);
-  while (p.score >= p.nextLife) { p.nextLife += LIFE_EVERY; p.lives++; S.msg = "EXTRA DRILL"; S.msgT = 1.6; Sfx.play("life"); }
+  while (p.score >= p.nextLife) { p.nextLife += LIFE_EVERY; p.lives++; S.msg = "EXTRA CAR"; S.msgT = 1.6; Sfx.play("life"); }
 }
-// The towed trail follows the path the drill drove; item n sits (n+1)*GAP tiles behind it.
+// The towed trail follows the path the car drove; item n sits (n+1)*GAP cells behind it.
 function trailPos(p, n) {
   let need = (n + 1) * GAP, cx = p.x, cy = p.y, jump = false;
   for (let i = p.path.length - 1; i >= 0; i--) {
@@ -522,28 +558,30 @@ function trailPos(p, n) {
 }
 const hasKey = p => p.trail.some(it => it.type === "k");
 function arrive(p, cx, cy) {
-  const k = key(cx, cy), t = S.map[cy][cx];
+  const k = key(cx, cy), t = cellType(cx, cy);
   if (k !== p.last) { p.last = k; if (p.justTele !== k) p.justTele = -1; }
   if (S.items.has(k)) {
     const type = S.items.get(k); S.items.delete(k); p.trail.push({ type, cut: false });
-    if (type === "d") { addScore(p, 25, cx, cy, C.blue); Sfx.play("gem"); } else { S.msg = "KEY: MONSTERS SHY AWAY"; S.msgT = 2; Sfx.play("key"); }
+    if (type === "d") { addScore(p, 25, cx, cy, C.blue); Sfx.play("gem"); } else { S.unlocked = true; S.msg = "KEY: MONSTERS SHY AWAY"; S.msgT = 2; Sfx.play("key"); }
     burst(px(cx), py(cy), type === "d" ? C.blue : C.orange, 6, 30);
   }
-  if (t === IN) {
+  if (t === LANE && cx === S.box.bx + 1) {
+    // driving through: raw diamonds drop into the waiting area
     const raw = p.trail.filter(it => !it.cut);
     if (raw.length) {
       p.trail = p.trail.filter(it => it.cut);
       raw.forEach(it => { S.procQ.push(it); if (it.type === "d") addScore(p, 25); });
-      pop(px(cx), py(cy) - 4, "IN " + raw.length, C.green); Sfx.play("in");
+      Sfx.play("in");
     }
   }
-  if (t === OUT && S.stored.length) {
+  if (t === LANE && cx === S.box.bx + 2 && S.stored.length) {
+    // ...and processed ones are handed out at the far end
     S.stored.forEach(it => p.trail.push({ type: it.type, cut: true })); S.stored = [];
     Sfx.play("out");
   }
   if (t === EXIT) deliver(p);
   if ((t === TELE || t === LOCK || t === VPAD) && p.justTele !== k) {
-    if (t === LOCK && !hasKey(p)) { if (S.msgT <= 0) { S.msg = "LOCKED: BRING THE KEY"; S.msgT = 1.5; } return; }
+    if (t === LOCK && !S.unlocked) { if (S.msgT <= 0) { S.msg = "LOCKED: BRING THE KEY"; S.msgT = 1.5; } return; }
     const dest = S.tele.get(k);
     burst(px(cx), py(cy), C.violet, 8, 30);
     p.x = kx(dest); p.y = ky(dest); p.justTele = dest; p.last = dest;
@@ -557,13 +595,13 @@ function deliver(p) {
   p.trail = p.trail.filter(it => !it.cut);
   let n = 0;
   for (const it of cut) { if (it.type === "d") { n++; S.out++; } else S.keyOut = true; }
-  addScore(p, 100 * n + (cut.length > n ? 200 : 0), EXIT_X, EXIT_Y + 1, C.green);
+  addScore(p, 100 * n + (cut.length > n ? 200 : 0), EXIT_X - 1, EXIT_Y + 1, C.green);
   Sfx.play("bank");
   checkDone(p);
 }
 function remaining() { return S.total - S.out - S.lost; }
 function checkDone(p) {
-  if (remaining() > 0) { S.msg = remaining() + " MORE IN THE MINE"; S.msgT = 1.6; return; }
+  if (remaining() > 0) { S.msg = remaining() + " MORE IN THE SHAFT"; S.msgT = 1.6; return; }
   clearShaft(p);
 }
 function clearShaft(p) {
@@ -578,47 +616,49 @@ function clearShaft(p) {
 }
 function leaveShaft() { S.lost += remaining(); clearShaft(S.players.find(alive) || S.players[0]); }
 function dropTrail(p) {
-  // a wrecked drill spills its haul onto the nearest open ground, so it can be won back
+  // a wrecked car spills its haul into the nearest free cells, so it can be won back
   p.tpos.forEach((pos, i) => {
     const it = p.trail[i]; if (!it) return;
-    const sx = Math.round(pos.x), sy = Math.round(pos.y);
-    const d = bfs(S.map, [key(sx, sy)], t => !solid(t));
+    const d = bfs(S.map, [key(Math.round(pos.x), Math.round(pos.y))], false);
     let best = -1;
-    for (let k = 0; k < d.length; k++) {
-      const t = S.map[ky(k)][kx(k)];
-      if (d[k] >= 0 && (t === FLOOR || t === DIRT) && !S.items.has(k) && (best < 0 || d[k] < d[best])) best = k;
-    }
+    for (let k = 0; k < d.length; k++) if (d[k] >= 0 && cellType(kx(k), ky(k)) === NORM && !S.items.has(k) && (best < 0 || d[k] < d[best])) best = k;
     if (best >= 0) { S.items.set(best, it.type); burst(px(kx(best)), py(ky(best)), C.blue, 4, 20); } else if (it.type === "d") S.lost++;
   });
   p.trail = []; p.tpos = [];
 }
 function wreck(p) {
   if (S.god) return;
-  p.lives--; Sfx.play("hurt"); burst(px(p.x), py(p.y), PLAYER_COL[p.id], 18, 60);
+  p.lives--; Sfx.play("hurt"); burst(px(p.x), py(p.y), playerCol(p.id), 18, 60);
   dropTrail(p);
   p.dead = p.lives > 0 ? 1.6 : Infinity;
+  // the monsters out in the shaft go back into their box
+  S.inBox += S.mons.length; S.mons = []; S.relT = 2.5;
   if (S.players.every(q => q.dead === Infinity)) { gameOver(); return; }
-  S.msg = p.lives > 0 ? (solo() ? "DRILL LOST" : "P" + (p.id + 1) + " DRILL LOST") : "P" + (p.id + 1) + " IS OUT"; S.msgT = 1.6;
-  if (S.lost && remaining() === 0) checkDone(S.players.find(alive) || p);
+  S.msg = p.lives > 0 ? (solo() ? "CAR LOST" : "P" + (p.id + 1) + " CAR LOST") : "P" + (p.id + 1) + " IS OUT"; S.msgT = 1.6;
 }
 function gameOver() { Sfx.play("over"); saveBest(); setMode("over"); }
 function nextShaft() { S.shaft++; newShaft(); setMode("play"); }
 function fire(p) {
   if (p.cool > 0 || S.bullets.some(b => b.owner === p)) return;
   p.cool = 0.15;
-  S.bullets.push({ x: p.x, y: p.y, dir: p.face, owner: p });
+  S.bullets.push({ x: p.x, y: p.y, dir: p.face, owner: p, cx: Math.round(p.x), cy: Math.round(p.y) });
   Sfx.play("shot");
 }
 function updateBullets(dt) {
   S.bullets = S.bullets.filter(b => {
     let rem = B_SPEED * dt;
     while (rem > 0) {
-      const st = Math.min(0.25, rem); rem -= st;
+      const st = Math.min(0.2, rem); rem -= st;
       b.x += DX[b.dir] * st; b.y += DY[b.dir] * st;
-      const cx = Math.round(b.x), cy = Math.round(b.y), t = tileAt(cx, cy);
-      if (!shotPass(t)) { burst(px(b.x - DX[b.dir] * 0.5), py(b.y - DY[b.dir] * 0.5), t === DIRT ? C.dirt : C.white, 4, 25); Sfx.play("thud"); return false; }
-      for (const m of S.mons) if (Math.abs(m.x - b.x) + Math.abs(m.y - b.y) < 0.7) { killMon(m, b.owner); return false; }
-      if (S.play === "versus") for (const q of S.players) if (q !== b.owner && alive(q) && q.inv <= 0 && Math.abs(q.x - b.x) + Math.abs(q.y - b.y) < 0.7) {
+      const cx = Math.round(b.x), cy = Math.round(b.y);
+      if (cx !== b.cx || cy !== b.cy) {
+        // crossing into the next cell: walls, boxes and dirt stop the shot
+        const blocked = hasWall(S.map, b.cx, b.cy, b.dir) || solidCell(cellType(cx, cy)) || S.map.dirt[cy][cx];
+        if (blocked) { burst(px(b.cx + DX[b.dir] * 0.5), py(b.cy + DY[b.dir] * 0.5), S.map.dirt[cy] && S.map.dirt[cy][cx] ? C.dirt : C.wall, 4, 25); Sfx.play("thud"); return false; }
+        b.cx = cx; b.cy = cy;
+      }
+      for (const m of S.mons) if (Math.abs(m.x - b.x) + Math.abs(m.y - b.y) < 0.6) { killMon(m, b.owner); return false; }
+      if (S.play === "versus") for (const q of S.players) if (q !== b.owner && alive(q) && q.inv <= 0 && Math.abs(q.x - b.x) + Math.abs(q.y - b.y) < 0.6) {
         q.stun = 1.2; q.inv = 1.6; dropTrail(q); Sfx.play("hurt"); burst(px(q.x), py(q.y), C.white, 10, 40); return false;
       }
     }
@@ -628,25 +668,25 @@ function updateBullets(dt) {
 function killMon(m, p) {
   const k = MT[m.kind];
   S.mons.splice(S.mons.indexOf(m), 1); S.kills++;
-  addScore(p, k.pts, m.x, m.y, k.col);
-  burst(px(m.x), py(m.y), k.col, 14, 50);
+  addScore(p, k.pts, m.x, m.y, C[k.col]);
+  burst(px(m.x), py(m.y), C[k.col], 14, 50);
   Sfx.play("kill");
-  S.monQ.push({ kind: pickKind(S.shaft, S.rng), wait: 3 + S.rng() * 2.5 });
+  if (!S.mons.length && !S.inBox) { S.msg = "NO MONSTERS LEFT"; S.msgT = 2; }
 }
 function monChoose(m, cx, cy) {
-  const opts = []; for (let d = 0; d < 4; d++) if (monPass(m, cx + DX[d], cy + DY[d])) opts.push(d);
+  const opts = []; for (let d = 0; d < 4; d++) if (monPass(m, cx, cy, d)) opts.push(d);
   if (!opts.length) return -1;
   let o = opts.filter(d => d !== (m.dir + 2) % 4); if (!o.length) o = opts;
   const pick = f => o.reduce((a, d) => f(d) < f(a) ? d : a);
-  // monsters are shy of a drill towing the key
-  const shy = S.players.find(p => alive(p) && hasKey(p) && Math.abs(p.x - cx) + Math.abs(p.y - cy) < 7);
+  // monsters are shy of a car towing the key
+  const shy = S.players.find(p => alive(p) && hasKey(p) && Math.abs(p.x - cx) + Math.abs(p.y - cy) < 6);
   if (shy) return pick(d => -(Math.abs(cx + DX[d] - shy.x) + Math.abs(cy + DY[d] - shy.y)));
-  if (S.rng() < MT[m.kind].chase) {
-    const f = MT[m.kind].digs ? S.digF : S.pF;
-    return pick(d => { const v = f[key(cx + DX[d], cy + DY[d])]; return v < 0 ? 9999 : v; });
-  }
+  if (S.rng() < MT[m.kind].chase) return pick(d => { const v = S.pF[key(cx + DX[d], cy + DY[d])]; return v < 0 ? 9999 : v; });
+  // wanderers prefer to keep going straight, which digs long tunnels
+  if (o.includes(m.dir) && S.rng() < 0.6) return m.dir;
   return o[S.rng() * o.length | 0];
 }
+function laneAt(x, y) { const fx = Math.floor(x), fy = Math.floor(y), cx = Math.ceil(x), cy = Math.ceil(y); return cellType(fx, fy) === LANE || cellType(cx, cy) === LANE; }
 function updatePlayer(p, i, dt) {
   if (p.dead > 0) { p.dead -= dt; if (p.dead <= 0) { const lives = p.lives; placePlayer(p); p.lives = lives; p.inv = 2.5; } return; }
   p.inv = Math.max(0, p.inv - dt); p.cool = Math.max(0, p.cool - dt);
@@ -654,17 +694,18 @@ function updatePlayer(p, i, dt) {
   const h = held[i], hd = h.length ? h[h.length - 1] : -1;
   p.bufT -= dt;
   const want = hd >= 0 ? hd : p.bufT > 0 ? p.buf : -1;
-  if (want >= 0 && p.dir >= 0 && want === (p.dir + 2) % 4) { p.dir = want; p.slow = false; }
+  if (want >= 0 && p.dir >= 0 && want === (p.dir + 2) % 4 && !laneAt(p.x, p.y)) { p.dir = want; p.slow = false; }
   moveEnt(p, dt, plPass, (e, cx, cy) => {
     arrive(e, cx, cy);
     if (S.mode !== "play" || e.x !== cx || e.y !== cy) return -1;
-    if (want >= 0 && plPass(e, cx + DX[want], cy + DY[want])) return want;
-    if (hd >= 0 && e.dir >= 0 && plPass(e, cx + DX[e.dir], cy + DY[e.dir])) return e.dir;
+    if (cellType(cx, cy) === LANE) return plPass(e, cx, cy, 1) ? 1 : -1; // the lane carries you straight through
+    if (want >= 0 && plPass(e, cx, cy, want)) return want;
+    if (hd >= 0 && e.dir >= 0 && plPass(e, cx, cy, e.dir)) return e.dir;
     if (hd >= 0) e.face = hd;
     return -1;
   }, e => e.slow ? DIG : RUN, (e, x, y) => {
-    e.slow = S.map[y][x] === DIRT;
-    if (e.slow) { S.map[y][x] = FLOOR; S.dug = true; Sfx.play("dig"); burst(px(x), py(y), C.dirt, 3, 18); }
+    e.slow = S.map.dirt[y][x];
+    if (e.slow) { S.map.dirt[y][x] = false; Sfx.play("dig"); burst(px(x), py(y), C.dirt, 3, 18); }
   });
   if (S.mode !== "play") return;
   if (p.dir >= 0) p.face = p.dir;
@@ -682,44 +723,31 @@ function update(dt) {
   updateBullets(dt);
   // processing box: one item at a time from the waiting area into storage
   if (S.procQ.length) { S.procT += dt; if (S.procT >= PROC_TIME) { S.procT = 0; S.stored.push(S.procQ.shift()); Sfx.play("tick"); } }
-  // distance fields toward the drills, refreshed a few times a second
+  // distance field toward the cars for hunting monsters (they dig, so dirt doesn't matter)
   S.fieldT -= dt;
-  if (S.fieldT <= 0 || S.dug) {
-    const starts = S.players.filter(alive).map(p => key(Math.round(p.x), Math.round(p.y)));
-    S.pF = bfs(S.map, starts, t => OPEN.has(t) || t === EXIT);
-    S.digF = bfs(S.map, starts, t => !solid(t));
-    S.fieldT = 0.15; S.dug = false;
+  if (S.fieldT <= 0) { S.pF = bfs(S.map, S.players.filter(alive).map(p => key(Math.round(p.x), Math.round(p.y))), true); S.fieldT = 0.15; }
+  // the monster box lets its monsters out one at a time; there are only so many per shaft
+  S.relT -= dt;
+  if (S.relT <= 0 && S.inBox > 0 && S.mons.length < S.L.active) {
+    const d = S.mbox.door;
+    S.inBox--; S.relT = S.L.release;
+    S.mons.push({ kind: pickKind(S.shaft, S.rng), x: kx(d), y: ky(d), dir: 2, anim: 0 });
+    burst(px(kx(d)), py(ky(d)), C.green, 8, 25); Sfx.play("release");
   }
-  // nests release monsters, from the nest farthest from any drill
-  for (const q of S.monQ) q.wait -= dt;
-  S.spawnT -= dt;
-  if (S.spawnT <= 0 && S.mons.length < S.L.mons) {
-    const i = S.monQ.findIndex(q => q.wait <= 0);
-    if (i >= 0) {
-      const q = S.monQ.splice(i, 1)[0], ps = S.players.filter(alive);
-      const nest = S.nests.reduce((a, n) => { const da = Math.min(99, ...ps.map(p => far(a, key(Math.round(p.x), Math.round(p.y))))), dn = Math.min(99, ...ps.map(p => far(n, key(Math.round(p.x), Math.round(p.y))))); return dn > da ? n : a; });
-      S.mons.push({ kind: q.kind, x: kx(nest), y: ky(nest), dir: -1, anim: 0, slow: false });
-      S.spawnT = 0.8; burst(px(kx(nest)), py(ky(nest)), MT[q.kind].col, 8, 25);
-    }
-  }
-  const base = S.L.mSpeed;
-  for (const m of S.mons) moveEnt(m, dt, monPass, monChoose, e => base * MT[e.kind].sp * (e.slow ? 0.45 : 1), (e, x, y) => {
-    e.slow = S.map[y][x] === DIRT;
-    if (e.slow) S.map[y][x] = FLOOR;
-  });
+  for (const m of S.mons) moveEnt(m, dt, monPass, monChoose, () => S.L.mSpeed, (e, x, y) => { S.map.dirt[y][x] = false; });
   updateBullets(0);
-  // monsters eat towed diamonds (never the key) and wreck drills they touch
+  // monsters eat towed diamonds (never the key) and wreck cars they touch
   for (const m of S.mons) for (const p of S.players) {
     if (!alive(p)) continue;
     for (let n = p.trail.length - 1; n >= 0; n--) {
       const it = p.trail[n], pos = p.tpos[n];
       if (it.type === "d" && pos && Math.abs(pos.x - m.x) + Math.abs(pos.y - m.y) < 0.6) {
         p.trail.splice(n, 1); p.tpos.splice(n, 1); S.lost++;
-        burst(px(pos.x), py(pos.y), C.blue, 10, 40); pop(px(pos.x), py(pos.y) - 4, "GULP", MT[m.kind].col); Sfx.play("eat");
+        burst(px(pos.x), py(pos.y), C.blue, 10, 40); pop(px(pos.x), py(pos.y) - 4, "GULP", C[MT[m.kind].col]); Sfx.play("eat");
         if (remaining() === 0) { checkDone(p); return; }
       }
     }
-    if (p.inv <= 0 && Math.abs(m.x - p.x) + Math.abs(m.y - p.y) < 0.75) { wreck(p); if (S.mode !== "play") return; }
+    if (p.inv <= 0 && Math.abs(m.x - p.x) + Math.abs(m.y - p.y) < 0.7) { wreck(p); return; }
   }
 }
 function updateFx(dt) {
@@ -730,93 +758,104 @@ function updateFx(dt) {
 }
 
 // ---------------------------------------------------------------- drawing
-let rockLayer = null;
-function bake() {
-  rockLayer = mk(W, H, c => {
-    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) if (S.map[y][x] === ROCK) c.drawImage(ART.rock[(x * 7 + y * 13) % 4], OX + x * T, OY + y * T);
-    // lift shaft through the rock above the exit
-    const LX = OX + EXIT_X * T;
-    c.fillStyle = "#000"; c.fillRect(LX + 2, OY, 6, T);
-    c.fillStyle = C.white; c.fillRect(LX + 4, OY, 1, T);
-  });
-}
-function drawTiles(map, items) {
+let wallLayer = null;
+function drawWalls(c, m) {
+  // walls are thin double lines on the gridlines: one solid, one dotted, like the original's
+  c.fillStyle = C.wall;
+  const seg = (x, y, w, h) => { c.fillRect(x, y, w, h); };
   for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-    const t = map[y][x], X = OX + x * T, Y = OY + y * T;
-    if (t === DIRT) ctx.drawImage(ART.dirt[(x * 3 + y * 5) % 4], X, Y);
-    else if (t === TELE) ctx.drawImage(ART.tele, X, Y);
-    else if (t === LOCK || t === VPAD) ctx.drawImage(ART.lock, X, Y);
-    else if (t === NEST) { ctx.fillStyle = C.violet; [[1, 1], [8, 1], [1, 8], [8, 8], [4, 0], [0, 4], [9, 5], [5, 9]].forEach(([a, b]) => ctx.fillRect(X + a, Y + b, 1, 1)); }
-    else if (t === IN || t === OUT) {
-      ctx.fillStyle = t === IN ? C.green : C.white;
-      for (let i = 0; i < 4; i++) ctx.fillRect(X + 2 + i, Y + 2 + i, 1, 6 - i * 2 > 0 ? 6 - i * 2 : 1);
-      ctx.fillRect(X + 2, Y + 5, 3, 1);
-    } else if (t === EXIT) {
-      ctx.fillStyle = C.white; ctx.fillRect(X, Y, T, 1); ctx.fillRect(X, Y + T - 1, T, 1); ctx.fillRect(X, Y, 1, T); ctx.fillRect(X + T - 1, Y, 1, T);
-      ctx.fillStyle = C.green; ctx.fillRect(X + 4, Y + 3, 2, 5); ctx.fillRect(X + 3, Y + 4, 4, 1); ctx.fillRect(X + 2, Y + 5, 6, 1);
-    }
-    const it = items && items.get(key(x, y));
-    if (it) ctx.drawImage(it === "k" ? ART.key : ART.rough, X, Y);
+    const X = OX + x * T, Y = OY + y * T;
+    if (hasWall(m, x, y, 1)) { seg(X + T - 1, Y - 1, 1, T + 2); for (let i = 0; i < T + 2; i += 2) seg(X + T, Y - 1 + i, 1, 1); }
+    if (hasWall(m, x, y, 2)) { seg(X - 1, Y + T - 1, T + 2, 1); for (let i = 0; i < T + 2; i += 2) seg(X - 1 + i, Y + T, 1, 1); }
+    if (x === 0 && hasWall(m, x, y, 3)) { seg(X - 1, Y - 1, 1, T + 2); for (let i = 0; i < T + 2; i += 2) seg(X - 2, Y - 1 + i, 1, 1); }
+    if (y === 0 && hasWall(m, x, y, 0)) { seg(X - 1, Y - 1, T + 2, 1); }
   }
 }
-function drawBox(b) {
-  const X = OX + b.bx * T, Y = OY + b.by * T, w = 5 * T, h = 3 * T;
-  ctx.fillStyle = "#000"; ctx.fillRect(X, Y, w, h);
-  ctx.fillStyle = C.white; ctx.fillRect(X, Y, w, 1); ctx.fillRect(X, Y + h - 1, w, 1); ctx.fillRect(X, Y, 1, h); ctx.fillRect(X + w - 1, Y, 1, h);
-  ctx.fillStyle = C.grey; ctx.fillRect(X + 2, Y + 14, w - 4, 1);
-  text(ctx, "BOX", X + 2, Y + 3, C.grey);
-  // waiting area (top) and storage slots (bottom)
-  (S.procQ || []).forEach((it, i) => { if (i < 4) { const bx = X + 22 + i * 7, by = Y + 4, on = i === 0 && (S.t * 8 | 0) % 2; ctx.fillStyle = it.type === "k" ? C.orange : on ? C.white : C.blue; ctx.fillRect(bx, by, 5, 5); } });
-  for (let i = 0; i < 9; i++) {
-    const sx = X + 3 + i * 5, sy = Y + 19, it = (S.stored || [])[i];
-    ctx.fillStyle = it ? (it.type === "k" ? C.orange : C.white) : "#333"; ctx.fillRect(sx, sy, 3, 4);
+function bake() { wallLayer = mk(W, H, c => drawWalls(c, S.map)); }
+function cellArt(m, x, y, items) {
+  const t = m.type[y][x], X = OX + x * T + 1, Y = OY + y * T + 1;
+  if (m.dirt[y][x]) ctx.drawImage(ART.dirt[(x * 3 + y * 5) % 4], X - 1, Y - 1);
+  if (t === TELE) ctx.drawImage(ART.tele, X, Y);
+  else if (t === LOCK || t === VPAD) ctx.drawImage(ART.lock, X, Y);
+  else if (t === EXIT) {
+    ctx.fillStyle = C.white; ctx.fillRect(X + 4, OY - 3, 1, Y - OY + 4);
+    ctx.fillRect(X, Y + 1, 10, 1); ctx.fillRect(X, Y + 9, 10, 1); ctx.fillRect(X, Y + 1, 1, 9); ctx.fillRect(X + 9, Y + 1, 1, 9);
+    ctx.fillStyle = C.green; ctx.fillRect(X + 4, Y + 4, 2, 4); ctx.fillRect(X + 3, Y + 5, 4, 1); ctx.fillRect(X + 2, Y + 6, 6, 1);
   }
+  const it = items && items.get(key(x, y));
+  if (it) ctx.drawImage(it === "k" ? ART.key : ART.rough, X, Y);
+}
+function drawBoxes(m, live) {
+  // processing box: counter on top, arrows along the lane
+  const { bx, by } = m.box, X = OX + bx * T, Y = OY + by * T;
+  ctx.drawImage(ART.gem5, X + 6, Y + 4);
+  const ready = live ? S.stored.length : 0, waiting = live ? S.procQ.length : 0;
+  text(ctx, String(ready), X + 3 * T - 10, Y + 3, ready ? C.white : C.grey);
+  if (waiting && (S.t * 6 | 0) % 2) { ctx.fillStyle = C.white; ctx.fillRect(X + 16, Y + 5, 2, 2); }
+  ctx.fillStyle = C.grey;
+  for (let i = 0; i < 3; i++) { const ax = X + i * T + 4, ay = Y + T + 5; ctx.fillRect(ax, ay, 4, 1); ctx.fillRect(ax + 2, ay - 1, 1, 3); }
+  // monster box: a monster and how many are still inside
+  const { mx, my } = m.mbox, MX = OX + mx * T, MY = OY + my * T;
+  ctx.drawImage(ART.bugs.crawler[(S.t * 2 | 0) & 1], MX + 4, MY + 1);
+  text(ctx, String(live ? S.inBox : level(4).monsters), MX + 2 * T + 2, MY + 3, C.white);
 }
 function draw() {
   ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
-  if (!S.map) { drawAttract(); return; }
-  ctx.drawImage(rockLayer, 0, 0);
-  drawTiles(S.map, S.items);
-  drawBox(S.box);
-  for (const p of S.players) p.tpos.forEach((pos, n) => { const it = p.trail[n]; if (it) ctx.drawImage(it.type === "k" ? ART.key : it.cut ? ART.cut : ART.rough, Math.round(OX + pos.x * T), Math.round(OY + pos.y * T)); });
-  for (const m of S.mons) ctx.drawImage(ART.bugs[m.kind][(m.anim * 2 | 0) & 1], Math.round(OX + m.x * T), Math.round(OY + m.y * T));
-  for (const p of S.players) {
-    if (!alive(p) || (p.inv > 0 && ((S.t * 12) | 0) % 2)) continue;
-    ctx.drawImage(ART.drill[p.id][p.face][(p.anim * 3 | 0) & 1], Math.round(OX + p.x * T), Math.round(OY + p.y * T));
-    if (p.stun > 0) text(ctx, "?", Math.round(OX + p.x * T) + 2, Math.round(OY + p.y * T) - 7, C.white);
+  const m = S.mode === "menu" || !S.map ? attractMap() : S.map;
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) cellArt(m, x, y, m === S.map ? S.items : m.items);
+  ctx.drawImage(m === S.map ? wallLayer : attractLayer, 0, 0);
+  drawBoxes(m, m === S.map);
+  if (m === S.map) {
+    for (const p of S.players) p.tpos.forEach((pos, n) => { const it = p.trail[n]; if (it) ctx.drawImage(it.type === "k" ? ART.key : it.cut ? ART.cut : ART.rough, Math.round(OX + pos.x * T + 1), Math.round(OY + pos.y * T + 1)); });
+    for (const mo of S.mons) ctx.drawImage(ART.bugs[mo.kind][(mo.anim * 2 | 0) & 1], Math.round(OX + mo.x * T + 1), Math.round(OY + mo.y * T + 1));
+    for (const p of S.players) {
+      if (!alive(p) || (p.inv > 0 && ((S.t * 12) | 0) % 2)) continue;
+      ctx.drawImage(ART.car[p.id][p.face][(p.anim * 3 | 0) & 1], Math.round(OX + p.x * T + 1), Math.round(OY + p.y * T + 1));
+      if (p.stun > 0) text(ctx, "?", Math.round(OX + p.x * T) + 3, Math.round(OY + p.y * T) - 6, C.white);
+    }
+    for (const b of S.bullets) { ctx.fillStyle = C.white; ctx.fillRect(Math.round(px(b.x)) - 1, Math.round(py(b.y)) - 1, 2, 2); }
+    for (const p of S.parts) { ctx.fillStyle = p.col; ctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); }
+    for (const p of S.pops) text(ctx, p.txt, Math.round(p.x - textW(p.txt) / 2), Math.round(p.y), p.col);
   }
-  for (const b of S.bullets) { ctx.fillStyle = C.white; ctx.fillRect(Math.round(px(b.x)) - 1, Math.round(py(b.y)) - 1, 2, 2); ctx.fillStyle = PLAYER_COL[b.owner.id] === C.white ? C.green : C.orange; ctx.fillRect(Math.round(px(b.x - DX[b.dir] * 0.3)) - 1, Math.round(py(b.y - DY[b.dir] * 0.3)) - 1, 2, 2); }
-  for (const p of S.parts) { ctx.fillStyle = p.col; ctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); }
-  for (const p of S.pops) text(ctx, p.txt, Math.round(p.x - textW(p.txt) / 2), Math.round(p.y), p.col);
-  drawHud();
+  drawHud(m === S.map);
 }
-function drawHud() {
-  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, OY - 1); ctx.fillRect(0, OY + ROWS * T, W, H);
-  const sh = "SHAFT " + String(S.shaft).padStart(2, "0");
-  text(ctx, sh, (W - textW(sh)) / 2, 3, C.orange);
+function drawHud(live) {
+  // "SHAFT n" down the left edge, the miners' panel underneath, as on the original screen
+  const word = "SHAFT", n = String(live ? S.shaft : 1);
+  for (let i = 0; i < word.length; i++) text(ctx, word[i], 7, OY + 14 + i * 13, C.green);
+  for (let i = 0; i < n.length; i++) text(ctx, n[i], 7, OY + 14 + (word.length + 1) * 13 + i * 9, C.green);
+  if (!live) return;
+  const y1 = OY + ROWS * T + 3, y2 = y1 + 10, y3 = y2 + 10;
   S.players.forEach((p, i) => {
-    const s = (solo() ? "" : (i + 1) + "P ") + String(p.score).padStart(6, "0");
-    const x = i === 0 ? 3 : W - 3 - textW(s) - Math.min(p.lives, 4) * 7 - 2;
-    text(ctx, s, x, 3, PLAYER_COL[i]);
-    for (let l = 0; l < Math.min(p.lives, 4); l++) ctx.drawImage(ART.life[i], i === 0 && !solo() ? x + textW(s) + 3 + l * 7 : (i === 0 ? W - 9 - l * 7 : x + textW(s) + 3 + l * 7), 4);
+    const x = i === 0 ? 4 : 148;
+    text(ctx, "MINER " + (i + 1), x, y1, playerCol(i));
+    text(ctx, "SCORE " + String(p.score).padStart(6, "0"), x, y2, playerCol(i));
+    text(ctx, "CARS  " + Math.max(0, p.lives), x, y3, playerCol(i));
   });
-  const by = OY + ROWS * T + 1;
-  text(ctx, "OUT " + S.out + "/" + S.total, 3, by, C.green);
-  if (S.lost) text(ctx, "LOST " + S.lost, 75, by, C.orange);
-  const box = "BOX " + S.stored.length + (S.procQ.length ? "+" + S.procQ.length : "");
-  text(ctx, box, W - 3 - textW(box), by, S.stored.length ? C.white : C.grey);
+  if (solo()) {
+    text(ctx, "OUT  " + S.out + "/" + S.total, 148, y1, C.green);
+    text(ctx, "LOST " + S.lost, 148, y2, S.lost ? C.orange : C.grey);
+  } else {
+    const s = S.out + "/" + S.total + " OUT";
+    text(ctx, s, 276 - textW(s), y3, C.green);
+  }
   if (S.msgT > 0 && S.msg) {
-    const w = textW(S.msg) + 8, x = (W - w) / 2 | 0, y = OY + 2;
+    const w = textW(S.msg) + 8, x = OX + (COLS * T - w) / 2 | 0, y = OY + T * 5 + 1;
     ctx.fillStyle = "#000"; ctx.fillRect(x, y, w, 11); ctx.fillStyle = C.white; ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y + 10, w, 1);
     text(ctx, S.msg, x + 4, y + 2);
   }
 }
 // title screen backdrop: a generated shaft
-let attract = null;
-function drawAttract() {
+let attract = null, attractLayer = null;
+function attractMap() {
   if (!attract) { attract = generate("attract", 7); }
-  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) if (attract.map[y][x] === ROCK) ctx.drawImage(ART.rock[(x * 7 + y * 13) % 4], OX + x * T, OY + y * T);
-  drawTiles(attract.map, attract.items);
+  if (!attractLayer) attractLayer = mk(W, H, c => drawWalls(c, attract));
+  return attract;
+}
+function setPalette(name) {
+  Object.assign(C, PAL[name] || PAL.green); S.screen = PAL[name] ? name : "green";
+  buildArt(); attractLayer = null; if (S.map) bake();
+  const b = document.getElementById("bScreen"); if (b) b.textContent = "Screen: " + S.screen;
 }
 
 // ---------------------------------------------------------------- menus
@@ -841,7 +880,7 @@ function scoresRows() { return S.players.map((p, i) => `<tr><td>${solo() ? "Scor
 function menuHtml() {
   const shared = cleanSeed(params.get("seed")), depth = sharedDepth(), best = bestList();
   return `<h2>GLINT SHAFT</h2>
-  <p>Drive your drill down the lift and dig for the eight diamonds in each shaft. Towed diamonds trail behind you and monsters will eat them, so take them to the box: in at the green door, out of the white one once processed, then up the lift. Twenty shafts, every one dug fresh from a seed.</p>
+  <p>Take your car down the lift and dig for the eight diamonds in each shaft. Towed diamonds trail behind you and monsters will eat them, so drive them through the processing box and back up the lift. Twenty shafts, every one dug fresh from a seed.</p>
   <div class="seg" id="playSeg" role="group" aria-label="Players">${Object.entries(PLAY_NAMES).map(([k, v]) => `<button data-play="${k}" class="${S.play === k ? "sel" : ""}" aria-pressed="${S.play === k}">${v}</button>`).join("")}</div>
   <div class="menu-list">
     ${shared ? `<button class="primary" data-act="shared">Play shared seed<small>${esc(shared)}${depth > 1 ? ", from shaft " + depth : ""}</small></button>` : ""}
@@ -856,13 +895,13 @@ function menuHtml() {
   ${best.length ? `<h3>Best runs on this device</h3><table class="res"><tr><th>Seed</th><th>Shaft</th><th>Score</th></tr>${best.slice(0, 5).map(e => `<tr><td>${esc(e.seed)}${e.play && e.play !== "solo" ? " (" + (e.play === "coop" ? "co-op" : "versus") + ")" : ""}</td><td>${e.shaft}</td><td>${e.score}</td></tr>`).join("")}</table>` : ""}
   <details><summary>How to play</summary>
     <ul class="note">
-      <li>Driving through dirt digs a tunnel. You move faster in tunnels that are already clear, and your shots stop in dirt.</li>
-      <li>Diamonds you dig up trail behind you. A monster that touches the trail eats that diamond; one that touches your drill wrecks it and spills what you tow.</li>
-      <li>Drive into the box's green IN door to drop raw diamonds off. They are processed one by one; collect them at the white OUT door and take them up the lift at the top right.</li>
-      <li>Scoring: 25 to dig up, 25 to process, 100 to bring out, 75 and up for a monster. Leaving with 4 to 8 diamonds out adds 300 to 1000, or 1200 with all eight and the key. Points rise every four shafts. Extra drill every 20,000.</li>
-      <li>U-shaped pads teleport you to their twin. From shaft 6 a key is buried somewhere: monsters shy away from it, and it opens the orange pad into a sealed vault with two diamonds. Process the key and bring it out for the top bonus.</li>
-      <li>Green crawlers wander, violet hunters chase, and from shaft 5 orange borers tunnel straight through the dirt. Shot monsters come back from their nests a few seconds later.</li>
-      <li>Stuck? Pause and leave the shaft; diamonds still in the mine count as lost.</li>
+      <li>Your car digs through dirt as it drives, slower than along tunnels that are already clear. Walls are thin lines between cells and nothing gets through them; shots also stop in dirt.</li>
+      <li>Each shaft hides eight diamonds. The ones you dig up trail behind you; a monster that touches the trail eats that diamond, and one that touches your car wrecks it and spills what you tow.</li>
+      <li>The processing box is a drive-through: enter from the left and your raw diamonds drop into it. Its counter shows how many are processed; drive through again to pick them up at the far end, then take them up the lift in the top right corner.</li>
+      <li>Scoring: 25 to dig up, 25 to process, 100 to bring out, 75 or 100 per monster. Leaving with 4 to 8 diamonds out adds 300 to 1000, or 1200 with all eight and the key. Points rise every four shafts. Extra car every 20,000.</li>
+      <li>Each shaft's monster box holds a set number of monsters (shown on the box). They come out one at a time and dig at full speed; green ones wander, violet ones hunt you. Shot monsters are gone for good, and when you lose a car the ones outside go back in the box.</li>
+      <li>U-shaped pads teleport you to their twin. From shaft 6 a key is buried somewhere: monsters shy away from it, and it opens the locked pad into a walled vault with two diamonds. Process the key and bring it out for the top bonus.</li>
+      <li>Stuck? Pause and leave the shaft; diamonds still in it count as lost.</li>
     </ul>
   </details>`;
 }
@@ -882,7 +921,7 @@ function setMode(m) {
     <table class="res"><tr><td>Diamonds out</td><td>${S.out} of ${S.total}${S.keyOut ? " and the key" : ""}</td></tr><tr><td>Diamonds lost</td><td>${S.lost}</td></tr>
     <tr><td>Leaving bonus</td><td>${S.lastBonus}</td></tr><tr><td>Monsters shot</td><td>${S.kills}</td></tr><tr><td>Time</td><td>${S.t.toFixed(1)} s</td></tr>${scoresRows()}</table>
     <div class="row"><button class="primary" data-act="${m === "win" ? "endless" : "next"}">${m === "win" ? "Keep digging" : "Down to shaft " + (S.shaft + 1)}</button><button data-act="copy">Copy seed link</button>${m === "win" ? `<button data-act="menu">Menu</button>` : ""}</div>`;
-  if (m === "over") panel.innerHTML = `<h2>NO DRILLS LEFT</h2><p>You reached shaft ${S.shaft} of seed <b>${esc(S.seed)}</b>.</p>
+  if (m === "over") panel.innerHTML = `<h2>NO CARS LEFT</h2><p>You reached shaft ${S.shaft} of seed <b>${esc(S.seed)}</b>.</p>
     <table class="res">${scoresRows()}<tr><td>Best on this device</td><td>${(bestList()[0] || {}).score || 0}</td></tr></table>
     <div class="row"><button class="primary" data-act="retry">Same seed again</button><button data-act="new">New run</button><button data-act="copy">Copy seed link</button><button data-act="menu">Menu</button></div>`;
   const p = panel.querySelector(".primary"); if (p) p.focus({ preventScroll: true });
@@ -908,6 +947,7 @@ panel.addEventListener("click", e => {
 function togglePause() { if (S.mode === "play") setMode("pause"); else if (S.mode === "pause") setMode("play"); }
 function toggleSound() { Sfx.on = !Sfx.on; document.getElementById("bSound").textContent = "Sound: " + (Sfx.on ? "on" : "off"); Store.set("sound", Sfx.on); }
 document.getElementById("bPause").onclick = e => { e.currentTarget.blur(); togglePause(); };
+document.getElementById("bScreen").onclick = e => { e.currentTarget.blur(); setPalette(S.screen === "green" ? "color" : "green"); Store.set("screen", S.screen); };
 document.getElementById("bSound").onclick = e => { e.currentTarget.blur(); Sfx.init(); toggleSound(); };
 if (Store.get("sound", true) === false) { Sfx.on = false; document.getElementById("bSound").textContent = "Sound: off"; }
 document.addEventListener("visibilitychange", () => { if (document.hidden && S.mode === "play") setMode("pause"); });
@@ -922,6 +962,7 @@ function frame(ts) {
   draw();
   requestAnimationFrame(frame);
 }
+setPalette(Store.get("screen", "green"));
 setMode("menu");
 requestAnimationFrame(frame);
 
@@ -930,6 +971,21 @@ window.GS = {
   S, generate, startRun, setMode, bfs, leaveShaft,
   sim(sec) { for (let i = 0; i < sec / STEP && S.mode === "play"; i++) { update(STEP); updateFx(STEP); } draw(); },
   press, release, fire(i = 0) { firePressed[i] = true; },
+  // first step from player i toward the nearest of the target cells, for bots and the screenshot tool
+  route(i, targets) {
+    // plan from the cell the car is heading into, so the answer is a buffered turn
+    const p = S.players[i], d0 = p.dir;
+    const cx = d0 === 1 ? Math.ceil(p.x - 1e-9) : d0 === 3 ? Math.floor(p.x + 1e-9) : Math.round(p.x);
+    const cy = d0 === 2 ? Math.ceil(p.y - 1e-9) : d0 === 0 ? Math.floor(p.y + 1e-9) : Math.round(p.y);
+    const d = bfs(S.map, [key(cx, cy)], false, new Set([...S.tele.keys()].filter(k => !targets.includes(k))));
+    let best = -1; for (const k of targets) if (d[k] >= 0 && (best < 0 || d[k] < d[best])) best = k;
+    if (best < 0 || d[best] === 0) return -1;
+    let k = best;
+    while (d[k] > 1) { const x = kx(k), y = ky(k); let moved = false;
+      for (let q = 0; q < 4 && !moved; q++) { const nx = x - DX[q], ny = y - DY[q]; if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) continue; const nk = key(nx, ny); if (d[nk] === d[k] - 1 && canStep(S.map, nx, ny, q, false)) { k = nk; moved = true; } } }
+    for (let q = 0; q < 4; q++) if (key(cx + DX[q], cy + DY[q]) === k && canStep(S.map, cx, cy, q, false)) return q;
+    return -1;
+  },
 };
 </script>
 </body>
