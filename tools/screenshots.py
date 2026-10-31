@@ -100,6 +100,19 @@ def marble_madness(pg):
     return "#c"
 
 
+def diamond_mine(pg):
+    # drive to the nearest diamonds for a while so the shot shows tunnels and a towed trail
+    pg.evaluate("""() => { GS.startRun('quartz-vein-42', 4, 'solo'); const S = GS.S; S.god = true;
+      for (let i = 0; i < 300; i++) { const P = S.players[0];
+        const d = P.trail.length < 3 ? GS.route(0, [...S.items.keys()]) : -1;
+        for (let q = 0; q < 4; q++) GS.release(0, q);
+        if (d >= 0) GS.press(0, d);
+        GS.fire(); GS.sim(0.05); }
+      S.msgT = 0; GS.sim(0.02); }""")
+    pg.wait_for_timeout(100)
+    return "#c"
+
+
 def default(pg):
     pg.wait_for_timeout(1000)
     return "canvas"
@@ -109,7 +122,7 @@ RECIPES = {"elasto-mania": elasto_mania, "clockwerx": clockwerx,
            "excitebike": excitebike, "arctic-adventure": arctic_adventure,
            "little-computer-people": little_computer_people, "lode-runner": lode_runner,
            "spacewar": spacewar, "spy-vs-spy": spy_vs_spy, "virtua-cop": virtua_cop,
-           "marble-madness": marble_madness}
+           "marble-madness": marble_madness, "diamond-mine": diamond_mine}
 
 # Scale the element shot down in the page and encode it as WebP there, so no image library is needed.
 ENCODE = """async ([src, w]) => {
