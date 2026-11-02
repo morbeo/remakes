@@ -289,7 +289,7 @@ html.touch .keys{display:none}
 {"name":"Snare Line",
 "map":[
 "S...........................",
-"S...........................",
+"S................#####......",
 "S..n.....0.......0......p.$.",
 "########H##########H########",
 "........H..........H........",
@@ -298,7 +298,7 @@ html.touch .keys{display:none}
 "...H.............H......H...",
 "...H....0.$......H......H.0.",
 "##H#############H###########",
-"..H.............H...........",
+"..H.............H.####......",
 ".$H...1.........H..p....$...",
 "@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
 "@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
@@ -379,7 +379,7 @@ html.touch .keys{display:none}
 {"name":"Fuse Box",
 "map":[
 "...........................S",
-"...........................S",
+"......####.................S",
 ".1...p......0.......g......S",
 "####H#################H#####",
 "....H.................H.....",
@@ -447,7 +447,25 @@ html.touch .keys{display:none}
 "####H#####XX####@@@####H####",
 "....H..................H....",
 "....H..................H....",
-".$..H$...1........m.$.$.H.$."]}],"arenas":[{"name":"Twin Pits",
+".$..H$...1........m.$.$.H.$."]},
+{"name":"Proving Ground",
+"map":[
+"S...........................",
+"S.................####......",
+"S.1.j.p.n.g.o.f..0.....$..E.",
+"###H####XX##%%#&&########H##",
+"...H..---------------....H..",
+"...H.....................H..",
+"...H.....................H..",
+".$.H.k.$.B..b.m.05...5.l.H$.",
+"###H####~~~~#@@@@#==####H###",
+"...H....................H...",
+"...H....................H...",
+"...H....................H...",
+"...H......$.....H.......H...",
+"...H#########...H#####@.H...",
+".$.H..@..$....0.H.D.$.@$H...",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@"],"open":true}],"arenas":[{"name":"Twin Pits",
 "map":[
 "............................",
 "............................",
@@ -513,7 +531,7 @@ html.touch .keys{display:none}
 "..H......H........H......H..",
 "..H------H-$----$-H------H..",
 "..H......H........H......H..",
-"..H......H........H......H..",
+"..H..###.H........H.###..H..",
 ".1H.$.p..H.0....0.H..p.$.H2.",
 "##H######################H##",
 "..H......................H..",
@@ -543,14 +561,14 @@ html.touch .keys{display:none}
 // ---------------------------------------------------------------- constants
 const W = 28, H = 16, TW = 10, TH = 11, SW = 280, SH = 192, PH = H * TH;
 const STEP = 1 / 60;
-const DIGT = 0.26, HOLET = 6.2, FILLT = 0.9, TRAPT = 2.4, STRUG = 6;
+const DIGT = 0.26, HOLET = 6.2, FILLT = 0.9, TRAPT = 2.4, STRUG = 6, RUBT = 7;
 const SPD = { run: 5.4, climb: 4.5, slide: 6.6, rope: 4.6, fall: 7.6 }, MONK = 0.62, GOO = 0.45;
 const LEVELS = JSON.parse(document.getElementById("levels").textContent);
 const PCOL = ["#ffffff", "#5fe05f", "#4fb4ff", "#ff8ad8"];
 const PNAME = ["P1", "P2", "P3", "P4"];
 const TOOLS = {
   j: { name: "Jackhammer", tip: "drills the block under you, even bedrock" },
-  p: { name: "Pickaxe", tip: "drops a brick in front of you to wall off monks" },
+  p: { name: "Pickaxe", tip: "knocks rubble down from the ceiling ahead; it blocks the way for a while" },
   n: { name: "Snare", tip: "set it where you stand; holds the next monk or rival" },
   g: { name: "Gas can", tip: "stuns monks (and rivals) up to 3 tiles ahead" },
   o: { name: "Goo bucket", tip: "coats the floor around you; goo slows everyone" },
@@ -664,7 +682,7 @@ function solid(g, x, y) {
   if (y < 0) return false;
   const k = y * W + x, c = g.map[k];
   if (c === "#" || c === "~") { const h = g.holes[k]; return !(h && h.st === "open"); }
-  if (c === "@" || c === "D") return true;
+  if (c === "@" || c === "D" || c === "r") return true;
   if (c === "%" || c === "&") return phaseOn(g, c);
   return false;
 }
@@ -796,10 +814,14 @@ function useTool(g, p, x, y) {
   let ok = false;
   if (t === "j") {
     const c = g.map[(y + 1) * W + x];
-    if (y + 1 < H && "#~@X%&".includes(c)) { setTile(g, x, y + 1, " "); ok = true; ev(g, "jack"); g.fx.push({ k: "dust", x, y: y + 1, t: 0.4 }); }
+    if (y + 1 < H && "#~@X%&r".includes(c)) { setTile(g, x, y + 1, " "); ok = true; ev(g, "jack"); g.fx.push({ k: "dust", x, y: y + 1, t: 0.4 }); }
   } else if (t === "p") {
     const nx = x + p.face;
-    if (inb(nx, y) && g.map[y * W + nx] === " " && !g.gold[y * W + nx] && !itemAt(g, nx, y) && !monkAt(g, nx, y) && !playerAt(g, nx, y)) { setTile(g, nx, y, "#"); ok = true; ev(g, "pick"); }
+    // needs a ceiling over the cell ahead: the swing brings rubble down from it, and the rubble clears itself later
+    if (inb(nx, y) && y > 0 && solid(g, nx, y - 1) && g.map[y * W + nx] === " " && !g.gold[y * W + nx] && !itemAt(g, nx, y) && !monkAt(g, nx, y) && !playerAt(g, nx, y)) {
+      setTile(g, nx, y, "r"); g.queue.push({ t: RUBT, k: "rub", x: nx, y }); ok = true; ev(g, "pick");
+      g.fx.push({ k: "dust", x: nx, y, t: 0.4 });
+    }
   } else if (t === "n") {
     if (!g.snares.find(s => s.x === x && s.y === y)) { g.snares.push({ x, y, by: p.idx }); ok = true; ev(g, "snare"); }
   } else if (t === "g") {
@@ -990,7 +1012,7 @@ function explode(g, b) {
   for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
     const x = b.x + dx, y = b.y + dy; if (!inb(x, y)) continue;
     const k = y * W + x, c = g.map[k];
-    if (b.mega) { if ("#~@X%&D".includes(c)) setTile(g, x, y, " "); }
+    if (b.mega) { if ("#~@X%&Dr".includes(c)) setTile(g, x, y, " "); }
     else if (c === "#") g.holes[k] = { st: "open", t: 0, by: b.by };
     const it = itemAt(g, x, y); if (it && it.k === "B") it.t = Math.min(it.t, 0.15); // chain reaction
   }
@@ -1032,6 +1054,7 @@ function tick(g, dt) {
   for (let i = g.queue.length - 1; i >= 0; i--) {
     const q = g.queue[i]; q.t -= dt; if (q.t > 0) continue;
     if (q.k === "$") { const c = randomFloor(g); if (c >= 0) { g.gold[c] = q.v || 1; g.queue.splice(i, 1); } else q.t = 1; }
+    else if (q.k === "rub") { if (g.map[q.y * W + q.x] === "r") { setTile(g, q.x, q.y, " "); g.fx.push({ k: "dust", x: q.x, y: q.y, t: 0.4 }); } g.queue.splice(i, 1); }
     else if (q.k === "item") { if (!playerAt(g, q.it.x, q.it.y)) { q.it.gone = false; g.queue.splice(i, 1); } else q.t = 1; }
   }
   if (g.mode === "rush" && (g.nugT -= dt) <= 0) { g.nugT = 30; const c = randomFloor(g); if (c >= 0) { g.gold[c] = 3; ev(g, "nugspawn"); } }
@@ -1118,6 +1141,7 @@ const ART = {
     c.fillStyle = "#5a2306"; c.fillRect(0, TH - 1, TW, 1); c.fillRect(TW - 1, 0, 1, TH);
     c.fillStyle = "#8c3c10"; [[3, 3], [6, 6], [2, 8], [7, 2]].forEach(([x, y]) => c.fillRect(x, y, 1, 1));
   }),
+  rubble: mk(TW, TH, c => pix(c, ["..........", "...o......", "..oOo..o..", "......oOo.", ".o..o.....", "oOooOo..o.", ".ooOOooOoo", "oOoooOooOo", "ooOooOoOoo", "oOOoOooOOo", "oooOoOoooo"], { o: "#b9521b", O: "#f08a46" })),
   goo: mk(TW, TH, c => {
     brickArt(c, "#e0621e", "#000"); c.fillStyle = "#5fe05f"; c.fillRect(0, 0, TW, 2);
     c.fillRect(2, 2, 1, 2); c.fillRect(7, 2, 1, 1); c.fillRect(5, 2, 1, 3);
@@ -1216,6 +1240,7 @@ function drawWorld(g, view) {
       else if (h.st === "dig") { const sy = Math.min(TH, Math.ceil(h.t / DIGT * TH)); ctx.drawImage(img, 0, sy, TW, TH - sy, X, Y + sy, TW, TH - sy); }
       else if (h.st === "fill") { const sy = TH - Math.min(TH, Math.ceil(h.t / FILLT * TH)); ctx.drawImage(img, 0, sy, TW, TH - sy, X, Y + sy, TW, TH - sy); }
     } else if (c === "@") ctx.drawImage(ART.rock, X, Y);
+    else if (c === "r") ctx.drawImage(ART.rubble, X, Y);
     else if (c === "%" || c === "&") {
       const img = c === "%" ? ART.phaseA : ART.phaseB;
       if (ed || phaseOn(g, c)) {
@@ -1820,7 +1845,7 @@ const UI = {
   },
   solo() {
     const pr = progress();
-    const lv = LEVELS.campaign.map((l, i) => `<button data-i="${i}" ${i >= pr.unlocked ? "disabled" : ""}>${i + 1}. ${esc(l.name)}<small>${i >= pr.unlocked ? "Locked" : pr.best[i] != null ? "Best " + clock(pr.best[i]) : l.night ? "Night level" : "Not cleared"}</small></button>`).join("");
+    const lv = LEVELS.campaign.map((l, i) => { const shut = i >= pr.unlocked && !l.open; return `<button data-i="${i}" ${shut ? "disabled" : ""}>${i + 1}. ${esc(l.name)}<small>${shut ? "Locked" : pr.best[i] != null ? "Best " + clock(pr.best[i]) : l.night ? "Night level" : "Not cleared"}</small></button>`; }).join("");
     const cu = custom().map((l, i) => `<button data-u="${i}">${esc(l.name)}<small>My level</small></button>`).join("");
     this.show(`<h2>Solo</h2><p>Five lives; clearing a level gives one back. Press R to give up a life when you're stuck.</p>
       <div class="grid">${lv}</div>${cu ? `<h3>My levels</h3><div class="grid">${cu}</div>` : ""}

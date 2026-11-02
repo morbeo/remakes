@@ -24,7 +24,7 @@ Terrain: brick (diggable, grows back), bedrock, trapdoor (looks like brick), lad
 Tools, one carried at a time (walking onto another swaps):
 
 - Jackhammer: drills the block under you, bedrock included.
-- Pickaxe: drops a brick in front of you.
+- Pickaxe: swing it under a ceiling to bring rubble down in front of you; it blocks monks and runners, then clears after 7 seconds.
 - Snare: holds the next monk (or rival) that steps on it.
 - Gas can: stuns monks up to 3 tiles ahead.
 - Befuddle gas: stuns everything within 2 tiles around you.
@@ -36,7 +36,7 @@ Other pick-ups: keys (open one locked door each), the pendant (lights a wider ci
 
 ## Modes
 
-- **Solo**: 17 levels, five lives, one back per level cleared. Best times are kept in the browser.
+- **Solo**: 18 levels, five lives, one back per level cleared. Best times are kept in the browser. The last one, Proving Ground, is always open and has every tool, pick-up and kind of terrain in one map, for trying things out.
 - **Co-op** (local or online, 2 to 4): shared score and lives through the campaign. A runner who dies returns while lives last; a level clears when everyone still standing is out.
 - **Gold Rush** (versus): 2:30 on the clock, gold respawns, a nugget worth 3 drops every 30 seconds, trapping a rival in a hole scores 2.
 - **Race** (versus): gold scores 1; the first runner out after the last chest scores 3 and ends the round.
@@ -55,6 +55,6 @@ Paint with the palette, test, save (saved levels show up in every level list, in
 
 ## Layout
 
-- `index.html`: the whole game. Level data is the JSON block `<script id="levels">`; map rows use `.` empty, `#` brick, `@` bedrock, `X` trapdoor, `H` ladder, `-` rope, `S` exit ladder, `E` exit door, `%`/`&` phase blocks, `~` goo, `=` acid, `D` locked door, `5`-`9` teleporter pairs, `$` gold, `0` monk, `1`-`4` starts, `j p n g f o b m` for tools, and `k` key, `l` pendant, `B` live bomb. Arena `locks` map `"x,y"` to the player index that owns a tool; `exits` map an exit door's `"x,y"` to the campaign level it leads to.
+- `index.html`: the whole game. Level data is the JSON block `<script id="levels">`; map rows use `.` empty, `#` brick, `@` bedrock, `X` trapdoor, `H` ladder, `-` rope, `S` exit ladder, `E` exit door, `%`/`&` phase blocks, `~` goo, `=` acid, `D` locked door, `5`-`9` teleporter pairs, `$` gold, `0` monk, `1`-`4` starts, `j p n g f o b m` for tools, and `k` key, `l` pendant, `B` live bomb. Arena `locks` map `"x,y"` to the player index that owns a tool; `exits` map an exit door's `"x,y"` to the campaign level it leads to; `open: true` keeps a campaign level unlocked.
 - `tools/check-levels.js`: rough reachability check for the built-in levels (`node tools/check-levels.js`).
 - `tools/broker.js`: a tiny local stand-in for the signalling server, for testing online play offline: `node tools/broker.js 9777`, then open the page with `?broker=ws://localhost:9777/peerjs` in two windows.
