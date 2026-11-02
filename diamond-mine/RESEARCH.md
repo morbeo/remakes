@@ -15,12 +15,12 @@ From the Apple II manual (quoted in the AtariAge High Score Club thread) and pla
 
 Sources: [AtariAge HSC thread](https://forums.atariage.com/topic/241509-hsc12-round-13-diamond-mine-roklan/), [Atarimania entry](https://www.atarimania.com/game-atari-400-800-xl-xe-diamond-mine_1617.html), [MobyGames entry](https://www.mobygames.com/game/30284/).
 
-The user's reference screenshot (Apple II, green monitor) shows the cell grid with thin double-line walls and dotted dirt, "SHAFT 1" written down the left edge, a box with a diamond counter, a monster box with a count, and a panel with Miner, Score and Cars Left. Monsters are a fixed number per shaft, come out of the box, and dig at full speed; the processing box is a drive-through.
+The user's reference screenshot (Apple II, green monitor) shows the cell grid with thin double-line walls and dotted dirt, "SHAFT 1" written down the left edge, a box with a diamond counter, a monster box with a count, and a panel with Miner, Score and Cars Left. Monsters are a fixed number per shaft, come out of the box, and dig at full speed; the processing box is a drive-through that doubles as a sanctuary, closing behind you and opening when you choose to leave.
 
 Not to be confused with **Diamond Mine (MRM Software, 1984)** for the BBC Micro and Electron, where you steer a pipe through a maze.
 
 ## What the remake keeps and changes
 
-Kept: digging, faster cleared paths, eight diamonds per shaft towed as a trail, monsters that come out of a box and eat towed diamonds, the drive-through processing box, exit at the upper right, paired teleporters, the key that scares monsters and opens a special transporter, the scoring table and leaving bonus, extra vehicles every 20,000, 20 shafts, one or two players in co-op or versus.
+Kept: digging, faster cleared paths, eight diamonds per shaft towed as a trail, monsters that come out of a box and eat towed diamonds, the drive-through processing box that shuts behind you as a sanctuary, exit at the upper right, paired teleporters, the key that scares monsters and opens a special transporter, the scoring table and leaving bonus, extra vehicles every 20,000, 20 shafts, one or two players in co-op or versus.
 
 Changed or added: every shaft is generated from a seed (no original layouts are used), shot monsters stay dead (the box count is the shaft's whole supply) and the ones outside return to the box when you lose a car, wrecked cars spill their trail where it can be recovered, the vault stays open once the key has been found, daily and shareable seed links in place of passwords, starting shaft choice, a leave-shaft option, a colour screen option, buffered turns, touch, swipe and gamepad controls, and local best runs.

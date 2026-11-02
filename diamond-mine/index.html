@@ -383,6 +383,7 @@ const Sfx = {
       case "out": [659, 554, 659, 880].forEach((f, i) => this.tone(f, f, 0.06, 0.3, i * 0.05)); break;
       case "bank": [660, 880, 1100, 1320].forEach((f, i) => this.tone(f, f, 0.07, 0.35, i * 0.06)); break;
       case "release": this.tone(110, 140, 0.25, 0.3, 0, "sawtooth"); break;
+      case "door": this.tone(180, 120, 0.12, 0.35, 0, "sawtooth"); this.tone(240, 240, 0.05, 0.25, 0.12); break;
       case "tele": this.tone(200, 2400, 0.2, 0.3, 0, "triangle"); break;
       case "hurt": this.tone(700, 70, 0.6, 0.55); break;
       case "life": [784, 988, 1175, 1568].forEach((f, i) => this.tone(f, f, 0.08, 0.35, i * 0.07)); break;
@@ -421,13 +422,13 @@ function startRun(seed, depth, play) {
   setMode("play");
 }
 function placePlayer(p) {
-  Object.assign(p, { x: EXIT_X - p.id, y: EXIT_Y, dir: -1, face: 3, anim: 0, inv: 2, cool: 0, trail: [], path: [], tpos: [], slow: false, last: -1, justTele: -1, dead: 0, stun: 0, buf: -1, bufT: 0 });
+  Object.assign(p, { parked: false, parkHold: false, x: EXIT_X - p.id, y: EXIT_Y, dir: -1, face: 3, anim: 0, inv: 2, cool: 0, trail: [], path: [], tpos: [], slow: false, last: -1, justTele: -1, dead: 0, stun: 0, buf: -1, bufT: 0 });
 }
 function newShaft() {
   const g = generate(S.seed, S.shaft), L = level(S.shaft);
   S.map = g;
   Object.assign(S, { items: g.items, tele: g.tele, box: g.box, mbox: g.mbox, vault: g.vault, total: g.total });
-  Object.assign(S, { L, t: 0, mons: [], bullets: [], parts: [], pops: [], procQ: [], stored: [], procT: 0, out: 0, lost: 0, keyOut: false, unlocked: false,
+  Object.assign(S, { L, t: 0, mons: [], bullets: [], parts: [], pops: [], procQ: [], stored: [], procT: 0, out: 0, lost: 0, keyOut: false, unlocked: false, boxTold: false,
     msg: "SHAFT " + S.shaft, msgT: 2.5, kills: 0, inBox: L.monsters, relT: 3, fieldT: 0, rng: rngFor(S.seed + "/play/" + S.shaft) });
   for (const p of S.players) { const lives = p.lives; placePlayer(p); if (lives <= 0) p.dead = Infinity; }
   bake();
@@ -457,7 +458,9 @@ function moveEnt(e, dt, pass, choose, speed, enter) {
     else { e.x += DX[d] * can; e.y += DY[d] * can; e.anim += can; return; }
   }
 }
-const plPass = (e, x, y, d) => canStep(S.map, x, y, d, false);
+// the box takes one car at a time: its door shuts behind whoever is inside
+const plPass = (e, x, y, d) => canStep(S.map, x, y, d, false) &&
+  !(cellType(x + DX[d], y + DY[d]) === LANE && cellType(x, y) !== LANE && S.players.some(q => q !== e && alive(q) && laneAt(q.x, q.y)));
 const monPass = (e, x, y, d) => canStep(S.map, x, y, d, true);
 const cellType = (x, y) => S.map.type[y][x];
 
@@ -653,7 +656,7 @@ function updateBullets(dt) {
       const cx = Math.round(b.x), cy = Math.round(b.y);
       if (cx !== b.cx || cy !== b.cy) {
         // crossing into the next cell: walls, boxes and dirt stop the shot
-        const blocked = hasWall(S.map, b.cx, b.cy, b.dir) || solidCell(cellType(cx, cy)) || S.map.dirt[cy][cx];
+        const blocked = hasWall(S.map, b.cx, b.cy, b.dir) || solidCell(cellType(cx, cy)) || S.map.dirt[cy][cx] || (cellType(cx, cy) === LANE && cellType(b.cx, b.cy) !== LANE);
         if (blocked) { burst(px(b.cx + DX[b.dir] * 0.5), py(b.cy + DY[b.dir] * 0.5), S.map.dirt[cy] && S.map.dirt[cy][cx] ? C.dirt : C.wall, 4, 25); Sfx.play("thud"); return false; }
         b.cx = cx; b.cy = cy;
       }
@@ -698,7 +701,16 @@ function updatePlayer(p, i, dt) {
   moveEnt(p, dt, plPass, (e, cx, cy) => {
     arrive(e, cx, cy);
     if (S.mode !== "play" || e.x !== cx || e.y !== cy) return -1;
-    if (cellType(cx, cy) === LANE) return plPass(e, cx, cy, 1) ? 1 : -1; // the lane carries you straight through
+    if (cellType(cx, cy) === LANE) {
+      // the box is a sanctuary: you park in the middle, the doors stay shut, and they open when you drive on
+      if (cx === S.box.bx + 1) {
+        if (!e.parked) { e.parked = true; e.parkHold = hd === 1; if (!S.boxTold) { S.boxTold = true; S.msg = "SAFE IN THE BOX: RIGHT TO LEAVE"; S.msgT = 2.5; } }
+        if (hd !== 1) e.parkHold = false;
+        if (hd !== 1 || e.parkHold) return -1;
+        e.parked = false; Sfx.play("door");
+      }
+      return plPass(e, cx, cy, 1) ? 1 : -1;
+    }
     if (want >= 0 && plPass(e, cx, cy, want)) return want;
     if (hd >= 0 && e.dir >= 0 && plPass(e, cx, cy, e.dir)) return e.dir;
     if (hd >= 0) e.face = hd;
@@ -725,7 +737,7 @@ function update(dt) {
   if (S.procQ.length) { S.procT += dt; if (S.procT >= PROC_TIME) { S.procT = 0; S.stored.push(S.procQ.shift()); Sfx.play("tick"); } }
   // distance field toward the cars for hunting monsters (they dig, so dirt doesn't matter)
   S.fieldT -= dt;
-  if (S.fieldT <= 0) { S.pF = bfs(S.map, S.players.filter(alive).map(p => key(Math.round(p.x), Math.round(p.y))), true); S.fieldT = 0.15; }
+  if (S.fieldT <= 0) { S.pF = bfs(S.map, S.players.filter(p => alive(p) && !laneAt(p.x, p.y)).map(p => key(Math.round(p.x), Math.round(p.y))), true); S.fieldT = 0.15; }
   // the monster box lets its monsters out one at a time; there are only so many per shaft
   S.relT -= dt;
   if (S.relT <= 0 && S.inBox > 0 && S.mons.length < S.L.active) {
@@ -738,7 +750,7 @@ function update(dt) {
   updateBullets(0);
   // monsters eat towed diamonds (never the key) and wreck cars they touch
   for (const m of S.mons) for (const p of S.players) {
-    if (!alive(p)) continue;
+    if (!alive(p) || p.parked) continue; // nothing reaches a car parked in the box, or what it tows
     for (let n = p.trail.length - 1; n >= 0; n--) {
       const it = p.trail[n], pos = p.tpos[n];
       if (it.type === "d" && pos && Math.abs(pos.x - m.x) + Math.abs(pos.y - m.y) < 0.6) {
@@ -747,7 +759,7 @@ function update(dt) {
         if (remaining() === 0) { checkDone(p); return; }
       }
     }
-    if (p.inv <= 0 && Math.abs(m.x - p.x) + Math.abs(m.y - p.y) < 0.7) { wreck(p); return; }
+    if (p.inv <= 0 && !laneAt(p.x, p.y) && Math.abs(m.x - p.x) + Math.abs(m.y - p.y) < 0.7) { wreck(p); return; }
   }
 }
 function updateFx(dt) {
@@ -794,6 +806,13 @@ function drawBoxes(m, live) {
   if (waiting && (S.t * 6 | 0) % 2) { ctx.fillStyle = C.white; ctx.fillRect(X + 16, Y + 5, 2, 2); }
   ctx.fillStyle = C.grey;
   for (let i = 0; i < 3; i++) { const ax = X + i * T + 4, ay = Y + T + 5; ctx.fillRect(ax, ay, 4, 1); ctx.fillRect(ax + 2, ay - 1, 1, 3); }
+  // doors: the way in shuts behind a car, the way out stays shut while it is parked
+  if (live) {
+    const inside = S.players.filter(p => alive(p) && laneAt(p.x, p.y));
+    const door = dx => { ctx.fillStyle = C.wall; ctx.fillRect(dx, Y + T - 1, 1, T + 2); for (let i = 0; i < T + 2; i += 2) ctx.fillRect(dx + 1, Y + T - 1 + i, 1, 1); };
+    if (inside.some(p => p.x >= bx)) door(X - 1);
+    if (inside.some(p => p.parked)) door(X + 3 * T - 1);
+  }
   // monster box: a monster and how many are still inside
   const { mx, my } = m.mbox, MX = OX + mx * T, MY = OY + my * T;
   ctx.drawImage(ART.bugs.crawler[(S.t * 2 | 0) & 1], MX + 4, MY + 1);
@@ -897,7 +916,7 @@ function menuHtml() {
     <ul class="note">
       <li>Your car digs through dirt as it drives, slower than along tunnels that are already clear. Walls are thin lines between cells and nothing gets through them; shots also stop in dirt.</li>
       <li>Each shaft hides eight diamonds. The ones you dig up trail behind you; a monster that touches the trail eats that diamond, and one that touches your car wrecks it and spills what you tow.</li>
-      <li>The processing box is a drive-through: enter from the left and your raw diamonds drop into it. Its counter shows how many are processed; drive through again to pick them up at the far end, then take them up the lift in the top right corner.</li>
+      <li>The processing box is a drive-through and a sanctuary. Drive in from the left and the door shuts behind you: your raw diamonds drop in and nothing can reach you while you wait. Its counter shows how many are processed. Press right to open the far door and drive out with them, then take them up the lift in the top right corner.</li>
       <li>Scoring: 25 to dig up, 25 to process, 100 to bring out, 75 or 100 per monster. Leaving with 4 to 8 diamonds out adds 300 to 1000, or 1200 with all eight and the key. Points rise every four shafts. Extra car every 20,000.</li>
       <li>Each shaft's monster box holds a set number of monsters (shown on the box). They come out one at a time and dig at full speed; green ones wander, violet ones hunt you. Shot monsters are gone for good, and when you lose a car the ones outside go back in the box.</li>
       <li>U-shaped pads teleport you to their twin. From shaft 6 a key is buried somewhere: monsters shy away from it, and it opens the locked pad into a walled vault with two diamonds. Process the key and bring it out for the top bonus.</li>
