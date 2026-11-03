@@ -159,7 +159,7 @@ function canStep(m, x, y, d, mon) {
   if (hasWall(m, x, y, d)) return false;
   const nx = x + DX[d], ny = y + DY[d], t = m.type[ny][nx], here = m.type[y][x];
   if (solidCell(t)) return false;
-  if ((t === LANE || here === LANE) && d !== 1) return false; // the processing box is a one-way drive-through, west to east
+  if ((t === LANE || here === LANE) && d !== 1 && d !== 3) return false; // the processing box is a drive-through, open at both ends
   if (mon && (t === LANE || t === EXIT)) return false;
   return true;
 }
@@ -218,7 +218,7 @@ function tryGenerate(r, s) {
   enclose(EXIT_X, EXIT_Y, 1, 1); setWall(m, EXIT_X, EXIT_Y, 3, false);
   m.type[EXIT_Y][EXIT_X] = EXIT; m.dirt[EXIT_Y][EXIT_X] = false; m.dirt[EXIT_Y][EXIT_X - 1] = false;
   claim(EXIT_X - 1, EXIT_Y, 2, 2);
-  // processing box: a counter on top, a one-way lane below it with a door at each end
+  // processing box: a counter on top, a lane below it with a door at each end
   const bp = place(5, 2, 0, (x, y) => y >= 2 && y <= ROWS - 3 && x >= 0);
   if (!bp) return null;
   const bx = bp[0] + 1, by = bp[1];
@@ -577,11 +577,6 @@ function arrive(p, cx, cy) {
       Sfx.play("in");
     }
   }
-  if (t === LANE && cx === S.box.bx + 2 && S.stored.length) {
-    // ...and processed ones are handed out at the far end
-    S.stored.forEach(it => p.trail.push({ type: it.type, cut: true })); S.stored = [];
-    Sfx.play("out");
-  }
   if (t === EXIT) deliver(p);
   if ((t === TELE || t === LOCK || t === VPAD) && p.justTele !== k) {
     if (t === LOCK && !S.unlocked) { if (S.msgT <= 0) { S.msg = "LOCKED: BRING THE KEY"; S.msgT = 1.5; } return; }
@@ -703,13 +698,18 @@ function updatePlayer(p, i, dt) {
     if (S.mode !== "play" || e.x !== cx || e.y !== cy) return -1;
     if (cellType(cx, cy) === LANE) {
       // the box is a sanctuary: you park in the middle, the doors stay shut, and they open when you drive on
+      // you can come in and leave by either door; a fresh press of left or right opens the one you choose
+      const side = hd === 1 || hd === 3 ? hd : -1;
       if (cx === S.box.bx + 1) {
-        if (!e.parked) { e.parked = true; e.parkHold = hd === 1; if (!S.boxTold) { S.boxTold = true; S.msg = "SAFE IN THE BOX: RIGHT TO LEAVE"; S.msgT = 2.5; } }
-        if (hd !== 1) e.parkHold = false;
-        if (hd !== 1 || e.parkHold) return -1;
+        if (!e.parked) { e.parked = true; e.parkHold = side >= 0; if (!S.boxTold) { S.boxTold = true; S.msg = "SAFE IN THE BOX: LEFT OR RIGHT TO LEAVE"; S.msgT = 2.5; } }
+        if (side < 0) e.parkHold = false;
+        if (side < 0 || e.parkHold) return -1;
         e.parked = false; Sfx.play("door");
+        // processed diamonds are handed out as you leave
+        if (S.stored.length) { S.stored.forEach(it => e.trail.push({ type: it.type, cut: true })); S.stored = []; Sfx.play("out"); }
+        return plPass(e, cx, cy, side) ? side : -1;
       }
-      return plPass(e, cx, cy, 1) ? 1 : -1;
+      return (e.dir === 1 || e.dir === 3) && plPass(e, cx, cy, e.dir) ? e.dir : -1;
     }
     if (want >= 0 && plPass(e, cx, cy, want)) return want;
     if (hd >= 0 && e.dir >= 0 && plPass(e, cx, cy, e.dir)) return e.dir;
@@ -798,20 +798,20 @@ function cellArt(m, x, y, items) {
   if (it) ctx.drawImage(it === "k" ? ART.key : ART.rough, X, Y);
 }
 function drawBoxes(m, live) {
-  // processing box: counter on top, arrows along the lane
+  // processing box: counter on top, a dotted lane
   const { bx, by } = m.box, X = OX + bx * T, Y = OY + by * T;
   ctx.drawImage(ART.gem5, X + 6, Y + 4);
   const ready = live ? S.stored.length : 0, waiting = live ? S.procQ.length : 0;
   text(ctx, String(ready), X + 3 * T - 10, Y + 3, ready ? C.white : C.grey);
   if (waiting && (S.t * 6 | 0) % 2) { ctx.fillStyle = C.white; ctx.fillRect(X + 16, Y + 5, 2, 2); }
   ctx.fillStyle = C.grey;
-  for (let i = 0; i < 3; i++) { const ax = X + i * T + 4, ay = Y + T + 5; ctx.fillRect(ax, ay, 4, 1); ctx.fillRect(ax + 2, ay - 1, 1, 3); }
-  // doors: the way in shuts behind a car, the way out stays shut while it is parked
+  for (let i = 0; i < 3 * T; i += 4) ctx.fillRect(X + i + 2, Y + T + 5, 1, 1);
+  // doors: the one behind an incoming car shuts, both stay shut while it is parked, the chosen one opens to let it out
   if (live) {
     const inside = S.players.filter(p => alive(p) && laneAt(p.x, p.y));
     const door = dx => { ctx.fillStyle = C.wall; ctx.fillRect(dx, Y + T - 1, 1, T + 2); for (let i = 0; i < T + 2; i += 2) ctx.fillRect(dx + 1, Y + T - 1 + i, 1, 1); };
-    if (inside.some(p => p.x >= bx)) door(X - 1);
-    if (inside.some(p => p.parked)) door(X + 3 * T - 1);
+    if (inside.some(p => p.parked || (p.dir === 1 && p.x >= bx))) door(X - 1);
+    if (inside.some(p => p.parked || (p.dir === 3 && p.x <= bx + 2))) door(X + 3 * T - 1);
   }
   // monster box: a monster and how many are still inside
   const { mx, my } = m.mbox, MX = OX + mx * T, MY = OY + my * T;
@@ -916,7 +916,7 @@ function menuHtml() {
     <ul class="note">
       <li>Your car digs through dirt as it drives, slower than along tunnels that are already clear. Walls are thin lines between cells and nothing gets through them; shots also stop in dirt.</li>
       <li>Each shaft hides eight diamonds. The ones you dig up trail behind you; a monster that touches the trail eats that diamond, and one that touches your car wrecks it and spills what you tow.</li>
-      <li>The processing box is a drive-through and a sanctuary. Drive in from the left and the door shuts behind you: your raw diamonds drop in and nothing can reach you while you wait. Its counter shows how many are processed. Press right to open the far door and drive out with them, then take them up the lift in the top right corner.</li>
+      <li>The processing box is a drive-through and a sanctuary. Drive in from either end and the door shuts behind you: your raw diamonds drop in and nothing can reach you while you wait. Its counter shows how many are processed. Press left or right to open that door and drive out with them, then take them up the lift in the top right corner.</li>
       <li>Scoring: 25 to dig up, 25 to process, 100 to bring out, 75 or 100 per monster. Leaving with 4 to 8 diamonds out adds 300 to 1000, or 1200 with all eight and the key. Points rise every four shafts. Extra car every 20,000.</li>
       <li>Each shaft's monster box holds a set number of monsters (shown on the box). They come out one at a time and dig at full speed; green ones wander, violet ones hunt you. Shot monsters are gone for good, and when you lose a car the ones outside go back in the box.</li>
       <li>U-shaped pads teleport you to their twin. From shaft 6 a key is buried somewhere: monsters shy away from it, and it opens the locked pad into a walled vault with two diamonds. Process the key and bring it out for the top bonus.</li>
