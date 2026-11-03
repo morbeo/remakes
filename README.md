@@ -4,6 +4,7 @@ Browser remakes of old games. Each game lives in its own folder as a self-contai
 
 | Game | Remake of | Folder |
 | --- | --- | --- |
+| Bead Brawl | Ballz | [ballz/](ballz/) |
 | ClockWerx | ClockWerx | [clockwerx/](clockwerx/) |
 | Dead Drop | Spy vs Spy | [spy-vs-spy/](spy-vs-spy/) |
 | Gold Raid | Lode Runner | [lode-runner/](lode-runner/) |

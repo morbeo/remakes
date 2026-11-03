@@ -100,6 +100,13 @@ def marble_madness(pg):
     return "#c"
 
 
+def ballz(pg):
+    pg.evaluate("BB.start({mode: 'watch', seed: 'pebble-42', p1: 2, p2: 5}); BB.sim(820)")
+    pg.add_style_tag(content="#hudBtns{display:none!important}")
+    pg.wait_for_timeout(120)
+    return "#c"
+
+
 def default(pg):
     pg.wait_for_timeout(1000)
     return "canvas"
@@ -109,7 +116,7 @@ RECIPES = {"elasto-mania": elasto_mania, "clockwerx": clockwerx,
            "excitebike": excitebike, "arctic-adventure": arctic_adventure,
            "little-computer-people": little_computer_people, "lode-runner": lode_runner,
            "spacewar": spacewar, "spy-vs-spy": spy_vs_spy, "virtua-cop": virtua_cop,
-           "marble-madness": marble_madness}
+           "marble-madness": marble_madness, "ballz": ballz}
 
 # Scale the element shot down in the page and encode it as WebP there, so no image library is needed.
 ENCODE = """async ([src, w]) => {
