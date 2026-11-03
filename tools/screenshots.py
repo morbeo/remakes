@@ -100,6 +100,25 @@ def marble_madness(pg):
     return "#c"
 
 
+def bolo(pg):
+    # depth 4, tank in an open room with enemies closing in and shells in flight
+    pg.evaluate("""() => { const S = IW.S, T = 48; IW.newRun('copper-warren-7'); S.run.depth = 4; IW.startFloor();
+      const m = S.map, W = m.W, open = (x, y) => m.tiles[y * W + x] === 0;
+      let room = null;
+      for (let y = 1; y < m.H - 3 && !room; y++) for (let x = 1; x < W - 3 && !room; x++) {
+        let ok = true; for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) ok = ok && open(x + i, y + j);
+        if (ok) room = [x, y]; }
+      const [rx, ry] = room, p = S.player; S.banner = null; S.enemies.length = 0;
+      p.x = (rx + .5) * T; p.y = (ry + 1.5) * T; p.a = 0;
+      const e1 = IW.mkEnemy('tank', (rx + 2.5) * T, (ry + .5) * T, true), e2 = IW.mkEnemy('brute', (rx + 2.6) * T, (ry + 2.5) * T, true);
+      e1.a = e1.ta = Math.PI; e2.a = e2.ta = Math.PI * .85; e1.cd = .1; e2.cd = .3; S.enemies.push(e1, e2);
+      S.pickups.push({ x: (rx + 1.5) * T, y: (ry + 2.5) * T, kind: 'repair', v: 1, t: 0 });
+      S.run.hp = 99; S.floorT = 0; IW.keys.add('Space'); IW.sim(.4); IW.keys.delete('Space');
+      S.run.hp = 3; S.run.scrap = 7; S.run.score = 2860; p.inv = 0; IW.sim(0); S.mode = 'shot'; }""")
+    pg.wait_for_timeout(500)
+    return "#c"
+
+
 def default(pg):
     pg.wait_for_timeout(1000)
     return "canvas"
@@ -109,7 +128,7 @@ RECIPES = {"elasto-mania": elasto_mania, "clockwerx": clockwerx,
            "excitebike": excitebike, "arctic-adventure": arctic_adventure,
            "little-computer-people": little_computer_people, "lode-runner": lode_runner,
            "spacewar": spacewar, "spy-vs-spy": spy_vs_spy, "virtua-cop": virtua_cop,
-           "marble-madness": marble_madness}
+           "marble-madness": marble_madness, "bolo": bolo}
 
 # Scale the element shot down in the page and encode it as WebP there, so no image library is needed.
 ENCODE = """async ([src, w]) => {
