@@ -8,6 +8,7 @@ Browser remakes of old games. Each game lives in its own folder as a self-contai
 | Dead Drop | Spy vs Spy | [spy-vs-spy/](spy-vs-spy/) |
 | Gold Raid | Lode Runner | [lode-runner/](lode-runner/) |
 | Heatline MX | Excitebike | [excitebike/](excitebike/) |
+| Iron Warren | Bolo (Apple II) | [bolo/](bolo/) |
 | Polar Delve | Arctic Adventure | [arctic-adventure/](arctic-adventure/) |
 | Ridge Roller | Marble Madness | [marble-madness/](marble-madness/) |
 | Spring Rider | Elasto Mania | [elasto-mania/](elasto-mania/) |
