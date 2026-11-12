@@ -16,3 +16,5 @@ Browser remakes of old games. Each game lives in its own folder as a self-contai
 | Virtua Justice | Virtua Cop | [virtua-cop/](virtua-cop/) |
 
 The landing page shows a gameplay thumbnail for each game (`<game>/screenshot.webp`). Regenerate them with `python3 tools/screenshots.py` (needs Python Playwright; pass game folders to redo only those).
+
+Run `python3 tools/smoke.py` to load every page in headless Chromium and fail on JavaScript errors or missing files (pass game folders to test only those). CI runs it on every PR and before each deploy.

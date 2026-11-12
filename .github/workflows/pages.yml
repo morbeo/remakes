@@ -3,6 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [master]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -11,11 +12,24 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  # PR runs only smoke-test, so keep them out of the deploy queue
+  group: ${{ github.event_name == 'pull_request' && format('smoke-{0}', github.ref) || 'pages' }}
   cancel-in-progress: true
 
 jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install playwright && python -m playwright install --with-deps chromium
+      - run: python tools/smoke.py
+
   deploy:
+    needs: smoke
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
