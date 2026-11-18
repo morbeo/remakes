@@ -14,7 +14,8 @@ Browser remakes of old games. Live site: https://morbeo.github.io/remakes/
 1. Create `<game>/index.html` (full document with doctype, charset and viewport meta).
 2. Add a card to the root `index.html` and a row to the root `README.md` table.
    The card shows `<game>/screenshot.webp`; make it with `python3 tools/screenshots.py <game>` (add a recipe in that script if the game needs input to reach gameplay).
-3. Run `python3 tools/smoke.py <game>`; it must report the page clean.
+3. Pull requests run `tools/check_games.py` (`.github/workflows/checks.yml`): it fails if a game folder is missing from the root `index.html` or the README table, or if a game logs a console error or throws on load. Run `python3 tools/check_games.py` before pushing.
+   Also run `python3 tools/smoke.py <game>`; it must report the page clean (CI runs it before each deploy).
 4. Optional `<game>/README.md` with controls and layout, and `<game>/RESEARCH.md` with notes on the original.
 
 ## Conventions
