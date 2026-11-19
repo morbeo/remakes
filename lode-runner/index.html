@@ -289,7 +289,7 @@ html.touch .keys{display:none}
 {"name":"Snare Line",
 "map":[
 "S...........................",
-"S...........................",
+"S................#####......",
 "S..n.....0.......0......p.$.",
 "########H##########H########",
 "........H..........H........",
@@ -298,7 +298,7 @@ html.touch .keys{display:none}
 "...H.............H......H...",
 "...H....0.$......H......H.0.",
 "##H#############H###########",
-"..H.............H...........",
+"..H.............H.####......",
 ".$H...1.........H..p....$...",
 "@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
 "@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
@@ -379,7 +379,7 @@ html.touch .keys{display:none}
 {"name":"Fuse Box",
 "map":[
 "...........................S",
-"...........................S",
+"......####.................S",
 ".1...p......0.......g......S",
 "####H#################H#####",
 "....H.................H.....",
@@ -447,7 +447,43 @@ html.touch .keys{display:none}
 "####H#####XX####@@@####H####",
 "....H..................H....",
 "....H..................H....",
-".$..H$...1........m.$.$.H.$."]}],"arenas":[{"name":"Twin Pits",
+".$..H$...1........m.$.$.H.$."]},
+{"name":"Freight Yard",
+"map":[
+"S...........................",
+"S...........................",
+"S1.$.....0.......$.........N",
+"##H#>>>>>>>##IIIII##<<<<<#H#",
+"..H.......................H.",
+"..H..........$............H.",
+"..H.........####..........H.",
+".$H......a...........0....H.",
+"##H######IIIIIIIII########H#",
+"..H.......................H.",
+"..H.......................H.",
+"..H....N.....$.........N..H.",
+"##H>>>>>>>>>>##<<<<<<<<<<#H#",
+"..H.......................H.",
+".$H....0.......$......0...H$",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@"]},
+{"name":"Proving Ground",
+"map":[
+"S...........................",
+"S.................####......",
+"S.1.j.p.n.g.o.f.a.....0$..E.",
+"###H####XX##%%#&&########H##",
+"...H..---------------....H..",
+"...H.....................H..",
+"...H.....................H..",
+".$.H.k.$.B..b.m.05...5.l.H$.",
+"###H####~~~~#@@@@#==####H###",
+"...H..$....$....0....N..H...",
+"...H>>>>>IIIII<<<<<#####H...",
+"...H....................H...",
+"...H......$.....H.......H...",
+"...H#########...H#####@.H...",
+".$.H..@..$....0.H.D.$.@$H...",
+"@@@@@@@@@@@@@@@@@@@@@@@@@@@@"],"open":true}],"arenas":[{"name":"Twin Pits",
 "map":[
 "............................",
 "............................",
@@ -513,7 +549,7 @@ html.touch .keys{display:none}
 "..H......H........H......H..",
 "..H------H-$----$-H------H..",
 "..H......H........H......H..",
-"..H......H........H......H..",
+"..H..###.H........H.###..H..",
 ".1H.$.p..H.0....0.H..p.$.H2.",
 "##H######################H##",
 "..H......................H..",
@@ -543,20 +579,21 @@ html.touch .keys{display:none}
 // ---------------------------------------------------------------- constants
 const W = 28, H = 16, TW = 10, TH = 11, SW = 280, SH = 192, PH = H * TH;
 const STEP = 1 / 60;
-const DIGT = 0.26, HOLET = 6.2, FILLT = 0.9, TRAPT = 2.4, STRUG = 6;
-const SPD = { run: 5.4, climb: 4.5, slide: 6.6, rope: 4.6, fall: 7.6 }, MONK = 0.62, GOO = 0.45;
+const DIGT = 0.26, HOLET = 6.2, FILLT = 0.9, TRAPT = 2.4, STRUG = 6, RUBT = 7;
+const SPD = { run: 5.4, climb: 4.5, slide: 6.6, rope: 4.6, fall: 7.6, belt: 3.4 }, MONK = 0.62, GOO = 0.45;
 const LEVELS = JSON.parse(document.getElementById("levels").textContent);
 const PCOL = ["#ffffff", "#5fe05f", "#4fb4ff", "#ff8ad8"];
 const PNAME = ["P1", "P2", "P3", "P4"];
 const TOOLS = {
   j: { name: "Jackhammer", tip: "drills the block under you, even bedrock" },
-  p: { name: "Pickaxe", tip: "drops a brick in front of you to wall off monks" },
+  p: { name: "Pickaxe", tip: "knocks rubble down from the ceiling ahead; it blocks the way for a while" },
   n: { name: "Snare", tip: "set it where you stand; holds the next monk or rival" },
   g: { name: "Gas can", tip: "stuns monks (and rivals) up to 3 tiles ahead" },
   o: { name: "Goo bucket", tip: "coats the floor around you; goo slows everyone" },
   b: { name: "Bomb", tip: "opens bricks around it for a while; stand clear" },
   m: { name: "Mega bomb", tip: "blows away bricks and bedrock for good" },
   f: { name: "Befuddle gas", tip: "stuns every monk (and rival) within 2 tiles" },
+  a: { name: "Ladder kit", tip: "builds a ladder up to 4 tiles tall where you stand" },
 };
 // Pick-ups that don't take the tool slot, plus the self-lighting bomb that waits in the level.
 const EXTRAS = {
@@ -565,6 +602,7 @@ const EXTRAS = {
   B: { name: "Live bomb", tip: "lights itself, blows, and comes back; grab it to carry a bomb" },
 };
 const TELE_COL = { 5: "#4fb4ff", 6: "#ff8ad8", 7: "#5fe05f", 8: "#ffd23f", 9: "#ffffff" };
+const SNAP_DIFF = ["name", "night", "mode", "no", "ready", "openAt", "lv", "sc", "ov", "ex", "gold", "holes", "items", "sn"];
 const MODES = {
   solo: "Solo", coop: "Co-op", rush: "Gold Rush", race: "Race",
 };
@@ -664,13 +702,17 @@ function solid(g, x, y) {
   if (y < 0) return false;
   const k = y * W + x, c = g.map[k];
   if (c === "#" || c === "~") { const h = g.holes[k]; return !(h && h.st === "open"); }
-  if (c === "@" || c === "D") return true;
+  if (c === "@" || c === "D" || c === "r" || c === "<" || c === ">" || c === "I") return true;
   if (c === "%" || c === "&") return phaseOn(g, c);
   return false;
 }
 function ladder(g, x, y) { if (!inb(x, y)) return false; const c = g.map[y * W + x]; return c === "H" || (c === "S" && g.exitsOpen); }
 function rope(g, x, y) { return inb(x, y) && g.map[y * W + x] === "-"; }
 function liquid(g, x, y) { return inb(x, y) && g.map[y * W + x] === "="; }
+const beltAt = (g, x, y) => { const c = inb(x, y) ? g.map[y * W + x] : ""; return c === ">" ? 1 : c === "<" ? -1 : 0; }; // conveyor under a cell: -1, 0 or 1
+const iceAt = (g, x, y) => inb(x, y) && g.map[y * W + x] === "I";
+// A runner standing still in a nook is out of the monks' sight.
+const hidden = (g, p) => !p.mv && g.map[Math.round(p.y) * W + Math.round(p.x)] === "N";
 const cellOf = e => [Math.round(e.x), Math.round(e.y)];
 function monkAt(g, x, y, self) {
   for (const m of g.monks) if (m !== self && m.st !== "dead" && Math.round(m.x) === x && Math.round(m.y) === y) return m;
@@ -692,21 +734,25 @@ const isVs = g => g.mode === "rush" || g.mode === "race";
 
 // ---------------------------------------------------------------- movement
 function startMove(e, nx, ny, kind) {
-  e.fx = Math.round(e.x); e.fy = Math.round(e.y); e.tx = nx; e.ty = ny; e.mv = kind;
+  e.fx = Math.round(e.x); e.fy = Math.round(e.y); e.tx = nx; e.ty = ny; e.mv = kind; e.drift = false;
   if (kind === "h") e.face = nx > e.fx ? 1 : -1;
 }
 function speedOf(g, e) {
   let s;
   if (e.mv === "f") return SPD.fall;
+  if (e.drift) return (e.drift === "ice" ? SPD.run * 0.8 : SPD.belt) * (e.isP ? 1 : MONK); // sliding on ice or carried by a belt
   if (e.mv === "v") s = e.ty > e.fy && ladder(g, e.fx, e.fy) && ladder(g, e.tx, e.ty) ? SPD.slide : SPD.climb;
   else {
     s = rope(g, e.fx, e.fy) && rope(g, e.tx, e.ty) ? SPD.rope : SPD.run;
     const below = g.map[(e.fy + 1) * W + e.fx], below2 = g.map[(e.ty + 1) * W + e.tx];
     if (below === "~" || below2 === "~") s *= GOO;
+    const belt = beltAt(g, e.fx, e.fy + 1);
+    if (belt && !rope(g, e.fx, e.fy)) s *= belt === Math.sign(e.tx - e.fx) ? 1.5 : 0.6;
   }
   return e.isP ? s : s * MONK;
 }
 function animFor(g, e) {
+  if (e.drift) return "st";
   if (e.mv === "h") return rope(g, e.fx, e.fy) && rope(g, e.tx, e.ty) ? "rope" : "run";
   if (e.mv === "v") return "climb";
   if (e.mv === "f") return "fall";
@@ -748,6 +794,7 @@ function updatePlayer(g, p, dt) {
   if (p.mv === "h") {
     const want = I.l && !I.r ? -1 : I.r && !I.l ? 1 : 0;
     if (want && want !== Math.sign(p.tx - p.fx)) reverse(p);
+    if (want) p.drift = false;
   } else if (p.mv === "v" && !p.climbOut) {
     const dir = Math.sign(p.ty - p.fy);
     if ((dir < 0 && I.d && !I.u && !solid(g, p.fx, p.fy + 1) && ladder(g, p.fx, p.fy)) || (dir > 0 && I.u && !I.d && ladder(g, p.tx, p.ty))) reverse(p);
@@ -777,8 +824,16 @@ function decidePlayer(g, p) {
   if (hd) {
     p.face = hd;
     if (inb(x + hd, y) && g.map[y * W + x + hd] === "D" && p.keys > 0) { p.keys--; setTile(g, x + hd, y, " "); ev(g, "unlock"); }
-    if (!solid(g, x + hd, y)) { startMove(p, x + hd, y, "h"); p.hover = 0; return; }
+    if (!solid(g, x + hd, y)) { startMove(p, x + hd, y, "h"); p.hover = 0; p.iceDir = iceAt(g, x + hd, y + 1) ? hd : 0; return; }
   }
+  if (!hd) carry(g, p, x, y);
+}
+// Ice slides a runner who lets go one more tile; a belt carries anyone standing on it.
+function carry(g, e, x, y) {
+  if (ladder(g, x, y) || rope(g, x, y)) { e.iceDir = 0; return; }
+  const ice = e.iceDir && iceAt(g, x, y + 1), d = ice ? e.iceDir : beltAt(g, x, y + 1);
+  e.iceDir = 0;
+  if (d && !solid(g, x + d, y) && (e.isP || !monkAt(g, x + d, y, e))) { const f = e.face; startMove(e, x + d, y, "h"); e.drift = ice ? "ice" : "belt"; e.face = f; }
 }
 function tryDig(g, p, x, y, d) {
   const hx = x + d, hy = y + 1;
@@ -796,10 +851,14 @@ function useTool(g, p, x, y) {
   let ok = false;
   if (t === "j") {
     const c = g.map[(y + 1) * W + x];
-    if (y + 1 < H && "#~@X%&".includes(c)) { setTile(g, x, y + 1, " "); ok = true; ev(g, "jack"); g.fx.push({ k: "dust", x, y: y + 1, t: 0.4 }); }
+    if (y + 1 < H && "#~@X%&r<>I".includes(c)) { setTile(g, x, y + 1, " "); ok = true; ev(g, "jack"); g.fx.push({ k: "dust", x, y: y + 1, t: 0.4 }); }
   } else if (t === "p") {
     const nx = x + p.face;
-    if (inb(nx, y) && g.map[y * W + nx] === " " && !g.gold[y * W + nx] && !itemAt(g, nx, y) && !monkAt(g, nx, y) && !playerAt(g, nx, y)) { setTile(g, nx, y, "#"); ok = true; ev(g, "pick"); }
+    // needs a ceiling over the cell ahead: the swing brings rubble down from it, and the rubble clears itself later
+    if (inb(nx, y) && y > 0 && solid(g, nx, y - 1) && g.map[y * W + nx] === " " && !g.gold[y * W + nx] && !itemAt(g, nx, y) && !monkAt(g, nx, y) && !playerAt(g, nx, y)) {
+      setTile(g, nx, y, "r"); g.queue.push({ t: RUBT, k: "rub", x: nx, y }); ok = true; ev(g, "pick");
+      g.fx.push({ k: "dust", x: nx, y, t: 0.4 });
+    }
   } else if (t === "n") {
     if (!g.snares.find(s => s.x === x && s.y === y)) { g.snares.push({ x, y, by: p.idx }); ok = true; ev(g, "snare"); }
   } else if (t === "g") {
@@ -809,6 +868,10 @@ function useTool(g, p, x, y) {
     for (const m of g.monks) if (m.st !== "dead" && Math.abs(m.y - y) < 0.8 && m.x > lo - 0.6 && m.x < hi + 0.6 && Math.round(m.x) !== x - p.face) m.stun = 4.5;
     if (isVs(g)) for (const q of g.players) if (q !== p && q.st === "ok" && Math.abs(q.y - y) < 0.8 && q.x > lo - 0.6 && q.x < hi + 0.6) q.stun = 2;
     g.fx.push({ k: "gas", x: lo, x2: hi, y, t: 0.7, d: p.face }); ok = true; ev(g, "gas");
+  } else if (t === "a") {
+    // stack ladder up from where you stand, through empty cells only
+    const free = (cx, cy) => cy >= 0 && g.map[cy * W + cx] === " " && !g.gold[cy * W + cx] && !itemAt(g, cx, cy);
+    if (free(x, y) && free(x, y - 1)) { for (let i = 0; i < 4 && free(x, y - i); i++) setTile(g, x, y - i, "H"); ok = true; ev(g, "pick"); }
   } else if (t === "f") {
     for (const m of g.monks) if (m.st !== "dead" && Math.abs(m.x - x) < 2.6 && Math.abs(m.y - y) < 2.6) m.stun = 5;
     if (isVs(g)) for (const q of g.players) if (q !== p && q.st === "ok" && Math.abs(q.x - x) < 2.6 && Math.abs(q.y - y) < 2.6) q.stun = 2.5;
@@ -927,16 +990,16 @@ function decideMonk(g, m) {
     for (const d of [d0, -d0]) if (!solid(g, x + d, y) && !monkAt(g, x + d, y, m)) { startMove(m, x + d, y, "h"); return; }
     return;
   }
-  if (!tgt) return;
+  if (!tgt) { carry(g, m, x, y); return; }
   const step = pathStep(g, m, x, y);
-  if (!step) return;
+  if (!step) { carry(g, m, x, y); return; }
   const [nx, ny] = step;
   if (monkAt(g, nx, ny, m) || g.monks.some(o => o !== m && o.mv && o.tx === nx && o.ty === ny)) return;
   startMove(m, nx, ny, ny > y ? (ladder(g, nx, ny) || ladder(g, x, y) ? "v" : "f") : ny < y ? "v" : "h");
 }
 function nearestPlayer(g, m) {
   let best = null, bd = 1e9;
-  for (const p of g.players) if (p.st === "ok") { const d = Math.abs(p.x - m.x) + Math.abs(p.y - m.y) * 1.5; if (d < bd) { bd = d; best = p; } }
+  for (const p of g.players) if (p.st === "ok" && !hidden(g, p)) { const d = Math.abs(p.x - m.x) + Math.abs(p.y - m.y) * 1.5; if (d < bd) { bd = d; best = p; } }
   return best;
 }
 function neighbours(g, x, y, out) {
@@ -952,7 +1015,7 @@ const PREV = new Int16Array(W * H), DIST = new Int16Array(W * H), Q = new Int16A
 function pathStep(g, m, sx, sy) {
   PREV.fill(-1); DIST.fill(-1);
   const s = sy * W + sx; DIST[s] = 0; let qh = 0, qt = 0; Q[qt++] = s;
-  const goals = new Set(); for (const p of g.players) if (p.st === "ok") goals.add(Math.round(p.y) * W + Math.round(p.x));
+  const goals = new Set(); for (const p of g.players) if (p.st === "ok" && !hidden(g, p)) goals.add(Math.round(p.y) * W + Math.round(p.x));
   let found = -1;
   while (qh < qt) {
     const c = Q[qh++];
@@ -990,7 +1053,7 @@ function explode(g, b) {
   for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
     const x = b.x + dx, y = b.y + dy; if (!inb(x, y)) continue;
     const k = y * W + x, c = g.map[k];
-    if (b.mega) { if ("#~@X%&D".includes(c)) setTile(g, x, y, " "); }
+    if (b.mega) { if ("#~@X%&Dr<>I".includes(c)) setTile(g, x, y, " "); }
     else if (c === "#") g.holes[k] = { st: "open", t: 0, by: b.by };
     const it = itemAt(g, x, y); if (it && it.k === "B") it.t = Math.min(it.t, 0.15); // chain reaction
   }
@@ -1032,6 +1095,7 @@ function tick(g, dt) {
   for (let i = g.queue.length - 1; i >= 0; i--) {
     const q = g.queue[i]; q.t -= dt; if (q.t > 0) continue;
     if (q.k === "$") { const c = randomFloor(g); if (c >= 0) { g.gold[c] = q.v || 1; g.queue.splice(i, 1); } else q.t = 1; }
+    else if (q.k === "rub") { if (g.map[q.y * W + q.x] === "r") { setTile(g, q.x, q.y, " "); g.fx.push({ k: "dust", x: q.x, y: q.y, t: 0.4 }); } g.queue.splice(i, 1); }
     else if (q.k === "item") { if (!playerAt(g, q.it.x, q.it.y)) { q.it.gone = false; g.queue.splice(i, 1); } else q.t = 1; }
   }
   if (g.mode === "rush" && (g.nugT -= dt) <= 0) { g.nugT = 30; const c = randomFloor(g); if (c >= 0) { g.gold[c] = 3; ev(g, "nugspawn"); } }
@@ -1043,6 +1107,7 @@ function tick(g, dt) {
     const [x, y] = cellOf(p);
     if ((solid(g, x, y) && "%&#~".includes(g.map[y * W + x]) && !g.holes[y * W + x]) || liquid(g, x, y)) { killPlayer(g, p, -1); continue; }
     if (p.inv > 0) continue;
+    if (hidden(g, p)) continue;
     for (const m of g.monks) if ((m.st === "ok" || m.st === "trap") && m.stun <= 0 && Math.abs(m.x - p.x) < 0.7 && Math.abs(m.y - p.y) < 0.7) { killPlayer(g, p, -1); break; }
   }
   for (const m of g.monks) { if (m.st === "dead") continue; const [x, y] = cellOf(m); if ((solid(g, x, y) && "%&".includes(g.map[y * W + x])) || liquid(g, x, y)) killMonk(g, m, -1); }
@@ -1118,6 +1183,10 @@ const ART = {
     c.fillStyle = "#5a2306"; c.fillRect(0, TH - 1, TW, 1); c.fillRect(TW - 1, 0, 1, TH);
     c.fillStyle = "#8c3c10"; [[3, 3], [6, 6], [2, 8], [7, 2]].forEach(([x, y]) => c.fillRect(x, y, 1, 1));
   }),
+  rubble: mk(TW, TH, c => pix(c, ["..........", "...o......", "..oOo..o..", "......oOo.", ".o..o.....", "oOooOo..o.", ".ooOOooOoo", "oOoooOooOo", "ooOooOoOoo", "oOOoOooOOo", "oooOoOoooo"], { o: "#b9521b", O: "#f08a46" })),
+  ice: mk(TW, TH, c => { brickArt(c, "#9fe6ff", "#000"); c.fillStyle = "#fff"; c.fillRect(1, 1, 3, 1); c.fillRect(6, 7, 2, 1); }),
+  belt: mk(TW, TH, c => { c.fillStyle = "#9a9a9a"; c.fillRect(0, 0, TW, TH); c.fillStyle = "#555"; c.fillRect(0, 3, TW, TH - 6); c.fillStyle = "#fff"; [1, 5].forEach(x => c.fillRect(x + 1, 5, 2, 1)); }),
+  nook: mk(TW, TH, c => pix(c, ["...kkkk...", "..k....k..", ".k......k.", ".k......k.", ".k......k.", ".k......k.", ".k......k.", ".k......k.", ".k......k.", ".k......k.", ".kkkkkkkk."], { k: "#6b6b6b" })),
   goo: mk(TW, TH, c => {
     brickArt(c, "#e0621e", "#000"); c.fillStyle = "#5fe05f"; c.fillRect(0, 0, TW, 2);
     c.fillRect(2, 2, 1, 2); c.fillRect(7, 2, 1, 1); c.fillRect(5, 2, 1, 3);
@@ -1145,14 +1214,16 @@ const ICONS = {
   f: ["..w.w...", ".w.w.w..", "..bbb...", ".bbwbb..", ".bbbbb..", ".bbbbb..", "..bbb...", "........"],
   k: ["........", ".yyy....", "y...y...", "y...yyyy", "y...y.y.", ".yyy..y.", "........", "........"],
   l: ["..w..w..", "...ww...", "...ww...", "..yyyy..", ".yywwyy.", ".yywwyy.", "..yyyy..", "...yy..."],
+  a: ["w....w..", "wwwwww..", "w....w..", "wwwwww..", "w....w..", "wwwwww..", "w....w..", "........"],
   B: ["....yry.", "....w...", "...ww...", "..rrrr..", ".rkkwkr.", ".rkkkkr.", ".rkkkkr.", "..rrrr.."],
 };
 const ICON_IMG = {}; for (const k in ICONS) ICON_IMG[k] = mk(TW, TH, c => pix(c, ICONS[k], ICON_MAP, 1, 3));
 const SPR = {
   st: ["..........", "....##....", "....##....", "...####...", "..#.##.#..", "..#.##.#..", "....##....", "...#..#...", "...#..#...", "...#..#...", "..##..##.."],
-  r0: ["..........", ".....##...", ".....##...", "....###...", "...#.###..", "..#..##.#.", ".....##...", "....#..#..", "...#....#.", "..#.....#.", ".##......."],
-  r1: ["..........", ".....##...", ".....##...", ".....##...", "....####..", "....###...", ".....##...", ".....##...", ".....#.#..", "....#..#..", "....#..##."],
-  r2: ["..........", ".....##...", ".....##...", "....####..", "...#.##.#.", ".....##..#", ".....##...", "....#.#...", "...#...#..", "...#...#..", "..##...##."],
+  // Run cycle: stride, knee up, stride, step through; two poses per tile so the legs read clearly.
+  r0: ["..........", ".....##...", ".....##...", "....##..#.", "...#####..", "..#.##....", "....##....", "...#..#...", "..#....#..", "##......#.", "........##"],
+  r1: ["..........", ".....##...", ".....##...", "....##....", "...####...", "...#.##...", "....##....", "....#.##..", "....#...#.", "....#..#..", "....##...."],
+  r2: ["..........", ".....##...", ".....##...", "....##....", "....###...", "....###...", "....##....", "....##....", "....###...", "...#..#...", "..##..#..."],
   c0: ["..#....#..", "..#.##.#..", "...####...", "....##....", "....##....", "....##....", "...#..#...", "...#..#...", "..#....#..", "..#.......", ".........."],
   h0: [".#......#.", "..#.##.#..", "...####...", "....##....", "....##....", "....##....", "...#..#...", "..#....#..", "..#....#..", "..........", ".........."],
   h1: [".#......#.", "..#.##.#..", "...####...", "....##....", "....##....", "....##....", "....#.#...", "...#...#..", "...#...#..", "..........", ".........."],
@@ -1168,7 +1239,7 @@ function sprite(name, col, flip, monk) {
   if (!c) {
     c = mk(TW, TH, ctx => {
       pix(ctx, SPR[name], { "#": col, k: "#888" });
-      if (monk) { ctx.fillStyle = col; const hy = SPR[name][1].includes("##") ? 1 : 2; ctx.fillRect(3, hy, 1, 2); ctx.fillRect(6, hy, 1, 2); ctx.fillStyle = "#ff3b3b"; ctx.fillRect(4, hy + 1, 1, 1); ctx.fillRect(5, hy + 1, 1, 1); }
+      if (monk) { ctx.fillStyle = col; const hy = SPR[name][1].includes("##") ? 1 : 2, hx = Math.max(1, SPR[name][hy].indexOf("##")); ctx.fillRect(hx - 1, hy, 1, 2); ctx.fillRect(hx + 2, hy, 1, 2); ctx.fillStyle = "#ff3b3b"; ctx.fillRect(hx, hy + 1, 2, 1); }
     });
     if (flip) { const o = c; c = mk(TW, TH, ctx => { ctx.translate(TW, 0); ctx.scale(-1, 1); ctx.drawImage(o, 0, 0); }); }
     sprCache.set(key, c);
@@ -1177,7 +1248,7 @@ function sprite(name, col, flip, monk) {
 }
 function frameOf(e) {
   switch (e.an) {
-    case "run": return ["r0", "r1", "r2", "r1"][Math.floor(e.x * 4 + 400) % 4];
+    case "run": return ["r0", "r1", "r0", "r2"][Math.floor(e.x * 2 + 400) % 4];
     case "rope": return Math.floor(e.x * 4 + 400) % 2 ? "h1" : "h0";
     case "climb": return Math.floor(e.y * 4 + 400) % 2 ? "c1" : "c0";
     case "lad": return "c0";
@@ -1205,18 +1276,38 @@ function drawPad(X, Y, t, c, ed) {
   for (let i = 0; i < 3; i++) { const h = (t * 8 + i * 3.3) % 9; ctx.fillRect(X + 2 + i * 3, Y + 9 - Math.floor(h), 1, 1); }
   if (ed) text(ctx, c, X + 3, Y + 1, TELE_COL[c]);
 }
+function drawBelt(X, Y, t, d) {
+  ctx.drawImage(ART.belt, X, Y);
+  ctx.fillStyle = "#ffd23f"; const o = ((Math.floor(t * 10) * d) % 5 + 5) % 5; // chevrons crawl the way the belt runs
+  for (let i = o; i < TW; i += 5) { ctx.fillRect(X + i, Y + 1, 1, 1); ctx.fillRect(X + i + d, Y, 1, 1); ctx.fillRect(X + i + d, Y + 2, 1, 1); }
+}
+// Tiles that only change when the map does are drawn once into this layer; the rest are drawn every frame.
+const tileCv = mk(SW, PH, () => {}), tctx = tileCv.getContext("2d");
+let tileKey = "";
+function staticTiles(g, ed) {
+  const key = g.map.join("") + (g.exitsOpen ? 1 : 0) + (ed ? 1 : 0);
+  if (key === tileKey) return;
+  tileKey = key; tctx.clearRect(0, 0, SW, PH);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const c = g.map[y * W + x], X = x * TW, Y = y * TH;
+    const img = c === "#" ? ART.brick : c === "~" ? ART.goo : c === "X" ? (ed ? ART.trapEd : ART.brick) : c === "@" ? ART.rock : c === "r" ? ART.rubble : c === "I" ? ART.ice : c === "N" ? ART.nook
+      : c === "H" ? ART.lad[Y % 4] : c === "D" ? ART.lock : c === "-" ? ART.rope
+      : c === "S" ? (g.exitsOpen ? ART.lad[Y % 4] : ed ? ART.ladEd[Y % 4] : null) : c === "E" ? (g.exitsOpen ? ART.door : ed ? ART.doorEd : null) : null;
+    if (img) tctx.drawImage(img, X, Y);
+  }
+}
 function drawWorld(g, view) {
   ctx.fillStyle = "#000"; ctx.fillRect(0, 0, SW, SH);
   const t = g.t, ed = view.editor;
+  staticTiles(g, ed); ctx.drawImage(tileCv, 0, 0);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const k = y * W + x, c = g.map[k], X = x * TW, Y = y * TH;
-    if (c === "#" || c === "~" || c === "X") {
+    if ((c === "#" || c === "~" || c === "X") && g.holes[k]) {
       const img = c === "~" ? ART.goo : c === "X" && ed ? ART.trapEd : ART.brick, h = g.holes[k];
-      if (!h) ctx.drawImage(img, X, Y);
-      else if (h.st === "dig") { const sy = Math.min(TH, Math.ceil(h.t / DIGT * TH)); ctx.drawImage(img, 0, sy, TW, TH - sy, X, Y + sy, TW, TH - sy); }
+      ctx.fillStyle = "#000"; ctx.fillRect(X, Y, TW, TH); // blank out the cached brick, then draw what is left of it
+      if (h.st === "dig") { const sy = Math.min(TH, Math.ceil(h.t / DIGT * TH)); ctx.drawImage(img, 0, sy, TW, TH - sy, X, Y + sy, TW, TH - sy); }
       else if (h.st === "fill") { const sy = TH - Math.min(TH, Math.ceil(h.t / FILLT * TH)); ctx.drawImage(img, 0, sy, TW, TH - sy, X, Y + sy, TW, TH - sy); }
-    } else if (c === "@") ctx.drawImage(ART.rock, X, Y);
-    else if (c === "%" || c === "&") {
+    } else if (c === "%" || c === "&") {
       const img = c === "%" ? ART.phaseA : ART.phaseB;
       if (ed || phaseOn(g, c)) {
         if (!ed && phaseSoon(g, c) < 0.6 && Math.floor(t * 12) % 2) { ctx.globalAlpha = 0.45; ctx.drawImage(img, X, Y); ctx.globalAlpha = 1; }
@@ -1224,13 +1315,9 @@ function drawWorld(g, view) {
       } else {
         ctx.globalAlpha = phaseSoon(g, c) < 0.6 ? (Math.floor(t * 12) % 2 ? 0.55 : 0.2) : 0.16; ctx.drawImage(img, X, Y); ctx.globalAlpha = 1;
       }
-    } else if (c === "H") ctx.drawImage(ART.lad[Y % 4], X, Y);
-    else if (c === "S") { if (g.exitsOpen) ctx.drawImage(ART.lad[Y % 4], X, Y); else if (ed) ctx.drawImage(ART.ladEd[Y % 4], X, Y); }
-    else if (c === "D") ctx.drawImage(ART.lock, X, Y);
-    else if (c === "=") drawLiquid(X, Y, t, x);
+    } else if (c === "=") drawLiquid(X, Y, t, x);
     else if (c >= "5" && c <= "9") drawPad(X, Y, t, c, ed);
-    else if (c === "-") ctx.drawImage(ART.rope, X, Y);
-    else if (c === "E") { if (g.exitsOpen) ctx.drawImage(ART.door, X, Y); else if (ed) ctx.drawImage(ART.doorEd, X, Y); }
+    else if (c === "<" || c === ">") drawBelt(X, Y, ed ? 0 : t, c === ">" ? 1 : -1);
     if (g.gold[k]) ctx.drawImage(g.gold[k] > 1 ? ART.nugget : ART.gold, X, Y);
   }
   for (const it of g.items) if (!it.gone) {
@@ -1266,7 +1353,10 @@ function drawWorld(g, view) {
       continue;
     }
     if (p.inv > 0 && Math.floor(t * 10) % 2) continue;
+    const hid = p.hid != null ? p.hid : hidden(g, p);
+    if (hid) ctx.globalAlpha = 0.4;
     ctx.drawImage(sprite(frameOf(p), p.col, p.face < 0, false), X, Y);
+    ctx.globalAlpha = 1;
     if (p.tool) { ctx.fillStyle = "#ffd23f"; ctx.fillRect(X + (p.face > 0 ? 8 : 1), Y + 5, 1, 1); }
     if (multi && (g.t < g.ready + 2 || view.marks)) { ctx.fillStyle = p.col; ctx.fillRect(X + 3, Y - 4, 4, 1); ctx.fillRect(X + 4, Y - 3, 2, 1); }
     if (p.emoT > 0 && p.emo) { const w = textW(p.emo) + 4, bx = clamp(X + 5 - (w >> 1), 0, SW - w), by = Math.max(0, Y - 12); ctx.fillStyle = "#fff"; ctx.fillRect(bx, by, w, 10); text(ctx, p.emo, bx + 2, by + 1, "#000"); }
@@ -1580,11 +1670,16 @@ const Online = {
       t: "s", name: g.name, night: g.night, mode: g.mode, no: g.no, tt: g.t, ready: g.ready, ex: g.exitsOpen, tl: g.timeLeft,
       lv: g.lives, sc: g.score, ov: g.over, mv: g.mapVer, gold: g.gold.join(""), openAt: g.openAt,
       holes: g.holes, items: g.items.filter(i => !i.gone).map(i => [i.x, i.y, i.k, i.lock, i.t != null ? +i.t.toFixed(1) : 0]), sn: g.snares, bo: g.bombs.map(b => [b.x, b.y, b.t, b.mega]), fx: g.fx,
-      P: g.players.map(p => [+p.x.toFixed(3), +p.y.toFixed(3), p.face, p.an, p.tool, p.st, +p.inv.toFixed(2), p.pts, p.gold, p.kills, p.deaths, p.emoT > 0 ? p.emo : "", +p.emoT.toFixed(2), +p.deadT.toFixed(2), p.name, p.left ? 1 : 0, p.keys, p.lamp ? 1 : 0]),
+      P: g.players.map(p => [+p.x.toFixed(3), +p.y.toFixed(3), p.face, p.an, p.tool, p.st, +p.inv.toFixed(2), p.pts, p.gold, p.kills, p.deaths, p.emoT > 0 ? p.emo : "", +p.emoT.toFixed(2), +p.deadT.toFixed(2), p.name, p.left ? 1 : 0, p.keys, p.lamp ? 1 : 0, hidden(g, p) ? 1 : 0]),
       M: g.monks.map(m => [+m.x.toFixed(3), +m.y.toFixed(3), m.face, m.an, m.carry, m.st, +m.stun.toFixed(2), m.item ? 1 : 0]),
       ev: g.netEv.splice(0),
     };
-    if (g.mapVer !== g.sentVer) { s.map = g.map.join(""); g.sentVer = g.mapVer; this.forceMap = false; }
+    // Fields that rarely change go out only when they do, plus a full snapshot every two seconds as a safety net.
+    this.snapN = (this.snapN || 0) + 1;
+    const full = this.forceMap || g !== this.sentG || this.snapN % 40 === 0;
+    if (full) { this.sentG = g; this.sent = {}; }
+    for (const k of SNAP_DIFF) { const j = JSON.stringify(s[k]); if (this.sent[k] === j) delete s[k]; else this.sent[k] = j; }
+    if (g.mapVer !== g.sentVer || full) { s.map = g.map.join(""); g.sentVer = g.mapVer; this.forceMap = false; }
     this.broadcast(s);
   },
   applyEmote(i, k) { const g = App.game; if (!g || !g.players[i]) return; g.players[i].emo = ["!", "HELP", "GG", "NICE"][k] || "!"; g.players[i].emoT = 2.2; g.ev.push("emote"); },
@@ -1621,13 +1716,14 @@ const Online = {
       if (App.screen !== "play" || (App.game && App.game.over)) { App.screen = "lobby"; UI.lobby(); }
     } else if (m.t === "start") {
       this.snaps = []; this.view = null; this.lastIn = "";
-      App.screen = "play"; App.paused = false; App.game = null; App.level = m.lv; App.opt = { mode: m.mode }; setSlots(1);
+      this.got = null; App.screen = "play"; App.paused = false; App.game = null; App.level = m.lv; App.opt = { mode: m.mode }; setSlots(1);
       UI.hide();
     } else if (m.t === "s") this.recv(m);
     else if (m.t === "bye") { this.reset(); App.toMenu(); toast(m.why || "The host closed the room."); }
     else if (m.t === "pong") this.rtt = performance.now() - m.ts;
   },
   recv(s) {
+    s = this.got = Object.assign(this.got || {}, s, { map: s.map, ev: s.ev }); // fields the host left out are unchanged
     const prev = this.view;
     if (s.map) this.mapStr = s.map;
     if (!this.mapStr) return;
@@ -1635,7 +1731,7 @@ const Online = {
       name: s.name, night: s.night, mode: s.mode, no: s.no, t: s.tt, ready: s.ready, exitsOpen: s.ex, timeLeft: s.tl, lives: s.lv, score: s.sc, over: s.ov, openAt: s.openAt,
       map: this.mapStr.split(""), holes: s.holes, gold: s.gold.split("").map(Number), items: s.items.map(([x, y, k, lock, t]) => ({ x, y, k, lock, t })),
       snares: s.sn, bombs: s.bo.map(([x, y, t, mega]) => ({ x, y, t, mega })), fx: s.fx,
-      players: s.P.map((a, idx) => ({ idx, x: a[0], y: a[1], face: a[2], an: a[3], tool: a[4], st: a[5], inv: a[6], pts: a[7], gold: a[8], kills: a[9], deaths: a[10], emo: a[11], emoT: a[12], deadT: a[13], name: a[14], left: a[15], keys: a[16], lamp: a[17], col: PCOL[idx] })),
+      players: s.P.map((a, idx) => ({ idx, x: a[0], y: a[1], face: a[2], an: a[3], tool: a[4], st: a[5], inv: a[6], pts: a[7], gold: a[8], kills: a[9], deaths: a[10], emo: a[11], emoT: a[12], deadT: a[13], name: a[14], left: a[15], keys: a[16], lamp: a[17], hid: a[18], col: PCOL[idx] })),
       monks: s.M.map(a => ({ x: a[0], y: a[1], face: a[2], an: a[3], carry: a[4], st: a[5], stun: a[6], item: a[7] })),
       recvAt: performance.now(),
     };
@@ -1820,7 +1916,7 @@ const UI = {
   },
   solo() {
     const pr = progress();
-    const lv = LEVELS.campaign.map((l, i) => `<button data-i="${i}" ${i >= pr.unlocked ? "disabled" : ""}>${i + 1}. ${esc(l.name)}<small>${i >= pr.unlocked ? "Locked" : pr.best[i] != null ? "Best " + clock(pr.best[i]) : l.night ? "Night level" : "Not cleared"}</small></button>`).join("");
+    const lv = LEVELS.campaign.map((l, i) => { const shut = i >= pr.unlocked && !l.open; return `<button data-i="${i}" ${shut ? "disabled" : ""}>${i + 1}. ${esc(l.name)}<small>${shut ? "Locked" : pr.best[i] != null ? "Best " + clock(pr.best[i]) : l.night ? "Night level" : "Not cleared"}</small></button>`; }).join("");
     const cu = custom().map((l, i) => `<button data-u="${i}">${esc(l.name)}<small>My level</small></button>`).join("");
     this.show(`<h2>Solo</h2><p>Five lives; clearing a level gives one back. Press R to give up a life when you're stuck.</p>
       <div class="grid">${lv}</div>${cu ? `<h3>My levels</h3><div class="grid">${cu}</div>` : ""}
@@ -1984,7 +2080,7 @@ const UI = {
       <p><b>Co-op</b>: shared lives through the campaign. <b>Gold Rush</b>: respawning gold, nuggets worth 3, trap rivals for 2. <b>Race</b>: first out after the last chest scores 3 and wins. In versus, outlined tools belong to the runner of that colour, snares are invisible to rivals, gas and snares stop rivals too, and tools come back 12 seconds after pickup.</p>
       <div class="row"><button data-back>Back</button></div>`, r => {
       const tile = (img, name, tip) => `<button disabled style="opacity:1;cursor:default"><span style="display:flex;gap:8px;align-items:center"><img src="${img.toDataURL()}" width="20" height="22" style="image-rendering:pixelated;background:#000;border-radius:2px">${name}</span><small>${tip}</small></button>`;
-      $("#hTiles").innerHTML = [[ART.brick, "Brick", "dig it; it grows back"], [ART.rock, "Bedrock", "only a jackhammer or mega bomb"], [ART.brick, "Trapdoor", "looks like brick, drops you"], [ART.phaseA, "Phase block", "vanishes and returns on a timer"], [ART.goo, "Goo", "slows anyone walking on it; can't be dug"], [ART.ladder, "Ladder and rope", "climb, slide down; hang and drop"], [ART.lock, "Locked door", "walk into it with a key"], [mk(TW, TH, c => { c.fillStyle = "#1d7a2a"; c.fillRect(0, 3, TW, 8); c.fillStyle = "#5fe05f"; c.fillRect(0, 2, TW, 1); }), "Acid", "deadly to touch, for monks too"], [mk(TW, TH, c => { c.fillStyle = TELE_COL[5]; c.fillRect(1, 10, 8, 1); c.fillRect(2, 9, 1, 1); c.fillRect(7, 9, 1, 1); c.fillRect(4, 5, 1, 1); }), "Teleporter", "step on it to appear at its twin"]].map(a => tile(...a)).join("");
+      $("#hTiles").innerHTML = [[ART.brick, "Brick", "dig it; it grows back"], [ART.rock, "Bedrock", "only a jackhammer or mega bomb"], [ART.brick, "Trapdoor", "looks like brick, drops you"], [ART.phaseA, "Phase block", "vanishes and returns on a timer"], [ART.goo, "Goo", "slows anyone walking on it; can't be dug"], [ART.ladder, "Ladder and rope", "climb, slide down; hang and drop"], [ART.lock, "Locked door", "walk into it with a key"], [mk(TW, TH, c => { c.fillStyle = "#1d7a2a"; c.fillRect(0, 3, TW, 8); c.fillStyle = "#5fe05f"; c.fillRect(0, 2, TW, 1); }), "Acid", "deadly to touch, for monks too"], [mk(TW, TH, c => { c.fillStyle = TELE_COL[5]; c.fillRect(1, 10, 8, 1); c.fillRect(2, 9, 1, 1); c.fillRect(7, 9, 1, 1); c.fillRect(4, 5, 1, 1); }), "Teleporter", "step on it to appear at its twin"], [ART.belt, "Conveyor belt", "carries whoever stands on it"], [ART.ice, "Ice", "let go and you slide one more tile"], [ART.nook, "Nook", "stand still in one and monks lose sight of you"]].map(a => tile(...a)).join("");
       $("#hTools").innerHTML = Object.entries(TOOLS).map(([k, t]) => tile(ICON_IMG[k], t.name, t.tip)).join("");
       $("#hExtras").innerHTML = Object.entries(EXTRAS).map(([k, t]) => tile(ICON_IMG[k], t.name, t.tip)).join("");
       this.on(r, "[data-back]", () => this.menu());
@@ -1995,7 +2091,7 @@ const UI = {
 // ---------------------------------------------------------------- level editor
 const PALETTE = [[" ", "Erase"], ["#", "Brick"], ["@", "Bedrock"], ["X", "Trapdoor"], ["H", "Ladder"], ["-", "Rope"], ["S", "Exit ladder"], ["E", "Exit door"], ["$", "Gold"], ["0", "Monk"],
   ["1", "Start P1"], ["2", "P2"], ["3", "P3"], ["4", "P4"], ["%", "Phase A"], ["&", "Phase B"], ["~", "Goo"], ["=", "Acid"], ["D", "Locked door"],
-  ["5", "Pad 5"], ["6", "Pad 6"], ["7", "Pad 7"], ["8", "Pad 8"], ["9", "Pad 9"], ...Object.entries(TOOLS).map(([k, t]) => [k, t.name]), ...Object.entries(EXTRAS).map(([k, t]) => [k, t.name])];
+  ["<", "Belt left"], [">", "Belt right"], ["I", "Ice"], ["N", "Nook"], ["5", "Pad 5"], ["6", "Pad 6"], ["7", "Pad 7"], ["8", "Pad 8"], ["9", "Pad 9"], ...Object.entries(TOOLS).map(([k, t]) => [k, t.name]), ...Object.entries(EXTRAS).map(([k, t]) => [k, t.name])];
 const Editor = {
   map: null, tool: "#", name: "My level", night: false, slot: -1,
   blank() { const m = new Array(W * H).fill(" "); for (let x = 0; x < W; x++) m[(H - 1) * W + x] = "#"; m[(H - 2) * W + 2] = "1"; return m; },
@@ -2023,9 +2119,9 @@ const Editor = {
     const s = $("#edOpen"); s.innerHTML = `<option value="">Open…</option>` + custom().map((l, i) => `<option value="${i}">${esc(l.name)}</option>`).join("");
   },
   cell(x, c, X, Y) { // draw one palette/map cell
-    const img = { "#": ART.brick, "@": ART.rock, X: ART.trapEd, H: ART.lad[Y % 4], "-": ART.rope, S: ART.ladEd[Y % 4], E: ART.doorEd, $: ART.gold, "%": ART.phaseA, "&": ART.phaseB, "~": ART.goo, D: ART.lock }[c];
+    const img = { "#": ART.brick, "@": ART.rock, X: ART.trapEd, H: ART.lad[Y % 4], "-": ART.rope, S: ART.ladEd[Y % 4], E: ART.doorEd, $: ART.gold, "%": ART.phaseA, "&": ART.phaseB, "~": ART.goo, D: ART.lock, I: ART.ice, N: ART.nook }[c];
     if (img) x.drawImage(img, X, Y);
-    else if (c === "=" || (c >= "5" && c <= "9")) { const o = ctx; ctx = x; c === "=" ? drawLiquid(X, Y, 0, 0) : drawPad(X, Y, 0, c, true); ctx = o; }
+    else if (c === "=" || c === "<" || c === ">" || (c >= "5" && c <= "9")) { const o = ctx; ctx = x; c === "=" ? drawLiquid(X, Y, 0, 0) : c === "<" || c === ">" ? drawBelt(X, Y, 0, c === ">" ? 1 : -1) : drawPad(X, Y, 0, c, true); ctx = o; }
     else if (ICON_IMG[c]) x.drawImage(ICON_IMG[c], X, Y);
     else if (c === "0") x.drawImage(sprite("st", "#c46bff", false, true), X, Y);
     else if ("1234".includes(c)) x.drawImage(sprite("st", PCOL[+c - 1], false, false), X, Y);
