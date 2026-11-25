@@ -4,8 +4,15 @@ A browser remake of Virtua Cop: a 3D rail shooter where the camera moves you thr
 
 ## Play
 
-- **Shoot:** click or tap. Right-click, `R`, `Space` or the Reload button reloads.
-- **Pause:** `P` or `Esc`. **Mute:** `M`.
+| | Keyboard | Mouse | Touch |
+| --- | --- | --- | --- |
+| Shoot | | Left click (hold with the machine gun) | Tap (hold with the machine gun) |
+| Reload | `R` or `Space` | Right click | Reload button |
+| Pause | `P` or `Esc` | Pause button | Pause button |
+| Sound on/off | `M` | Sound button in the pause menu | Sound button in the pause menu |
+| Start from the title screen | `Enter` | Start button | Start button |
+| Skip a replay | | Click | Tap |
+
 - Shoot each gunman before his ring turns red and closes, or you lose a life.
 - Every suspect drops from one hit. Hit the body twice more as it falls for 500 and 1000 extra.
 - Shoot the gun hand for a Justice Shot (+1000): the suspect surrenders.

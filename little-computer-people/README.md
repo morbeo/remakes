@@ -17,6 +17,18 @@ Open `index.html` in a browser. Everything is in that one file: the house and pe
 
 ## Controls
 
+| | Keyboard | Mouse or touch |
+| --- | --- | --- |
+| Talk | Type in the box, `Enter` to say it | Say button |
+| Pat the tenant or the dog | | Click or tap them |
+| Knock on the door, read the post | | Click or tap the flat door or the lobby post boxes |
+| Knock, phone, play 21 | | Knock, Phone and Play 21 buttons |
+| Send a parcel | | Parcel buttons (groceries, dog food, book, record, tonic, cigarettes, rakia) |
+| Speed | | Pause, 1×, 4×, 15× |
+| Mail | | Mail button |
+| Close a letter or dialog | `Esc` | Close button, or click outside it |
+| Sound on/off | | Sound button |
+
 - **Type** to talk. They understand requests ("please play the piano", "watch tv", "feed the dog", "walk the dog", "go to bed"), "my name is …", "how are you?" and a few more. Saying please helps; asking too often doesn't.
 - **Tap the tenant** for a pat, tap the dog, the flat door (knock), the phone or the post boxes in the lobby (letters).
 - **Knock / Phone** to get their attention. Waking them up does not go down well.

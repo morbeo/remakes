@@ -6,14 +6,14 @@ Swing, flip and bounce a gold clock hand from dot to dot until it grabs the goal
 
 ## Controls
 
-| Action | Player 1 | Player 2 |
-| --- | --- | --- |
-| Swing | `X` `.` | `2` `6` or `↓` |
-| Bounce | `Z` `/` | `3` `5` or `→` |
-| Flip | `Shift` | `1` `4` `+` or `←` |
-| Reverse | `Space` | `Enter` `0` or `↑` |
+| Action | Player 1 | Player 2 | Mouse or touch (player 1) |
+| --- | --- | --- | --- |
+| Swing | `X` `.` | `2` `6` or `↓` | Click or tap a neighbouring dot within a quarter turn |
+| Bounce | `Z` `/` | `3` `5` or `→` | Bounce pad button |
+| Flip | `Shift` | `1` `4` `+` or `←` | Double-click or double-tap the neighbouring dot |
+| Reverse | `Space` | `Enter` `0` or `↑` | Click or tap your own dot |
 
-`P` pauses, `R` restarts the level, `K` skips it, `I` toggles the swing indicator and `F1` opens help. Mouse and touch work too.
+Every action also has a hold button on the on-screen pads (a second pad appears for player 2). `P` or `Esc` pauses, `R` restarts the level, `K` skips it, `I` toggles the swing indicator, `Enter` goes to the next level from the results screen and `F1` opens help.
 
 ## Layout
 
