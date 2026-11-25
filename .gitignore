@@ -1,0 +1,10 @@
+# Pages build output (see .github/workflows/pages.yml)
+_site/
+
+# Tool caches
+__pycache__/
+node_modules/
+
+# OS clutter
+.DS_Store
+Thumbs.db

@@ -42,7 +42,7 @@ jobs:
           mkdir _site
           cp index.html _site/
           for d in */; do
-            [ -f "$d/index.html" ] && [ "$d" != "_site/" ] && cp -r "$d" _site/
+            if [ -f "$d/index.html" ] && [ "$d" != "_site/" ]; then cp -r "$d" _site/; fi
           done
       - uses: actions/upload-pages-artifact@v3
       - id: deployment
