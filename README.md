@@ -14,6 +14,7 @@ Browser remakes of old games. Each game lives in its own folder as a self-contai
 | Ridge Roller | Marble Madness | [marble-madness/](marble-madness/) |
 | Spring Rider | Elasto Mania | [elasto-mania/](elasto-mania/) |
 | Sunwell Duel | Spacewar | [spacewar/](spacewar/) |
+| Threadline | The Amazing Spider-Man (DOS) | [amazing-spiderman/](amazing-spiderman/) |
 | Tiny Tenant | Little Computer People | [little-computer-people/](little-computer-people/) |
 | Virtua Justice | Virtua Cop | [virtua-cop/](virtua-cop/) |
 

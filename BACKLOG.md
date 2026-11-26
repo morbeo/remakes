@@ -74,6 +74,12 @@ Open work, grouped by game in landing-page order, highest value first within eac
 - [ ] Add gamepad input (one pad per ship).
 - [ ] Write `RESEARCH.md` (DOS version rules and energy table sources).
 
+## Threadline (`amazing-spiderman/`)
+
+- [ ] More sets: moving platforms, crumbling floors and a boss room for the Projectionist.
+- [ ] Gamepad stick aiming for the web line (today it uses the d-pad's eight directions with aim assist).
+- [ ] Write `RESEARCH.md` (original's rooms, enemies and web rules, what was changed).
+
 ## Tiny Tenant (`little-computer-people/`)
 
 - [ ] Add keyboard shortcuts for the action buttons (knock, phone, parcels, speed), which are mouse/touch only.

@@ -132,6 +132,17 @@ def diamond_mine(pg):
     return "#c"
 
 
+def amazing_spiderman(pg):
+    # set 1, mid-swing over the spike pit of the Catwalk Gap
+    pg.evaluate("""() => { TL.startStage(0); TL.loadRoom(0, 1, null); const P = TL.S.P;
+      P.x = 54; P.y = 257; P.state = 'air'; TL.S.mode = 'play';
+      const hold = (ks, n) => { ks.forEach(k => TL.press(k)); TL.sim(n); ks.forEach(k => TL.release(k)); };
+      hold(['right'], 10); hold(['up'], 120); hold(['right'], 8); hold(['web'], 1); TL.sim(20); hold(['right'], 34);
+      TL.setMode('play'); TL.S.mode = 'shot'; }""")
+    pg.wait_for_timeout(200)
+    return "#c"
+
+
 def default(pg):
     pg.wait_for_timeout(1000)
     return "canvas"
@@ -141,7 +152,8 @@ RECIPES = {"elasto-mania": elasto_mania, "clockwerx": clockwerx,
            "excitebike": excitebike, "arctic-adventure": arctic_adventure,
            "little-computer-people": little_computer_people, "lode-runner": lode_runner,
            "spacewar": spacewar, "spy-vs-spy": spy_vs_spy, "virtua-cop": virtua_cop,
-           "marble-madness": marble_madness, "bolo": bolo, "diamond-mine": diamond_mine}
+           "marble-madness": marble_madness, "bolo": bolo, "diamond-mine": diamond_mine,
+           "amazing-spiderman": amazing_spiderman}
 
 # Scale the element shot down in the page and encode it as WebP there, so no image library is needed.
 ENCODE = """async ([src, w]) => {

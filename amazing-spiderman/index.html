@@ -1,0 +1,1191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Threadline: crawl walls, swing on webs and solve trap rooms to rescue the film crew of the Lumen Lot.">
+<title>Threadline</title>
+<style>
+/* Layout: title bar with HUD, pixel canvas with an overlay card, hint line, thumb pad (touch only), key legend */
+:root{color-scheme:light;--bg:#f4f1ea;--panel:#fffdf8;--ink:#2b2a28;--muted:#6a665e;--line:#d8d2c4;--accent:#1f8a87;--warn:#d9573b;--ui:system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font-family:var(--ui);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.wrap{max-width:980px;margin:0 auto;padding:14px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));display:grid;gap:10px}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.top h1{margin:0;font-size:1.35rem;letter-spacing:.02em}
+.top h1 a{color:inherit;text-decoration:none}
+#where{color:var(--muted);font-size:.92rem;flex:1;min-width:140px}
+.hud{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:.85rem;font-weight:600}
+.meter{display:flex;align-items:center;gap:6px}
+.bar{width:90px;height:10px;border:1px solid var(--ink);border-radius:3px;background:#fff;overflow:hidden}
+.bar i{display:block;height:100%;width:100%;transition:width .12s}
+#eBar{background:#e0533d}#wBar{background:#8fb7c9}
+#lives{letter-spacing:2px;color:var(--warn)}
+.icon{border:1px solid var(--ink);background:var(--panel);border-radius:4px;font:inherit;font-size:.8rem;padding:3px 8px;cursor:pointer;color:var(--ink)}
+.stage{position:relative;border:2px solid var(--ink);border-radius:6px;overflow:hidden;background:#e8eef0;aspect-ratio:480/288;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#c{display:block;width:100%;height:100%;image-rendering:pixelated;touch-action:none;cursor:crosshair}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:12px;background:rgba(247,244,236,.78);overflow:auto}
+.overlay[hidden]{display:none}
+@media (max-width:640px){.stage:has(.overlay:not([hidden])){aspect-ratio:auto;min-height:470px}}
+.card{background:var(--panel);border:2px solid var(--ink);border-radius:8px;padding:16px 18px;max-width:460px;width:100%;text-align:center;box-shadow:0 4px 0 rgba(43,42,40,.18)}
+.card h2{margin:0 0 4px;font-size:1.6rem;letter-spacing:.03em}
+.card p{margin:8px 0;line-height:1.45;font-size:.95rem}
+.card .sub{color:var(--muted);font-size:.85rem}
+.btns{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px}
+.btns button,.sets button{font:inherit;font-weight:700;border:2px solid var(--ink);background:#fff;color:var(--ink);border-radius:6px;padding:8px 16px;cursor:pointer}
+.btns button.go{background:var(--accent);border-color:#145e5c;color:#fff}
+.btns button:focus-visible,.sets button:focus-visible{outline:3px solid #f2b33d;outline-offset:2px}
+.sets{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:10px}
+.sets button{padding:6px 8px;font-size:.85rem;font-weight:600}
+.sets button:disabled{opacity:.4;cursor:default}
+#hint{margin:0;min-height:1.4em;color:var(--muted);font-size:.9rem;text-align:center}
+.pad{display:none;justify-content:space-between;gap:12px;touch-action:none}
+.touch .pad{display:flex}
+.dpad{display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(3,48px);gap:4px}
+.pad button{font:inherit;font-weight:800;border:2px solid var(--ink);border-radius:10px;background:#fff;color:var(--ink);touch-action:none;user-select:none;-webkit-user-select:none}
+.pad button.on{background:#d7efee}
+.dpad .u{grid-area:1/2}.dpad .l{grid-area:2/1}.dpad .r{grid-area:2/3}.dpad .d{grid-area:3/2}
+.acts{display:grid;grid-template-columns:repeat(2,76px);gap:8px;align-content:center}
+.acts button{height:76px;border-radius:50%}
+.acts .web{background:#e8f3f3}
+.keys{color:var(--muted);font-size:.82rem;line-height:1.6;text-align:center;margin:0}
+.touch .keys{display:none}
+kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:3px;padding:0 4px;background:#fff;font:inherit;font-size:.78rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1><a href="../">Threadline</a></h1>
+    <span id="where">Lumen Lot</span>
+    <div class="hud">
+      <span class="meter">Energy <span class="bar"><i id="eBar"></i></span></span>
+      <span class="meter">Web <span class="bar"><i id="wBar"></i></span></span>
+      <span id="lives" aria-label="lives">♥♥♥</span>
+      <button class="icon" id="pauseBtn" type="button">Pause</button>
+      <button class="icon" id="muteBtn" type="button">Sound on</button>
+    </div>
+  </div>
+  <div class="stage">
+    <canvas id="c" width="480" height="288" aria-label="Game screen"></canvas>
+    <div class="overlay" id="overlay"><div class="card" id="card"></div></div>
+  </div>
+  <p id="hint"></p>
+  <div class="pad" id="pad">
+    <div class="dpad">
+      <button class="u" data-k="up" aria-label="Up">▲</button>
+      <button class="l" data-k="left" aria-label="Left">◀</button>
+      <button class="r" data-k="right" aria-label="Right">▶</button>
+      <button class="d" data-k="down" aria-label="Down">▼</button>
+    </div>
+    <div class="acts">
+      <button class="web" data-k="web">WEB</button>
+      <button data-k="jump">JUMP</button>
+    </div>
+  </div>
+  <p class="keys"><kbd>←</kbd><kbd>→</kbd> move · <kbd>↑</kbd><kbd>↓</kbd> climb, reel the web · <kbd>Z</kbd>/<kbd>Space</kbd> jump · <kbd>X</kbd> or click: web (fire again to let go) · <kbd>R</kbd> restart room · <kbd>P</kbd> pause · <kbd>M</kbd> mute</p>
+</div>
+<script>
+'use strict';
+// ---------------------------------------------------------------------------------------------
+// Threadline: an original wall-crawling, web-swinging room puzzler on a haunted film lot.
+// Mechanics follow the 1990 DOS wall-crawler games: flip-screen rooms, cling to any rough surface,
+// fire a web line to swing or to trip switches from afar, a limited web fluid tank and an energy bar.
+// ---------------------------------------------------------------------------------------------
+const T = 16, W = 30, H = 18, VW = W * T, VH = H * T;
+const G = 0.35, JUMP = 6.2, RUN = 2, CRAWL = 1.4, WEB_RANGE = 200, WEB_SPEED = 10, WEB_MAX = 30, WEB_COST = 2;
+const CH_COL = { a: '#e0533d', b: '#2f7fd8', c: '#2fa65a', d: '#9a55c9' };
+
+/* Map legend
+   #  rough wall: solid, you can cling to it and webs stick
+   X  glass: solid, too smooth to cling to or to hold a web
+   =  live rail: solid, shocks on touch
+   ^  spikes
+   A B C  gates, open while switch a/b/c is on      D  gate, open while a plate is pressed
+   a b c  switches: touch or web them to flip
+   1 2 3  beams, off while switch a/b/c is on       5 6 7  beams, on while switch a/b/c is on
+   4  beam, off while a plate is pressed            _  pressure plate (sits in a one-tile notch)
+   K crate  r robot  f drone  t turret  W web refill  E energy  S start  H captive crew member */
+const STAGES = [
+  { name: 'Back Lot', bg: ['#dcecf6', '#f6f1e3'], wall: '#9a8f7f', crew: { name: 'Mags', role: 'the grip', col: '#d9773b' }, rooms: [
+    { name: 'Loading Dock', hint: 'Arrows move, Z jumps. Hold ↑ against a rough wall to climb it, and over the top.', map: [
+      '##############################',
+      '#............................#',
+      '#............................#',
+      '#............................#',
+      '#............................#',
+      '#............................#',
+      '#..............###...........#',
+      '#..............###...........#',
+      '#..............###...........#',
+      '#..............###...........#',
+      '#..............###...........#',
+      '#..............###.......E...#',
+      '#..............###......###..#',
+      '#..............###...........#',
+      '#..............###............',
+      '#.S............###............',
+      '#.......#......###^^^^........',
+      '##############################'] },
+    { name: 'Catwalk Gap', hint: 'X or a click fires a web. Swing with ←→, reel with ↑↓, fire again or jump to let go. Webs slide off glass.', map: [
+      '##############################',
+      '#XXXXXXXXXXXXXXXXXXXXXXXXXXXX#',
+      '#............................#',
+      '#............................#',
+      '#..........#.......#.........#',
+      '#............................#',
+      '#............................#',
+      '#............................#',
+      '#............................#',
+      '#....W.......................#',
+      '#...###......................#',
+      '#...###......................#',
+      '#...###......................#',
+      '#...###......................#',
+      '....###.......................',
+      '....###.......................',
+      '....###^^^^^^^^^^^^^^^^.......',
+      '##############################'] },
+    { name: 'Gatehouse', hint: 'A switch opens gates of its colour. Touch it, or hit it with a web. Webs also tie up robots.', map: [
+      '##############################',
+      '#...................X........#',
+      '#...................X........#',
+      '#...................X........#',
+      '#...................X........#',
+      '#...................X........#',
+      '#...................X........#',
+      '#...........a.......X........#',
+      '#...................X........#',
+      '#...................X........#',
+      '#...................X........#',
+      '#...................A........#',
+      '#...................A........#',
+      '#...................A....E...#',
+      '....................A........#',
+      '....................A........#',
+      '.........r..........A.....H..#',
+      '##############################'] },
+  ] },
+  { name: 'Sound Stage', bg: ['#ebe3f3', '#f7f2ea'], wall: '#8f8496', crew: { name: 'Juno', role: 'the gaffer', col: '#c44f8a' }, rooms: [
+    { name: 'Beam Hall', hint: 'A beam shuts off while its switch is on. Watch the turret above.', map: [
+      '##############################',
+      '#.........................t..#',
+      '#............................#',
+      '#............................#',
+      '#............................#',
+      '#............................#',
+      '#...........##...............#',
+      '#............................#',
+      '#...................a........#',
+      '#.......######################',
+      '#.......######################',
+      '#.............1..............#',
+      '#.............1..............#',
+      '#.............1..............#',
+      '#.............1...............',
+      '#.S...........1...............',
+      '##############################',
+      '##############################'] },
+    { name: 'Prop Drop', hint: 'Walk into a crate to push it. A purple gate stays open while its plate is pressed. R restarts the room.', map: [
+      '##############################',
+      '#.....................X......#',
+      '#.....................X......#',
+      '#.....................X......#',
+      '#.....................X......#',
+      '#.....................X......#',
+      '#.....................X......#',
+      '#.....................X......#',
+      '#.....................X......#',
+      '#.......K.............X......#',
+      '#.....#####...........X......#',
+      '#.....#####...........D......#',
+      '#.....#####...........D......#',
+      '#.....#####...........D......#',
+      '......#####...........D.......',
+      '......#####...........D...E...',
+      '##############_###############',
+      '##############################'] },
+    { name: 'Studio B', hint: 'Juno is up on the glass rig, behind a blue beam.', map: [
+      '##############################',
+      '#.............t......2.......#',
+      '#....................2.......#',
+      '#.........b..........2.......#',
+      '#....................2.......#',
+      '#..................#.2....H..#',
+      '#..................#..XXXXXXX#',
+      '#..................#.........#',
+      '#..................#.........#',
+      '#..................#.........#',
+      '#..................#.........#',
+      '#..................#.........#',
+      '#..................#.........#',
+      '#..................#....E....#',
+      '...................#.........#',
+      '.........r.........#.........#',
+      '##############################',
+      '##############################'] },
+  ] },
+  { name: 'Prop Vault', bg: ['#e0f1e7', '#f5f3e6'], wall: '#7f8f84', crew: { name: 'Pim', role: 'the editor', col: '#3b74c4' }, rooms: [
+    { name: 'Live Rail', hint: 'The floor is live. Crawl the ceiling, and swing across the glass. Hold ↑ to grab a ceiling.', map: [
+      '##############################',
+      '##############################',
+      '##############################',
+      '##############################',
+      '##############################',
+      '##########XXXXXXXXX###########',
+      '#............................#',
+      '#............................#',
+      '#...#.........#..............#',
+      '#...#........................#',
+      '#...#.......f................#',
+      '#...#..................f.....#',
+      '#...#........................#',
+      '#...#........................#',
+      'X...#.........................',
+      'X.S.#.........................',
+      '#####=====================####',
+      '##############################'] },
+    { name: 'Switchback', hint: 'Both red switches work the same circuit. Gates open as beams switch on.', map: [
+      '##############################',
+      '##############################',
+      '##############################',
+      '##############################',
+      '##############################',
+      '##############################',
+      '#.......A....a....5.....B....#',
+      '#.b.....A.........5.....B....#',
+      '#.......A.........5.....B....#',
+      '#.......A.........5.....B....#',
+      '#.......A.........5.....B....#',
+      '#.......A.........5.....B....#',
+      '#.......A.........5.....B....#',
+      '#.......A....f....5.....B....#',
+      '........A.........5.....B.....',
+      '.....a..A.........5..r..B..E..',
+      '##############################',
+      '##############################'] },
+    { name: 'The Vault', hint: 'A fresh web reels you in a little. Reel in more with ↑ before you swing over spikes.', map: [
+      '##############################',
+      '##############################',
+      '##############################',
+      '##############################',
+      '##############################',
+      '##############XXXX#XXXX#######',
+      '#............D...........C...#',
+      '#............D...........C...#',
+      '#............D........c..C...#',
+      '#............D...........C...#',
+      '#............D...........C...#',
+      '#............D...........C...#',
+      '#............D...........C...#',
+      '#............D...........C...#',
+      '.............D...........C...#',
+      '....K........D.^^^^^^^^..C.H.#',
+      '##########_###################',
+      '##############################'] },
+  ] },
+  { name: 'Projection Booth', bg: ['#f8e6d8', '#f4efe6'], wall: '#9a8577', crew: { name: 'Ossie', role: 'your brother', col: '#5a9e3a' }, rooms: [
+    { name: 'Reel Shaft', hint: 'Glass walls all round. Find rough surfaces to climb toward the exit at the top right.', map: [
+      '##############################',
+      '#XXXXXXXXXXXXXXXXXXXXXXXXXXXX#',
+      'X.............................',
+      'X.........................E...',
+      'X..................#..########',
+      'X..................#..X#######',
+      'X..................#..X#######',
+      'X..................#..X#######',
+      'X.........######...#..X#######',
+      'X.........#........#..X#######',
+      'X.........#...........X#######',
+      'X.........#...........X#######',
+      'X.........#...........X#######',
+      'X.........#...........X#######',
+      'X.........#...........X#######',
+      'X.S.......#.........t.X#######',
+      '##############################',
+      '##############################'] },
+    { name: 'Cutting Room', hint: 'Do not touch the live rail. Rough blocks make good anchors.', map: [
+      '##############################',
+      '##############################',
+      '...........#..........X#######',
+      '...........#..........X#######',
+      '######.....#..........X#######',
+      '#..........#....f.....X#######',
+      '#..........#..........X#######',
+      '#..........#..........X#######',
+      '#.....................X#######',
+      '#.....................X#######',
+      '#.....................A......#',
+      '#..................a..A......#',
+      '#..........###........A......#',
+      '#.....................A......#',
+      '#.....................A.......',
+      '#.....................A...E...',
+      '######===========#############',
+      '##############################'] },
+    { name: 'The Booth', hint: 'Ossie is behind three gates. The red beam comes on with its switch.', map: [
+      '##############################',
+      '##############################',
+      '##############################',
+      '##############################',
+      '##############################',
+      '#.........XXXXX.a....A..Bt.C.#',
+      '#...........5........A..B..C.#',
+      '#...........5........A..B..C.#',
+      '#...........5........A..B..C.#',
+      '#...c.......5....f...A..B..C.#',
+      '#...........5........A..B..C.#',
+      '#...........5........A..B..C.#',
+      '#..f........5........A..B..C.#',
+      '#...........5........A..B..C.#',
+      '............5........A..B..C.#',
+      '.........t..5.....b..A..B..CH#',
+      '##############################',
+      '##############################'] },
+  ] },
+];
+
+// ----- state -----
+const S = {
+  mode: 'title', stage: 0, room: 0, lives: 3, energy: 100, web: WEB_MAX, frame: 0, deaths: 0, time: 0,
+  grid: null, ch: null, ents: [], crates: [], bullets: [], shot: null, sparks: [],
+  P: null, entry: null, touching: new Set(), msg: null, shake: 0,
+};
+const save = { unlocked: 1, best: null };
+try { Object.assign(save, JSON.parse(localStorage.getItem('threadline') || '{}')); } catch (e) {}
+function persist() { try { localStorage.setItem('threadline', JSON.stringify(save)); } catch (e) {} }
+
+const cur = () => STAGES[S.stage].rooms[S.room];
+const hasLeft = () => S.room > 0;
+const hasRight = () => S.room < STAGES[S.stage].rooms.length - 1;
+
+// ----- tiles -----
+function tileAt(tx, ty) {
+  if (ty < 0) return '#';
+  if (ty >= H) return '.';
+  if (tx < 0) return hasLeft() ? '.' : '#';
+  if (tx >= W) return hasRight() ? '.' : '#';
+  return S.grid[ty][tx];
+}
+function solidChar(c) {
+  switch (c) {
+    case '#': case 'X': case '=': case 'a': case 'b': case 'c': return true;
+    case 'A': case 'B': case 'C': return !S.ch[c.toLowerCase()];
+    case 'D': return !S.ch.d;
+  }
+  return false;
+}
+const stickyChar = c => c === '#';
+function beamOn(c) {
+  switch (c) {
+    case '1': return !S.ch.a; case '2': return !S.ch.b; case '3': return !S.ch.c;
+    case '5': return !!S.ch.a; case '6': return !!S.ch.b; case '7': return !!S.ch.c;
+    case '4': return !S.ch.d;
+  }
+  return false;
+}
+const isBeam = c => '1234567'.includes(c);
+function beamCh(c) { return c === '4' ? 'd' : 'abc'['1235670'.indexOf(c) % 4] || 'a'; }
+function tilesIn(x, y, w, h, fn) {
+  const x0 = Math.floor(x / T), x1 = Math.floor((x + w - 0.001) / T), y0 = Math.floor(y / T), y1 = Math.floor((y + h - 0.001) / T);
+  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) { const r = fn(tileAt(tx, ty), tx, ty); if (r) return r; }
+  return false;
+}
+const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+function hit(e, x, y) {
+  const box = { x, y, w: e.w, h: e.h };
+  if (tilesIn(x, y, e.w, e.h, c => solidChar(c))) return true;
+  for (const k of S.crates) if (k !== e && overlap(box, k)) return k;
+  if (e.isCrate && S.P && overlap(box, S.P) && y > e.y) return S.P;
+  return false;
+}
+// move along one axis in pixel steps; returns what blocked it (or false). A blocked mover ends flush against the obstacle.
+function flush(e, axis, s) {
+  const v = e[axis], f = (s > 0 ? Math.ceil(v) : Math.floor(v)) - v;
+  if (f && !(axis === 'x' ? hit(e, v + f, e.y) : hit(e, e.x, v + f))) e[axis] = v + f;
+}
+function move(e, d, axis, stepUp) {
+  let rem = d;
+  while (Math.abs(rem) > 1e-6) {
+    const s = Math.sign(rem) * Math.min(1, Math.abs(rem));
+    if (axis === 'x') {
+      const b = hit(e, e.x + s, e.y);
+      if (b) {
+        let up = 0;
+        if (stepUp) for (let u = 1; u <= 3; u++) if (!hit(e, e.x, e.y - u) && !hit(e, e.x + s, e.y - u)) { up = u; break; }
+        if (!up) { flush(e, 'x', s); return b; }
+        e.y -= up;
+      }
+      e.x += s;
+    } else {
+      const b = hit(e, e.x, e.y + s);
+      if (b) { flush(e, 'y', s); return b; }
+      e.y += s;
+    }
+    rem -= s;
+  }
+  return false;
+}
+function stickySide(e, s) {
+  const x = s < 0 ? e.x - 1 : e.x + e.w;
+  return tilesIn(x, e.y + 2, 1, e.h - 4, c => stickyChar(c));
+}
+const stickyAbove = e => tilesIn(e.x + 1, e.y - 1, e.w - 2, 1, c => stickyChar(c));
+const onFloor = e => !!hit(e, e.x, e.y + 1);
+// push an entity out of anything that closed on it
+function unstick(e) {
+  if (!hit(e, e.x, e.y)) return;
+  for (let d = 1; d <= 20; d++) for (const [dx, dy] of [[d, 0], [-d, 0], [0, -d], [0, d]])
+    if (!hit(e, e.x + dx, e.y + dy)) { e.x += dx; e.y += dy; return; }
+}
+
+// ----- room setup -----
+function loadRoom(stage, room, from) {
+  S.stage = stage; S.room = room;
+  const r = cur();
+  S.grid = r.map.map(row => row.split(''));
+  S.ch = { a: 0, b: 0, c: 0, d: 0 };
+  S.ents = []; S.crates = []; S.bullets = []; S.shot = null; S.sparks = []; S.touching = new Set();
+  let start = null;
+  for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
+    const c = S.grid[ty][tx], x = tx * T, y = ty * T;
+    if ('SKrftWEH'.includes(c)) S.grid[ty][tx] = '.';
+    if (c === 'S') start = { x: x + 3, y: y + 2 };
+    else if (c === 'K') S.crates.push({ isCrate: true, x: x + 1, y, w: 14, h: 16, vy: 0 });
+    else if (c === 'r') S.ents.push({ kind: 'robot', x: x + 2, y: y + 4, w: 12, h: 12, vx: 0.7, vy: 0, stun: 0, t: 0 });
+    else if (c === 'f') S.ents.push({ kind: 'drone', x: x + 2, y: y + 3, w: 12, h: 10, hx: x + 2, hy: y + 3, vx: 0, vy: 0, stun: 0, t: tx * 7 });
+    else if (c === 't') S.ents.push({ kind: 'turret', x: x + 2, y: y + 2, w: 12, h: 12, tx, ty, cd: 60 + tx * 3, stun: 0, ang: Math.PI / 2, ceil: solidChar(tileAt(tx, ty - 1)) });
+    else if (c === 'W' || c === 'E') S.ents.push({ kind: c === 'W' ? 'webpack' : 'energy', x: x + 3, y: y + 3, w: 10, h: 10, t: tx });
+    else if (c === 'H') S.ents.push({ kind: 'crew', x: x, y: y + 1, w: 16, h: 15, t: 0 });
+  }
+  if (!S.P || from === 'start') S.P = newPlayer();
+  const P = S.P;
+  if (from === 'start' && start) { P.x = start.x; P.y = start.y; resetMotion(P); }
+  if (from === 'left') P.x = -P.w / 2 + 1;
+  if (from === 'right') P.x = VW - P.w / 2 - 1;
+  if (P.state === 'swing') P.state = 'air';
+  unstick(P);
+  S.entry = { x: P.x, y: P.y };
+  bakeRoom();
+  setWhere();
+  hintEl.textContent = r.hint || '';
+}
+function newPlayer() { return { x: 0, y: 0, w: 10, h: 14, vx: 0, vy: 0, state: 'air', side: 1, face: 1, inv: 0, coyote: 0, anim: 0, len: 0, reel: 0, ax: 0, ay: 0, hurt: 0 }; }
+function resetMotion(P) { P.vx = P.vy = 0; P.state = 'air'; P.inv = 0; P.reel = 0; }
+function restartRoom(full) {
+  const P = S.P; loadRoom(S.stage, S.room, null);
+  P.x = S.entry.x; P.y = S.entry.y; resetMotion(P); P.inv = 60;
+  if (full) { S.energy = 100; S.web = Math.max(S.web, WEB_MAX / 2); }
+}
+function startStage(i) {
+  S.lives = 3; S.energy = 100; S.web = WEB_MAX; S.P = null; S.time = 0; S.deaths = 0;
+  loadRoom(i, 0, 'start');
+  setMode('play');
+}
+
+// ----- input -----
+const keys = new Set(), pressed = new Set();
+const KEYMAP = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down',
+  KeyZ: 'jump', Space: 'jump', KeyJ: 'jump', KeyX: 'web', KeyK: 'web', KeyC: 'web' };
+function press(k) { if (!keys.has(k)) pressed.add(k); keys.add(k); }
+function release(k) { keys.delete(k); }
+addEventListener('keydown', e => {
+  audioInit();
+  const k = KEYMAP[e.code];
+  if (k) { press(k); e.preventDefault(); }
+  if (e.repeat) return;
+  if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
+  else if (e.code === 'KeyM') toggleMute();
+  else if (e.code === 'KeyR' && S.mode === 'play') restartRoom(false);
+  else if ((e.code === 'Enter' || e.code === 'Space') && S.mode !== 'play') { const b = card.querySelector('button.go'); if (b) { b.click(); e.preventDefault(); } }
+});
+addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) release(k); });
+addEventListener('blur', () => { keys.clear(); if (S.mode === 'play') togglePause(); });
+const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+let aimAt = null;
+canvas.addEventListener('pointerdown', e => {
+  audioInit();
+  if (S.mode !== 'play') return;
+  const r = canvas.getBoundingClientRect();
+  aimAt = { x: (e.clientX - r.left) / r.width * VW, y: (e.clientY - r.top) / r.height * VH };
+  e.preventDefault();
+});
+const pad = document.getElementById('pad');
+for (const b of pad.querySelectorAll('button')) {
+  const k = b.dataset.k;
+  const on = e => { e.preventDefault(); audioInit(); press(k); b.classList.add('on'); b.setPointerCapture && b.setPointerCapture(e.pointerId); };
+  const off = e => { e.preventDefault(); release(k); b.classList.remove('on'); };
+  b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('lostpointercapture', off);
+  b.addEventListener('contextmenu', e => e.preventDefault());
+}
+if (matchMedia('(pointer: coarse)').matches) document.documentElement.classList.add('touch');
+let padPrev = {};
+function pollGamepad() {
+  const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(g => g) : null;
+  if (!gp) return;
+  const b = i => !!(gp.buttons[i] && gp.buttons[i].pressed), ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+  const now = { left: b(14) || ax < -0.4, right: b(15) || ax > 0.4, up: b(12) || ay < -0.5, down: b(13) || ay > 0.5, jump: b(0), web: b(2) || b(1) || b(7) };
+  for (const k in now) { if (now[k] && !padPrev[k]) press(k); if (!now[k] && padPrev[k]) release(k); }
+  if (b(9) && !padPrev.start) togglePause();
+  now.start = b(9); padPrev = now;
+}
+
+// ----- audio -----
+let AC = null, muted = false;
+try { muted = localStorage.getItem('threadline.mute') === '1'; } catch (e) {}
+function audioInit() { if (!AC && !muted) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } if (AC && AC.state === 'suspended') AC.resume(); }
+function tone(f, d, type, vol, slide, delay) {
+  if (!AC || muted) return;
+  const t = AC.currentTime + (delay || 0), o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'square'; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + d);
+  g.gain.setValueAtTime(vol || 0.08, t); g.gain.exponentialRampToValueAtTime(0.0008, t + d);
+  o.connect(g).connect(AC.destination); o.start(t); o.stop(t + d + 0.02);
+}
+function noise(d, f, vol) {
+  if (!AC || muted) return;
+  const n = Math.floor(AC.sampleRate * d), buf = AC.createBuffer(1, n, AC.sampleRate), ch = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  const s = AC.createBufferSource(), fl = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = buf; fl.type = 'bandpass'; fl.frequency.value = f; fl.Q.value = 1.2; g.gain.value = vol || 0.2;
+  s.connect(fl).connect(g).connect(AC.destination); s.start();
+}
+const SFX = {
+  web: () => { noise(0.12, 3200, 0.25); tone(1400, 0.08, 'triangle', 0.04, 2400); },
+  stick: () => tone(520, 0.05, 'square', 0.05, 300),
+  miss: () => tone(300, 0.08, 'triangle', 0.04, 160),
+  jump: () => tone(300, 0.12, 'square', 0.04, 620),
+  hurt: () => { tone(220, 0.25, 'sawtooth', 0.08, 70); noise(0.1, 900, 0.15); },
+  zap: () => { noise(0.18, 5000, 0.25); tone(90, 0.2, 'sawtooth', 0.06, 60); },
+  sw: () => { tone(660, 0.06, 'square', 0.05); tone(990, 0.08, 'square', 0.05, 0, 0.06); },
+  pick: () => [660, 880, 1320].forEach((f, i) => tone(f, 0.09, 'triangle', 0.06, 0, i * 0.06)),
+  pew: () => tone(900, 0.1, 'square', 0.03, 300),
+  tie: () => noise(0.2, 2000, 0.15),
+  die: () => [440, 330, 247, 165].forEach((f, i) => tone(f, 0.16, 'square', 0.06, 0, i * 0.13)),
+  rescue: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.16, 'triangle', 0.07, 0, i * 0.11)),
+};
+function sfx(n) { try { SFX[n](); } catch (e) {} }
+function toggleMute() {
+  muted = !muted; try { localStorage.setItem('threadline.mute', muted ? '1' : '0'); } catch (e) {}
+  if (!muted) audioInit();
+  muteBtn.textContent = muted ? 'Sound off' : 'Sound on';
+}
+
+// ----- web line -----
+// trace a ray and report the first thing it meets: a sticky surface, a switch, an enemy, or something else
+function trace(x0, y0, ang, range) {
+  const dx = Math.cos(ang), dy = Math.sin(ang);
+  for (let d = 4; d <= range; d += 2) {
+    const x = x0 + dx * d, y = y0 + dy * d;
+    for (const e of S.ents) if ((e.kind === 'robot' || e.kind === 'drone' || e.kind === 'turret') && x > e.x - 1 && x < e.x + e.w + 1 && y > e.y - 1 && y < e.y + e.h + 1) return { what: 'foe', e, x, y, d };
+    for (const k of S.crates) if (x > k.x && x < k.x + k.w && y > k.y && y < k.y + k.h) return { what: 'block', x, y, d };
+    const tx = Math.floor(x / T), ty = Math.floor(y / T), c = tileAt(tx, ty);
+    if (x < 0 || x >= VW || y < 0 || y >= VH) return { what: 'none', x, y, d };
+    if (solidChar(c)) return { what: 'abc'.includes(c) ? 'switch' : stickyChar(c) ? 'stick' : 'block', x, y, d, tx, ty };
+  }
+  return { what: 'none', x: x0 + dx * range, y: y0 + dy * range, d: range };
+}
+function fireWeb(ang, assist) {
+  const P = S.P;
+  if (S.web < WEB_COST) { sfx('miss'); flash('Web fluid empty: it refills slowly'); return; }
+  const cx = P.x + P.w / 2, cy = P.y + 4;
+  if (assist) {
+    // keyboard aim: look up to 35 degrees either side for something worth hitting, nearest angle first
+    let best = null;
+    scan: for (let i = 0; i <= 14; i++) for (const sgn of i ? [1, -1] : [1]) {
+      const a = ang + sgn * i * Math.PI / 72, r = trace(cx, cy, a, WEB_RANGE);
+      if (r.what === 'stick' || r.what === 'switch' || r.what === 'foe') { best = a; break scan; }
+    }
+    if (best !== null) ang = best;
+  }
+  S.web -= WEB_COST;
+  S.shot = { x: cx, y: cy, ang, d: 0 };
+  sfx('web');
+}
+function updateShot() {
+  const sh = S.shot, P = S.P;
+  if (!sh) return;
+  const cx = P.x + P.w / 2, cy = P.y + 4;
+  sh.ox = cx; sh.oy = cy;
+  const r = trace(sh.x, sh.y, sh.ang, Math.min(WEB_SPEED, WEB_RANGE - sh.d));
+  sh.d += Math.min(WEB_SPEED, r.d);
+  sh.tx = r.x; sh.ty = r.y;
+  if (r.what === 'none' && sh.d < WEB_RANGE) { sh.x = r.x; sh.y = r.y; return; }
+  S.shot = null;
+  if (r.what === 'stick') {
+    P.ax = r.x; P.ay = r.y; P.state = 'swing';
+    const d = Math.hypot(cx - r.x, P.y + P.h / 2 - r.y);
+    P.len = Math.max(18, d); P.reel = Math.min(d * 0.2, Math.max(0, d - 24));
+    sfx('stick');
+  } else if (r.what === 'switch') { toggle(S.grid[r.ty][r.tx]); puff(r.x, r.y, '#fff'); }
+  else if (r.what === 'foe') { r.e.stun = r.e.kind === 'turret' ? 300 : 360; sfx('tie'); puff(r.x, r.y, '#fff'); }
+  else { sfx('miss'); puff(r.x, r.y, '#e6e6e6'); }
+  S.webFade = { x0: cx, y0: cy, x1: r.x, y1: r.y, t: 8 };
+}
+
+// ----- switches and plates -----
+function toggle(c) {
+  S.ch[c] ^= 1; sfx('sw');
+  afterChannels();
+}
+function afterChannels() {
+  unstick(S.P); for (const k of S.crates) unstick(k); for (const e of S.ents) if (e.kind === 'robot') unstick(e);
+}
+function updatePlates() {
+  let on = 0;
+  const bodies = [S.P, ...S.crates, ...S.ents.filter(e => e.kind === 'robot')];
+  for (const b of bodies) if (tilesIn(b.x, b.y, b.w, b.h, c => c === '_')) on = 1;
+  if (on !== S.ch.d) { S.ch.d = on; sfx('sw'); afterChannels(); }
+}
+function updateTouches() {
+  const P = S.P, now = new Set();
+  tilesIn(P.x - 1, P.y - 1, P.w + 2, P.h + 2, (c, tx, ty) => { if ('abc'.includes(c)) now.add(tx + ',' + ty); });
+  for (const k of now) if (!S.touching.has(k)) { const [tx, ty] = k.split(',').map(Number); toggle(S.grid[ty][tx]); }
+  S.touching = now;
+}
+
+// ----- player -----
+function hurt(dmg, srcX, kind) {
+  const P = S.P;
+  if (P.inv > 0 || S.mode !== 'play') return;
+  S.energy -= dmg; P.inv = 70; P.hurt = 12; S.shake = 6;
+  sfx(kind === 'zap' ? 'zap' : 'hurt');
+  const cx = P.x + P.w / 2;
+  P.vx = cx < srcX ? -2.2 : 2.2; P.vy = -3.6; P.state = 'air'; S.shot = null;
+  if (S.energy <= 0) die();
+}
+function die() {
+  S.energy = 0; S.lives--; S.deaths++; sfx('die');
+  if (S.lives <= 0) { setMode('over'); return; }
+  S.msg = { text: 'Ouch! ' + S.lives + (S.lives === 1 ? ' life' : ' lives') + ' left', t: 120 };
+  restartRoom(true);
+}
+function updatePlayer() {
+  const P = S.P, L = keys.has('left'), R = keys.has('right'), U = keys.has('up'), D = keys.has('down');
+  const ix = (R ? 1 : 0) - (L ? 1 : 0);
+  const jumpP = pressed.has('jump'), webP = pressed.has('web');
+  if (ix) P.face = ix;
+  if (P.inv > 0) P.inv--;
+  if (P.hurt > 0) P.hurt--;
+
+  // web: release a line, or fire one
+  if (webP || aimAt) {
+    if (P.state === 'swing') { P.state = 'air'; P.vy -= 0.5; }
+    else if (!S.shot) {
+      if (aimAt) fireWeb(Math.atan2(aimAt.y - (P.y + 4), aimAt.x - (P.x + P.w / 2)), false);
+      else {
+        let dx = ix, dy = (D ? 1 : 0) - (U ? 1 : 0);
+        if (P.state === 'wall' && !ix) dx = -P.side;
+        if (!dx && !dy) { dx = P.face; dy = -1; }
+        fireWeb(Math.atan2(dy, dx), true);
+      }
+    }
+    aimAt = null;
+  }
+
+  switch (P.state) {
+    case 'ground': {
+      P.vx = ix * RUN; P.anim += ix ? 0.25 : 0;
+      if (ix) {
+        const b = move(P, P.vx, 'x', true);
+        if (b && b.isCrate) { if (!move(b, ix, 'x')) move(P, ix, 'x'); }
+      }
+      if (U) for (const s of [P.face, -P.face]) if (stickySide(P, s)) { P.state = 'wall'; P.side = s; P.face = s; break; }
+      if (P.state !== 'ground') break;
+      if (jumpP) { P.vy = -JUMP; P.state = 'air'; sfx('jump'); move(P, -1, 'y'); break; }
+      if (!onFloor(P)) { P.state = 'air'; P.coyote = 5; P.vy = 0; }
+      break;
+    }
+    case 'air': {
+      if (P.coyote > 0) { P.coyote--; if (jumpP) { P.vy = -JUMP; P.coyote = 0; sfx('jump'); } }
+      if (ix) {
+        if (Math.abs(P.vx) > RUN && Math.sign(P.vx) === ix) P.vx *= 0.99;
+        else P.vx += Math.max(-0.3, Math.min(0.3, ix * RUN - P.vx));
+      } else P.vx *= 0.94;
+      P.vy = Math.min(P.vy + G, 7);
+      const bx = move(P, P.vx, 'x');
+      if (bx) { const s = Math.sign(P.vx) || ix; if (ix && ix === s && stickySide(P, s)) { P.state = 'wall'; P.side = s; P.vx = P.vy = 0; break; } P.vx = 0; }
+      const by = move(P, P.vy, 'y');
+      if (by) {
+        if (P.vy > 0) { P.state = 'ground'; P.vy = 0; }
+        else { if (U && stickyAbove(P)) { P.state = 'ceil'; P.vx = 0; } P.vy = 0; }
+      } else if (U && P.vy < 0 && stickyAbove(P)) { P.state = 'ceil'; P.vx = P.vy = 0; }
+      if (ix && !bx && stickySide(P, ix) && P.state === 'air' && P.vy > -2) { P.state = 'wall'; P.side = ix; P.vx = P.vy = 0; }
+      break;
+    }
+    case 'wall': {
+      const s = P.side;
+      P.face = s;
+      if (jumpP) { P.state = 'air'; P.vx = -s * 2.6; P.vy = -5.2; P.face = -s; sfx('jump'); break; }
+      if (ix === -s && !U && !D) { P.state = 'air'; P.vx = -s * 1.2; break; }
+      let dy = (D ? 1 : 0) - (U ? 1 : 0);
+      if (dy) {
+        P.anim += 0.2;
+        const b = move(P, dy * CRAWL, 'y');
+        if (b && dy < 0 && stickyAbove(P)) { P.state = 'ceil'; P.face = s; break; }
+        if (b && dy > 0) { P.state = 'ground'; break; }
+      }
+      if (!stickySide(P, s)) {
+        P.state = 'air';
+        if (dy < 0) { // climbed past the top: step up onto it
+          const tx = Math.floor((s < 0 ? P.x - 0.5 : P.x + P.w + 0.5) / T);
+          for (let ty = Math.floor(P.y / T); ty <= Math.floor((P.y + P.h + 4) / T); ty++) {
+            if (!solidChar(tileAt(tx, ty)) || solidChar(tileAt(tx, ty - 1))) continue;
+            const nx = s > 0 ? tx * T + 1 : (tx + 1) * T - P.w - 1, ny = ty * T - P.h;
+            const ok = !hit(P, P.x, ny) && !hit(P, nx, ny);
+            if (ok) { P.y = ny; P.x = nx; P.state = 'ground'; P.vx = P.vy = 0; }
+            break;
+          }
+          if (P.state === 'air') { P.vy = -3.4; P.vx = s * 1.6; }
+        }
+      }
+      break;
+    }
+    case 'ceil': {
+      if (jumpP || D) { P.state = 'air'; P.vy = 0.5; break; }
+      if (ix) {
+        P.anim += 0.2;
+        const ox = P.x, b = move(P, ix * CRAWL, 'x');
+        if (b && stickySide(P, ix)) { P.state = 'wall'; P.side = ix; break; }
+        if (!stickyAbove(P)) P.x = ox;
+      }
+      if (!stickyAbove(P)) P.state = 'air';
+      break;
+    }
+    case 'swing': {
+      if (jumpP) { P.state = 'air'; P.vy = Math.min(P.vy, 0) - 2.2; sfx('jump'); break; }
+      if (U) P.len = Math.max(18, P.len - 1.6);
+      if (D) P.len = Math.min(230, P.len + 1.6);
+      if (P.reel > 0) { const r = Math.min(3, P.reel); P.len = Math.max(18, P.len - r); P.reel -= r; }
+      P.vx += ix * 0.13; P.vy += G; P.vx *= 0.997;
+      const bx = move(P, P.vx, 'x');
+      if (bx) { const s = Math.sign(P.vx); if (ix === s && stickySide(P, s)) { P.state = 'wall'; P.side = s; P.vx = P.vy = 0; break; } P.vx *= -0.2; }
+      const by = move(P, P.vy, 'y');
+      if (by) { if (P.vy < 0 && U && stickyAbove(P)) { P.state = 'ceil'; P.vx = P.vy = 0; break; } if (P.vy > 0) P.vx *= 0.8; P.vy = 0; }
+      // rope: pull back inside its length, drop the outward part of the speed
+      const cx = P.x + P.w / 2, cy = P.y + P.h / 2, dx = cx - P.ax, dy = cy - P.ay, d = Math.hypot(dx, dy);
+      if (d > P.len) {
+        const nx = dx / d, ny = dy / d;
+        move(P, P.ax + nx * P.len - cx, 'x'); move(P, P.ay + ny * P.len - cy, 'y');
+        const vr = P.vx * nx + P.vy * ny;
+        if (vr > 0) { P.vx -= vr * nx; P.vy -= vr * ny; }
+      }
+      break;
+    }
+  }
+
+  // hazards knock you back the way you came
+  if (P.inv <= 0) {
+    const back = P.x + P.w / 2 + (Math.sign(P.vx) || P.face) * 4;
+    if (tilesIn(P.x, P.y, P.w, P.h, (c, tx, ty) => c === '^' && P.y + P.h > ty * T + 7 && P.x + P.w > tx * T + 2 && P.x < tx * T + 14)) hurt(25, back);
+    else if (tilesIn(P.x, P.y, P.w, P.h, (c, tx) => isBeam(c) && beamOn(c) && P.x + P.w > tx * T + 5 && P.x < tx * T + 11)) hurt(30, back, 'zap');
+    else if (tilesIn(P.x, P.y - 1, P.w, P.h + 2, c => c === '=') || tilesIn(P.x - 1, P.y, P.w + 2, P.h, c => c === '=')) hurt(34, back, 'zap');
+  }
+  // room edges
+  const cx = P.x + P.w / 2;
+  if (cx < 0 && hasLeft()) loadRoom(S.stage, S.room - 1, 'right');
+  else if (cx > VW && hasRight()) loadRoom(S.stage, S.room + 1, 'left');
+  else if (P.y > VH + 4) { S.energy -= 30; sfx('hurt'); if (S.energy <= 0) die(); else restartRoom(false); }
+}
+
+// ----- other actors -----
+function updateCrates() {
+  for (const k of S.crates) {
+    k.vy = Math.min(k.vy + G, 7);
+    if (move(k, k.vy, 'y')) k.vy = 0;
+  }
+}
+function losTo(x0, y0, x1, y1) {
+  const d = Math.hypot(x1 - x0, y1 - y0), n = Math.ceil(d / 4);
+  for (let i = 1; i < n; i++) {
+    const x = x0 + (x1 - x0) * i / n, y = y0 + (y1 - y0) * i / n;
+    if (solidChar(tileAt(Math.floor(x / T), Math.floor(y / T)))) return false;
+    for (const k of S.crates) if (x > k.x && x < k.x + k.w && y > k.y && y < k.y + k.h) return false;
+  }
+  return true;
+}
+function updateEnts() {
+  const P = S.P, pcx = P.x + P.w / 2, pcy = P.y + P.h / 2, last = S.stage === 3 && S.room === 2;
+  for (const e of S.ents) {
+    e.t++;
+    if (e.stun > 0) e.stun--;
+    if (e.kind === 'robot') {
+      e.vy = Math.min(e.vy + G, 6);
+      if (move(e, e.vy, 'y')) e.vy = 0;
+      if (e.stun) continue;
+      const ahead = e.vx > 0 ? e.x + e.w + 1 : e.x - 2;
+      const ground = solidChar(tileAt(Math.floor(ahead / T), Math.floor((e.y + e.h + 2) / T)));
+      const beam = tilesIn(e.x + e.vx * 4, e.y, e.w, e.h, c => isBeam(c) && beamOn(c));
+      if (move(e, e.vx, 'x') || (!ground && onFloor(e)) || beam) e.vx = -e.vx;
+    } else if (e.kind === 'drone') {
+      if (e.stun) { if (!hit(e, e.x, e.y + 0.6)) e.y += 0.6; continue; }
+      const ex = e.x + e.w / 2, ey = e.y + e.h / 2, d = Math.hypot(pcx - ex, pcy - ey);
+      let tx, ty;
+      if (d < 150) { tx = pcx; ty = pcy; } else { tx = e.hx + e.w / 2 + Math.sin(e.t / 70) * 30; ty = e.hy + e.h / 2 + Math.sin(e.t / 23) * 8; }
+      const k = Math.hypot(tx - ex, ty - ey) || 1, sp = d < 150 ? 0.62 : 0.5;
+      e.vx += ((tx - ex) / k * sp - e.vx) * 0.05; e.vy += ((ty - ey) / k * sp - e.vy) * 0.05;
+      if (!hit(e, e.x + e.vx, e.y)) e.x += e.vx; else e.vx = -e.vx;
+      if (!hit(e, e.x, e.y + e.vy)) e.y += e.vy; else e.vy = -e.vy;
+    } else if (e.kind === 'turret') {
+      const ex = e.x + 6, ey = e.y + 6;
+      e.ang = Math.atan2(pcy - ey, pcx - ex);
+      if (e.stun) continue;
+      if (--e.cd <= 0) {
+        e.cd = last ? 85 : 120;
+        if (Math.hypot(pcx - ex, pcy - ey) < 240 && losTo(ex, ey, pcx, pcy)) {
+          const sp = last ? 2.6 : 2.2;
+          S.bullets.push({ x: ex, y: ey, vx: Math.cos(e.ang) * sp, vy: Math.sin(e.ang) * sp });
+          sfx('pew');
+        }
+      }
+    } else continue;
+    if (!e.stun && overlap(e, P)) hurt(20, e.x + e.w / 2);
+  }
+  for (const e of S.ents) if ((e.kind === 'webpack' || e.kind === 'energy') && !e.gone && overlap(e, P)) {
+    e.gone = true; sfx('pick');
+    if (e.kind === 'webpack') S.web = Math.min(WEB_MAX, S.web + 14); else S.energy = Math.min(100, S.energy + 35);
+    puff(e.x + 5, e.y + 5, e.kind === 'energy' ? '#e0533d' : '#8fb7c9');
+  }
+  const crew = S.ents.find(e => e.kind === 'crew');
+  if (crew && overlap(crew, P) && S.mode === 'play') rescue();
+  for (const b of S.bullets) {
+    b.x += b.vx; b.y += b.vy;
+    if (solidChar(tileAt(Math.floor(b.x / T), Math.floor(b.y / T))) || b.x < 0 || b.x > VW || b.y < 0 || b.y > VH) b.dead = true;
+    for (const k of S.crates) if (b.x > k.x && b.x < k.x + k.w && b.y > k.y && b.y < k.y + k.h) b.dead = true;
+    if (!b.dead && b.x > P.x - 1 && b.x < P.x + P.w + 1 && b.y > P.y - 1 && b.y < P.y + P.h + 1) { b.dead = true; hurt(15, b.x); }
+  }
+  S.bullets = S.bullets.filter(b => !b.dead);
+  S.ents = S.ents.filter(e => !e.gone);
+}
+function puff(x, y, col) { for (let i = 0; i < 6; i++) S.sparks.push({ x, y, vx: (Math.random() - 0.5) * 2.4, vy: (Math.random() - 0.7) * 2.4, t: 18 + Math.random() * 10, col }); }
+
+// ----- flow -----
+function rescue() {
+  sfx('rescue');
+  const n = S.stage + 1;
+  save.unlocked = Math.max(save.unlocked, Math.min(STAGES.length, n + 1)); persist();
+  setMode(n >= STAGES.length ? 'win' : 'rescued');
+}
+function step() {
+  if (S.mode !== 'play') { pressed.clear(); aimAt = null; return; }
+  S.frame++; S.time++;
+  if (S.frame % 90 === 0 && S.web < 10) S.web++;
+  updatePlayer();
+  if (S.mode !== 'play') { pressed.clear(); return; }
+  updateShot();
+  updateCrates();
+  updatePlates();
+  updateTouches();
+  updateEnts();
+  for (const s of S.sparks) { s.x += s.vx; s.y += s.vy; s.vy += 0.1; s.t--; }
+  S.sparks = S.sparks.filter(s => s.t > 0);
+  if (S.webFade && --S.webFade.t <= 0) S.webFade = null;
+  if (S.msg && --S.msg.t <= 0) S.msg = null;
+  if (S.shake > 0) S.shake--;
+  pressed.clear();
+}
+function flash(text) { S.msg = { text, t: 100 }; }
+
+// ----- drawing -----
+let bake = null;
+function bakeRoom() {
+  bake = bake || document.createElement('canvas'); bake.width = VW; bake.height = VH;
+  const g = bake.getContext('2d'), st = STAGES[S.stage];
+  const gr = g.createLinearGradient(0, 0, 0, VH); gr.addColorStop(0, st.bg[0]); gr.addColorStop(1, st.bg[1]);
+  g.fillStyle = gr; g.fillRect(0, 0, VW, VH);
+  drawBackdrop(g, S.stage);
+  for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
+    const c = S.grid[ty][tx], x = tx * T, y = ty * T;
+    if (c === '#') drawRock(g, x, y, tx, ty, st.wall);
+    else if (c === 'X') drawGlass(g, x, y, tx, ty);
+    else if (c === '^') drawSpikes(g, x, y);
+    else if (c === '_') { g.fillStyle = '#5b5560'; g.fillRect(x, y + 14, T, 2); }
+  }
+}
+function drawBackdrop(g, s) {
+  g.save(); g.globalAlpha = 0.5;
+  if (s === 0) { // painted flats: clouds and a skyline
+    g.fillStyle = '#fff';
+    for (let i = 0; i < 6; i++) { const x = (i * 97) % VW, y = 30 + (i * 37) % 70; g.beginPath(); g.ellipse(x, y, 26, 9, 0, 0, 7); g.ellipse(x + 18, y - 5, 16, 8, 0, 0, 7); g.fill(); }
+    g.fillStyle = '#c8d3dc'; for (let i = 0; i < 16; i++) { const h = 40 + (i * 53) % 70; g.fillRect(i * 31, VH - 16 - h, 24, h); }
+  } else if (s === 1) { // stage curtains
+    for (let x = 0; x < VW; x += 12) { g.fillStyle = x % 24 ? '#e0d2ea' : '#d7c6e3'; g.fillRect(x, 0, 12, VH); }
+  } else if (s === 2) { // shelves of props
+    g.fillStyle = '#cfe2d5'; for (let y = 40; y < VH; y += 56) g.fillRect(0, y, VW, 4);
+    for (let i = 0; i < 40; i++) { g.fillStyle = ['#bfd8c8', '#d6e6d0', '#c4d4cf'][i % 3]; g.fillRect((i * 47) % VW, 40 + 56 * (i % 5) - 14, 10 + i % 3 * 4, 14); }
+  } else { // film strip
+    g.fillStyle = '#ecd2c0'; for (let y = 20; y < VH; y += 80) { g.fillRect(0, y, VW, 34); }
+    g.fillStyle = '#f8ece2'; for (let y = 20; y < VH; y += 80) for (let x = 4; x < VW; x += 14) { g.fillRect(x, y + 3, 7, 5); g.fillRect(x, y + 26, 7, 5); }
+  }
+  g.restore();
+}
+function shade(hex, k) { const n = parseInt(hex.slice(1), 16), f = v => Math.max(0, Math.min(255, Math.round(v * k))); return `rgb(${f(n >> 16)},${f(n >> 8 & 255)},${f(n & 255)})`; }
+function drawRock(g, x, y, tx, ty, col) {
+  g.fillStyle = col; g.fillRect(x, y, T, T);
+  g.fillStyle = shade(col, 1.18); // brick courses
+  const off = ty % 2 ? 8 : 0;
+  g.fillRect(x, y, T, 1); g.fillRect(x, y + 8, T, 1);
+  g.fillStyle = shade(col, 0.78);
+  g.fillRect(x + ((off + 4) % 16), y + 1, 1, 7); g.fillRect(x + ((off + 12) % 16), y + 9, 1, 7);
+  g.fillStyle = shade(col, 0.9); g.fillRect(x + 3 + (tx * 5 + ty * 3) % 9, y + 4 + (tx + ty) % 9, 2, 1);
+  const open = (dx, dy) => !solidChar(tileAt(tx + dx, ty + dy)) || tileAt(tx + dx, ty + dy) === 'X';
+  g.fillStyle = shade(col, 0.6);
+  if (open(0, -1)) g.fillRect(x, y, T, 2);
+  if (open(0, 1)) g.fillRect(x, y + T - 1, T, 1);
+  if (open(-1, 0)) g.fillRect(x, y, 1, T);
+  if (open(1, 0)) g.fillRect(x + T - 1, y, 1, T);
+}
+function drawGlass(g, x, y, tx, ty) {
+  g.fillStyle = '#bfdcec'; g.fillRect(x, y, T, T);
+  g.fillStyle = '#e9f5fb';
+  for (let i = 0; i < T; i++) { const k = (i + tx * 5 + ty * 3) % 16; if (k < 3) g.fillRect(x + i, y + T - 1 - i, 1, 1), g.fillRect(x + i, y + T - 1 - ((i + 5) % 16), 1, 1); }
+  g.fillStyle = '#86adc4';
+  if (tileAt(tx, ty - 1) !== 'X') g.fillRect(x, y, T, 1);
+  if (tileAt(tx, ty + 1) !== 'X') g.fillRect(x, y + T - 1, T, 1);
+  if (tileAt(tx - 1, ty) !== 'X') g.fillRect(x, y, 1, T);
+  if (tileAt(tx + 1, ty) !== 'X') g.fillRect(x + T - 1, y, 1, T);
+}
+function drawSpikes(g, x, y) {
+  for (let i = 0; i < 4; i++) {
+    g.fillStyle = '#7d7d88'; g.beginPath(); g.moveTo(x + i * 4, y + T); g.lineTo(x + i * 4 + 2, y + 6); g.lineTo(x + i * 4 + 4, y + T); g.fill();
+    g.fillStyle = '#c9c9d2'; g.fillRect(x + i * 4 + 2, y + 7, 1, 6);
+  }
+}
+function drawDynamicTiles(g) {
+  const f = S.frame;
+  for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
+    const c = S.grid[ty][tx], x = tx * T, y = ty * T;
+    if ('ABCD'.includes(c)) {
+      const ch = c.toLowerCase(), col = CH_COL[ch], open = !solidChar(c);
+      if (open) { g.strokeStyle = col; g.globalAlpha = 0.35; g.setLineDash([2, 3]); g.strokeRect(x + 2.5, y + 0.5, T - 5, T - 1); g.setLineDash([]); g.globalAlpha = 1; }
+      else {
+        g.fillStyle = '#f3efe6'; g.fillRect(x + 1, y, T - 2, T);
+        g.fillStyle = col; for (let i = -T; i < T; i += 6) { g.beginPath(); g.moveTo(x + 1 + Math.max(0, i), y + Math.max(0, -i)); g.lineTo(x + 1 + Math.min(T - 2, i + T), y + Math.min(T, T - i)); g.lineTo(x + 1 + Math.min(T - 2, i + T + 3), y + Math.min(T, T - i - 3)); g.lineTo(x + 1 + Math.max(0, i + 3), y + Math.max(0, -i - 3)); g.fill(); }
+        g.fillStyle = shade(col, 0.6); g.fillRect(x + 1, y, 1, T); g.fillRect(x + T - 2, y, 1, T);
+      }
+    } else if ('abc'.includes(c)) {
+      const on = S.ch[c], col = CH_COL[c];
+      g.fillStyle = '#f7f3ea'; g.fillRect(x + 1, y + 1, T - 2, T - 2);
+      g.strokeStyle = '#4a463f'; g.lineWidth = 1; g.strokeRect(x + 1.5, y + 1.5, T - 3, T - 3);
+      g.fillStyle = on ? col : shade(col, 0.55); g.beginPath(); g.arc(x + 8, y + 5.5, 2.6, 0, 7); g.fill();
+      if (on) { g.globalAlpha = 0.3 + 0.2 * Math.sin(f / 6); g.beginPath(); g.arc(x + 8, y + 5.5, 5, 0, 7); g.fill(); g.globalAlpha = 1; }
+      g.strokeStyle = '#4a463f'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(x + 8, y + 12); g.lineTo(x + (on ? 12 : 4), y + 9); g.stroke(); g.lineWidth = 1;
+    } else if (isBeam(c)) {
+      const col = CH_COL[beamCh(c)];
+      if (beamOn(c)) {
+        g.fillStyle = col; g.globalAlpha = 0.25 + 0.15 * Math.sin(f / 3 + ty); g.fillRect(x + 4, y, 8, T);
+        g.globalAlpha = 1; g.fillRect(x + 7, y, 2, T); g.fillStyle = '#fff'; g.fillRect(x + 7.5, y, 1, T);
+        if (!isBeam(tileAt(tx, ty - 1))) { g.fillStyle = '#4a463f'; g.fillRect(x + 4, y, 8, 3); }
+        if (!isBeam(tileAt(tx, ty + 1))) { g.fillStyle = '#4a463f'; g.fillRect(x + 4, y + T - 3, 8, 3); }
+      } else { g.fillStyle = col; g.globalAlpha = 0.3; for (let i = 0; i < T; i += 4) g.fillRect(x + 7, y + i, 2, 2); g.globalAlpha = 1; }
+    } else if (c === '=') {
+      g.fillStyle = '#56545e'; g.fillRect(x, y, T, T); g.fillStyle = '#3e3c45'; g.fillRect(x, y + 4, T, 2);
+      g.strokeStyle = '#f2c230'; g.lineWidth = 1; g.beginPath();
+      for (let i = 0; i <= T; i += 4) g.lineTo(x + i, y + 1 + ((i / 4 + tx + (f >> 2)) % 2) * 2);
+      g.stroke();
+    } else if (c === '_') {
+      g.fillStyle = S.ch.d ? CH_COL.d : shade(CH_COL.d, 0.7); g.fillRect(x + 1, y + (S.ch.d ? 13 : 11), T - 2, 3);
+    }
+  }
+}
+// Wren, drawn with lines: origin at the feet for upright poses, at the body centre for clinging ones
+const C_SUIT = '#1f8f8c', C_DARK = '#155f5d', C_GOLD = '#f2b33d', C_MASK = '#ffffff', C_LENS = '#23303a';
+function limb(g, pts, w, col) { g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]); g.stroke(); }
+function torso(g, hx, hy) {
+  g.fillStyle = C_SUIT; g.beginPath(); g.ellipse(hx, hy + 4.6, 2.7, 4, 0, 0, 7); g.fill();
+  g.fillStyle = C_GOLD; g.fillRect(hx - 2.5, hy + 7, 5, 1.2);
+  g.strokeStyle = C_GOLD; g.lineWidth = 0.9; g.beginPath(); g.moveTo(hx - 1.8, hy + 2); g.lineTo(hx + 1.8, hy + 5); g.stroke();
+  g.fillStyle = C_SUIT; g.beginPath(); g.arc(hx + 0.3, hy - 1.8, 3.1, 0, 7); g.fill();
+  g.fillStyle = C_MASK; g.fillRect(hx - 1.2, hy - 3.1, 4.6, 1.9);
+  g.fillStyle = C_LENS; g.fillRect(hx + 2.1, hy - 2.8, 1.4, 1.3);
+}
+function drawWren(g) {
+  const P = S.P;
+  if (P.inv > 0 && (P.inv >> 2) % 2 && P.hurt <= 0) return;
+  const st = P.state, a = P.anim;
+  g.save();
+  if (st === 'wall' || st === 'ceil') {
+    const cx = P.x + P.w / 2, cy = P.y + P.h / 2;
+    g.translate(cx, cy);
+    if (st === 'wall') g.transform(P.side, 0, 0, 1, 0, 0);
+    else g.transform(0, -1, P.face > 0 ? -1 : 1, 0, 0, -1);
+    // local: +x is the surface, -y is the way the head points
+    const k = Math.sin(a * 2) * 2;
+    limb(g, [0, -2, 3, -5 + k, 5, -7 + k], 1.7, C_SUIT);
+    limb(g, [0, -2, 2.5, 0 - k, 5, -1 - k], 1.7, C_SUIT);
+    limb(g, [0, 3, -2.5, 4 + k, 4.5, 5.5 + k], 2, C_DARK);
+    limb(g, [0, 3, -2.5, 6 - k, 4.5, 7.5 - k], 2, C_DARK);
+    torso(g, -0.5, -4.5);
+  } else {
+    const fx = P.x + P.w / 2, fy = P.y + P.h;
+    g.translate(fx, fy); g.scale(P.face, 1);
+    let feet, hands;
+    if (st === 'ground') {
+      const s = Math.sin(a) * 3;
+      feet = P.vx ? [[-1 + s, 0], [1 - s, 0]] : [[-1.6, 0], [1.6, 0]];
+      hands = P.vx ? [[-2 - s, -4], [2 + s, -4.5]] : [[-3, -4], [3, -4]];
+    } else if (st === 'swing') {
+      const dx = (P.ax - fx) * P.face, dy = P.ay - fy, d = Math.hypot(dx, dy) || 1;
+      feet = [[-2, -0.5], [0, 0]]; hands = [[dx / d * 7, -9 + dy / d * 6], [-3, -5]];
+    } else { feet = [[-2.8, -2], [2.4, -3]]; hands = [[-4, -11], [4, -9.5]]; }
+    for (const [x, y] of feet) limb(g, [0, -5, x, y], 2.2, C_DARK);
+    for (const [x, y] of hands) limb(g, [0, -10, x, y], 1.8, C_SUIT);
+    torso(g, -0.3, -11);
+  }
+  g.restore();
+  if (P.hurt > 0) { g.fillStyle = 'rgba(224,83,61,.35)'; g.fillRect(P.x - 2, P.y - 2, P.w + 4, P.h + 4); }
+}
+function drawEnts(g) {
+  const f = S.frame;
+  for (const k of S.crates) {
+    g.fillStyle = '#c8935a'; g.fillRect(k.x, k.y, k.w, k.h);
+    g.strokeStyle = '#7a5530'; g.lineWidth = 1; g.strokeRect(k.x + 0.5, k.y + 0.5, k.w - 1, k.h - 1);
+    g.beginPath(); g.moveTo(k.x + 1, k.y + 1); g.lineTo(k.x + k.w - 1, k.y + k.h - 1); g.moveTo(k.x + k.w - 1, k.y + 1); g.lineTo(k.x + 1, k.y + k.h - 1); g.stroke();
+  }
+  for (const e of S.ents) {
+    const x = e.x, y = e.y;
+    if (e.kind === 'robot') {
+      g.fillStyle = '#6d7480'; g.fillRect(x, y + 2, 12, 7);
+      g.fillStyle = '#3d424b'; g.fillRect(x - 1, y + 9, 14, 3);
+      g.fillStyle = '#f4f4f4'; g.fillRect(x + (e.vx > 0 ? 7 : 1), y + 4, 4, 3);
+      g.fillStyle = e.stun ? '#999' : '#e0533d'; g.fillRect(x + (e.vx > 0 ? 9 : 1), y + 5, 2, 1);
+      g.fillStyle = '#3d424b'; g.fillRect(x + 5, y - 1, 2, 3);
+    } else if (e.kind === 'drone') {
+      g.fillStyle = '#7c6fa8'; g.beginPath(); g.ellipse(x + 6, y + 6, 6, 4, 0, 0, 7); g.fill();
+      g.fillStyle = '#f4f4f4'; g.fillRect(x + 3, y + 5, 6, 2); g.fillStyle = e.stun ? '#999' : '#e0533d'; g.fillRect(x + 5 + Math.sign(e.vx || 1), y + 5, 2, 2);
+      g.strokeStyle = '#3d424b'; g.lineWidth = 1; g.beginPath(); g.moveTo(x + 6, y + 2); g.lineTo(x + 6, y); g.stroke();
+      const r = e.stun ? 4 : 6 * Math.abs(Math.sin(f / 2)); g.beginPath(); g.moveTo(x + 6 - r, y); g.lineTo(x + 6 + r, y); g.stroke();
+    } else if (e.kind === 'turret') {
+      const cx = x + 6, cy = y + (e.ceil ? 3 : 9);
+      g.fillStyle = '#4b4f57'; g.fillRect(x, e.ceil ? y - 2 : y + 12, 12, 2);
+      g.strokeStyle = '#3d424b'; g.lineWidth = 3; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(e.ang) * 8, cy + Math.sin(e.ang) * 8); g.stroke();
+      g.fillStyle = '#8c929c'; g.beginPath(); g.arc(cx, cy, 5, e.ceil ? 0 : Math.PI, e.ceil ? Math.PI : 0); g.fill();
+      g.fillStyle = e.stun ? '#999' : (e.cd < 20 && f % 6 < 3 ? '#ffd23a' : '#e0533d'); g.fillRect(cx - 1, cy + (e.ceil ? 1 : -3), 2, 2);
+    } else if (e.kind === 'webpack' || e.kind === 'energy') {
+      const bob = Math.sin(f / 15 + e.t) * 1.5;
+      if (e.kind === 'webpack') { g.fillStyle = '#e8f3f7'; g.fillRect(x + 2, y + bob, 6, 10); g.strokeStyle = '#4c7f95'; g.lineWidth = 1; g.strokeRect(x + 2.5, y + bob + 0.5, 5, 9); g.fillStyle = '#8fb7c9'; g.fillRect(x + 3, y + bob + 4, 4, 5); }
+      else { g.fillStyle = '#e0533d'; g.beginPath(); g.arc(x + 3, y + 3 + bob, 3, 0, 7); g.arc(x + 7, y + 3 + bob, 3, 0, 7); g.moveTo(x, y + 4 + bob); g.lineTo(x + 5, y + 10 + bob); g.lineTo(x + 10, y + 4 + bob); g.fill(); }
+    } else if (e.kind === 'crew') {
+      const crew = STAGES[S.stage].crew, wig = Math.sin(f / 8) * 0.8;
+      g.fillStyle = '#7a5530'; g.fillRect(x + 2, y + 6, 12, 2); g.fillRect(x + 2, y + 6, 2, 9); g.fillRect(x + 12, y + 1, 2, 14);
+      g.fillStyle = crew.col; g.fillRect(x + 5 + wig, y + 3, 6, 7);
+      g.fillStyle = '#f0c9a0'; g.beginPath(); g.arc(x + 8 + wig, y + 1, 3, 0, 7); g.fill();
+      g.fillStyle = '#3d424b'; g.fillRect(x + 6, y + 10, 2, 5); g.fillRect(x + 9, y + 10, 2, 5);
+      g.fillStyle = '#e9e2cf'; g.fillRect(x + 4, y + 5, 9, 1.4); g.fillRect(x + 4, y + 8, 9, 1.4);
+      if (f % 90 < 50) { g.fillStyle = '#fffdf8'; g.strokeStyle = '#4a463f'; g.lineWidth = 1; g.fillRect(x - 6, y - 16, 28, 10); g.strokeRect(x - 5.5, y - 15.5, 27, 9); g.fillStyle = '#2b2a28'; g.font = 'bold 8px system-ui,sans-serif'; g.textAlign = 'center'; g.fillText('HELP!', Math.round(x + 8), Math.round(y - 8)); }
+    }
+    if (e.stun && e.kind !== 'webpack') { g.strokeStyle = 'rgba(255,255,255,.95)'; g.lineWidth = 1; g.beginPath(); for (let i = 0; i < 4; i++) { g.moveTo(e.x - 1, e.y + i * e.h / 3); g.lineTo(e.x + e.w + 1, e.y + e.h - i * e.h / 3); } g.stroke(); }
+  }
+  g.fillStyle = '#e0533d';
+  for (const b of S.bullets) { g.beginPath(); g.arc(b.x, b.y, 2, 0, 7); g.fill(); }
+}
+function drawWeb(g) {
+  const P = S.P, cx = P.x + P.w / 2, cy = P.y + 4;
+  g.strokeStyle = '#ffffff'; g.lineWidth = 1.4;
+  const line = (x0, y0, x1, y1) => { g.strokeStyle = '#7a8a90'; g.lineWidth = 2.4; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.strokeStyle = '#fff'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); };
+  if (P.state === 'swing') {
+    line(cx, cy, P.ax, P.ay);
+    g.strokeStyle = '#fff'; g.lineWidth = 1; g.beginPath();
+    for (let i = 0; i < 4; i++) { const a = i * Math.PI / 4; g.moveTo(P.ax - Math.cos(a) * 3, P.ay - Math.sin(a) * 3); g.lineTo(P.ax + Math.cos(a) * 3, P.ay + Math.sin(a) * 3); }
+    g.stroke();
+  }
+  if (S.shot && S.shot.tx !== undefined) line(cx, cy, S.shot.tx, S.shot.ty);
+  if (S.webFade) { g.globalAlpha = S.webFade.t / 8; line(cx, cy, S.webFade.x1, S.webFade.y1); g.globalAlpha = 1; }
+}
+function render() {
+  const g = ctx;
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  if (!S.grid) return;
+  const sh = S.shake ? (Math.random() - 0.5) * S.shake : 0;
+  g.setTransform(1, 0, 0, 1, sh, 0);
+  g.drawImage(bake, 0, 0);
+  drawDynamicTiles(g);
+  drawEnts(g);
+  drawWeb(g);
+  if (S.mode !== 'title') drawWren(g);
+  for (const s of S.sparks) { g.fillStyle = s.col; g.globalAlpha = Math.min(1, s.t / 10); g.fillRect(s.x, s.y, 2, 2); }
+  g.globalAlpha = 1;
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  if (S.msg && S.mode === 'play') {
+    g.font = 'bold 11px system-ui,sans-serif'; g.textAlign = 'center';
+    const w = g.measureText(S.msg.text).width + 16;
+    g.fillStyle = 'rgba(255,253,248,.92)'; g.fillRect(VW / 2 - w / 2, 8, w, 18); g.strokeStyle = '#2b2a28'; g.strokeRect(VW / 2 - w / 2 + 0.5, 8.5, w - 1, 17);
+    g.fillStyle = '#2b2a28'; g.fillText(S.msg.text, VW / 2, 21);
+  }
+  eBar.style.width = Math.max(0, S.energy) + '%';
+  wBar.style.width = (S.web / WEB_MAX * 100) + '%';
+  livesEl.textContent = '♥'.repeat(Math.max(0, S.lives)) + '♡'.repeat(Math.max(0, 3 - S.lives));
+}
+
+// ----- UI -----
+const overlay = document.getElementById('overlay'), card = document.getElementById('card'), hintEl = document.getElementById('hint');
+const eBar = document.getElementById('eBar'), wBar = document.getElementById('wBar'), livesEl = document.getElementById('lives');
+const whereEl = document.getElementById('where'), pauseBtn = document.getElementById('pauseBtn'), muteBtn = document.getElementById('muteBtn');
+muteBtn.textContent = muted ? 'Sound off' : 'Sound on';
+muteBtn.onclick = () => toggleMute();
+pauseBtn.onclick = () => togglePause();
+function setWhere() { whereEl.textContent = `Set ${S.stage + 1}: ${STAGES[S.stage].name} · ${cur().name}`; }
+const fmtTime = f => { const s = Math.floor(f / 60); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+function setMode(m) {
+  S.mode = m; keys.clear();
+  overlay.hidden = m === 'play';
+  pauseBtn.textContent = m === 'paused' ? 'Resume' : 'Pause';
+  let h = '';
+  if (m === 'title') {
+    h = `<h2>Threadline</h2><p class="sub">A wall-crawling, web-slinging rescue on the Lumen Lot</p>
+      <p>The Projectionist has locked the film crew inside their own sets, and your brother Ossie is up in the booth. Climb any rough wall, swing on your web line, trip switches from afar and get everyone out.</p>
+      <div class="btns"><button class="go" data-a="play">${save.unlocked > 1 ? 'Continue' : 'Play'}</button></div>
+      <div class="sets">${STAGES.map((s, i) => `<button data-set="${i}" ${i < save.unlocked ? '' : 'disabled'}>Set ${i + 1}: ${s.name}</button>`).join('')}</div>`;
+  } else if (m === 'paused') {
+    h = `<h2>Paused</h2><p>${STAGES[S.stage].name} · ${cur().name}</p><p class="sub">${cur().hint}</p>
+      <div class="btns"><button class="go" data-a="resume">Resume</button><button data-a="restart">Restart room</button><button data-a="menu">Title</button></div>`;
+  } else if (m === 'rescued') {
+    const c = STAGES[S.stage].crew;
+    h = `<h2>${c.name} is free!</h2><p>You cut ${c.name}, ${c.role}, loose. "The Projectionist went up through the next set. Go!"</p>
+      <p class="sub">Set time ${fmtTime(S.time)} · ${S.deaths} lost ${S.deaths === 1 ? 'life' : 'lives'}</p>
+      <div class="btns"><button class="go" data-a="next">Next set: ${STAGES[S.stage + 1].name}</button><button data-a="menu">Title</button></div>`;
+  } else if (m === 'win') {
+    h = `<h2>That's a wrap</h2><p>Ossie is free and the Projectionist's last reel is tangled in web. The crew of the Lumen Lot walks out into the daylight.</p>
+      <p class="sub">Final set ${fmtTime(S.time)} · ${S.deaths} lost ${S.deaths === 1 ? 'life' : 'lives'}</p>
+      <div class="btns"><button class="go" data-a="menu">Title</button><button data-a="again">Replay the booth</button></div>`;
+  } else if (m === 'over') {
+    h = `<h2>Cut!</h2><p>Out of lives on ${STAGES[S.stage].name}. The set resets, and so do you.</p>
+      <div class="btns"><button class="go" data-a="again">Retry set ${S.stage + 1}</button><button data-a="menu">Title</button></div>`;
+  }
+  if (h) card.innerHTML = h;
+  for (const b of card.querySelectorAll('button')) b.onclick = () => {
+    audioInit();
+    const a = b.dataset.a;
+    if (b.dataset.set) startStage(+b.dataset.set);
+    else if (a === 'play') startStage(Math.min(save.unlocked, STAGES.length) - 1);
+    else if (a === 'resume') setMode('play');
+    else if (a === 'restart') { setMode('play'); restartRoom(false); }
+    else if (a === 'menu') { loadRoom(0, 0, 'start'); setMode('title'); }
+    else if (a === 'next') startStage(S.stage + 1);
+    else if (a === 'again') startStage(S.stage);
+  };
+  const go = card.querySelector('button.go'); if (go && m !== 'play') go.focus({ preventScroll: true });
+}
+function togglePause() { if (S.mode === 'play') setMode('paused'); else if (S.mode === 'paused') setMode('play'); }
+document.addEventListener('visibilitychange', () => { if (document.hidden && S.mode === 'play') setMode('paused'); });
+
+// ----- main loop -----
+let acc = 0, lastT = 0;
+function frame(t) {
+  const dt = Math.min(0.1, (t - lastT) / 1000 || 0); lastT = t; acc += dt;
+  pollGamepad();
+  while (acc >= 1 / 60) { step(); acc -= 1 / 60; }
+  render();
+  requestAnimationFrame(frame);
+}
+loadRoom(0, 0, 'start');
+const q = new URLSearchParams(location.search);
+if (q.has('set')) { const i = Math.max(0, Math.min(STAGES.length - 1, (+q.get('set') || 1) - 1)); startStage(i); if (q.has('room')) { loadRoom(i, Math.max(0, Math.min(2, (+q.get('room') || 1) - 1)), null); restartRoom(true); } }
+else setMode('title');
+requestAnimationFrame(frame);
+
+// test hooks
+window.TL = { S, STAGES, keys, press, release, step, sim(n) { for (let i = 0; i < n; i++) step(); }, startStage, loadRoom, restartRoom, setMode, fireWeb, trace };
+</script>
+</body>
+</html>
