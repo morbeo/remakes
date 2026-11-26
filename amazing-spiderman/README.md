@@ -25,7 +25,8 @@ The Projectionist has tied up the crew of the Lumen Lot inside their own sets. W
 - A web that hits a **switch** flips it; walking into one flips it too. A web that hits a robot, drone or turret ties it up for a few seconds.
 - **Gates** (striped) open while their colour's switch is on. **Beams** come in two kinds: dotted when off, solid when on; some go off with their switch, some come on with it.
 - **Crates** push when you walk into them. A purple gate stays open while something sits on its **plate**, a one-tile notch in the floor.
-- A fresh web reels you in a little; reel more with `↑` before swinging low over spikes.
+- The web line is instant: it lands the moment you fire. A fresh line reels you in a little; reel more with `↑` before swinging low over spikes.
+- Movement keeps its momentum: runs accelerate and skid, swing speed carries into the jump and the landing, and a short tap of jump gives a short hop.
 - Freeing a crew member unlocks the next set on the title screen (saved in the browser).
 
 ## Layout

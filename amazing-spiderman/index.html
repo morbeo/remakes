@@ -94,7 +94,7 @@ kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:3px;paddi
 // fire a web line to swing or to trip switches from afar, a limited web fluid tank and an energy bar.
 // ---------------------------------------------------------------------------------------------
 const T = 16, W = 30, H = 18, VW = W * T, VH = H * T;
-const G = 0.35, JUMP = 6.2, RUN = 2, CRAWL = 1.4, WEB_RANGE = 200, WEB_SPEED = 10, WEB_MAX = 30, WEB_COST = 2;
+const G = 0.34, JUMP = 6.3, RUN = 2.3, CRAWL = 2.1, WEB_RANGE = 200, WEB_MAX = 30, WEB_COST = 2;
 const CH_COL = { a: '#e0533d', b: '#2f7fd8', c: '#2fa65a', d: '#9a55c9' };
 
 /* Map legend
@@ -446,7 +446,7 @@ function loadRoom(stage, room, from) {
   const r = cur();
   S.grid = r.map.map(row => row.split(''));
   S.ch = { a: 0, b: 0, c: 0, d: 0 };
-  S.ents = []; S.crates = []; S.bullets = []; S.shot = null; S.sparks = []; S.touching = new Set();
+  S.ents = []; S.crates = []; S.bullets = []; S.sparks = []; S.touching = new Set();
   let start = null;
   for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
     const c = S.grid[ty][tx], x = tx * T, y = ty * T;
@@ -599,19 +599,9 @@ function fireWeb(ang, assist) {
     if (best !== null) ang = best;
   }
   S.web -= WEB_COST;
-  S.shot = { x: cx, y: cy, ang, d: 0 };
   sfx('web');
-}
-function updateShot() {
-  const sh = S.shot, P = S.P;
-  if (!sh) return;
-  const cx = P.x + P.w / 2, cy = P.y + 4;
-  sh.ox = cx; sh.oy = cy;
-  const r = trace(sh.x, sh.y, sh.ang, Math.min(WEB_SPEED, WEB_RANGE - sh.d));
-  sh.d += Math.min(WEB_SPEED, r.d);
-  sh.tx = r.x; sh.ty = r.y;
-  if (r.what === 'none' && sh.d < WEB_RANGE) { sh.x = r.x; sh.y = r.y; return; }
-  S.shot = null;
+  // the line is instant: it lands on whatever the ray meets first
+  const r = trace(cx, cy, ang, WEB_RANGE);
   if (r.what === 'stick') {
     P.ax = r.x; P.ay = r.y; P.state = 'swing';
     const d = Math.hypot(cx - r.x, P.y + P.h / 2 - r.y);
@@ -620,7 +610,7 @@ function updateShot() {
   } else if (r.what === 'switch') { toggle(S.grid[r.ty][r.tx]); puff(r.x, r.y, '#fff'); }
   else if (r.what === 'foe') { r.e.stun = r.e.kind === 'turret' ? 300 : 360; sfx('tie'); puff(r.x, r.y, '#fff'); }
   else { sfx('miss'); puff(r.x, r.y, '#e6e6e6'); }
-  S.webFade = { x0: cx, y0: cy, x1: r.x, y1: r.y, t: 8 };
+  S.webFade = { x0: cx, y0: cy, x1: r.x, y1: r.y, t: r.what === 'stick' ? 4 : 10 };
 }
 
 // ----- switches and plates -----
@@ -651,7 +641,7 @@ function hurt(dmg, srcX, kind) {
   S.energy -= dmg; P.inv = 70; P.hurt = 12; S.shake = 6;
   sfx(kind === 'zap' ? 'zap' : 'hurt');
   const cx = P.x + P.w / 2;
-  P.vx = cx < srcX ? -2.2 : 2.2; P.vy = -3.6; P.state = 'air'; S.shot = null;
+  P.vx = cx < srcX ? -2.2 : 2.2; P.vy = -3.6; P.state = 'air';
   if (S.energy <= 0) die();
 }
 function die() {
@@ -671,7 +661,7 @@ function updatePlayer() {
   // web: release a line, or fire one
   if (webP || aimAt) {
     if (P.state === 'swing') { P.state = 'air'; P.vy -= 0.5; }
-    else if (!S.shot) {
+    else {
       if (aimAt) fireWeb(Math.atan2(aimAt.y - (P.y + 4), aimAt.x - (P.x + P.w / 2)), false);
       else {
         let dx = ix, dy = (D ? 1 : 0) - (U ? 1 : 0);
@@ -685,29 +675,37 @@ function updatePlayer() {
 
   switch (P.state) {
     case 'ground': {
-      P.vx = ix * RUN; P.anim += ix ? 0.25 : 0;
-      if (ix) {
+      // accelerate and skid rather than start and stop dead; swing speed carries into a run
+      if (ix && Math.abs(P.vx) > RUN && Math.sign(P.vx) === ix) P.vx *= 0.96;
+      else if (ix) P.vx += Math.max(-0.45, Math.min(0.45, ix * RUN - P.vx));
+      else P.vx *= Math.abs(P.vx) < 0.2 ? 0 : 0.72;
+      P.anim += Math.abs(P.vx) * 0.13;
+      if (P.vx) {
         const b = move(P, P.vx, 'x', true);
-        if (b && b.isCrate) { if (!move(b, ix, 'x')) move(P, ix, 'x'); }
+        if (b && b.isCrate && ix) { P.vx = ix; if (!move(b, ix, 'x')) move(P, ix, 'x'); }
+        else if (b) P.vx = 0;
       }
       if (U) for (const s of [P.face, -P.face]) if (stickySide(P, s)) { P.state = 'wall'; P.side = s; P.face = s; break; }
       if (P.state !== 'ground') break;
-      if (jumpP) { P.vy = -JUMP; P.state = 'air'; sfx('jump'); move(P, -1, 'y'); break; }
+      if (jumpP) { P.vy = -JUMP; P.state = 'air'; P.jumping = true; sfx('jump'); move(P, -1, 'y'); break; }
       if (!onFloor(P)) { P.state = 'air'; P.coyote = 5; P.vy = 0; }
       break;
     }
     case 'air': {
-      if (P.coyote > 0) { P.coyote--; if (jumpP) { P.vy = -JUMP; P.coyote = 0; sfx('jump'); } }
+      if (P.coyote > 0) { P.coyote--; if (jumpP) { P.vy = -JUMP; P.coyote = 0; P.jumping = true; sfx('jump'); } }
       if (ix) {
-        if (Math.abs(P.vx) > RUN && Math.sign(P.vx) === ix) P.vx *= 0.99;
-        else P.vx += Math.max(-0.3, Math.min(0.3, ix * RUN - P.vx));
-      } else P.vx *= 0.94;
-      P.vy = Math.min(P.vy + G, 7);
+        if (Math.abs(P.vx) > RUN && Math.sign(P.vx) === ix) P.vx *= 0.995;
+        else P.vx += Math.max(-0.35, Math.min(0.35, ix * RUN - P.vx));
+      } else P.vx *= 0.985;
+      // let go of jump early for a short hop
+      if (P.jumping && !keys.has('jump') && P.vy < -2.4) P.vy = -2.4;
+      if (P.vy >= 0) P.jumping = false;
+      P.vy = Math.min(P.vy + G, 7.5);
       const bx = move(P, P.vx, 'x');
       if (bx) { const s = Math.sign(P.vx) || ix; if (ix && ix === s && stickySide(P, s)) { P.state = 'wall'; P.side = s; P.vx = P.vy = 0; break; } P.vx = 0; }
       const by = move(P, P.vy, 'y');
       if (by) {
-        if (P.vy > 0) { P.state = 'ground'; P.vy = 0; }
+        if (P.vy > 0) { P.state = 'ground'; P.vy = 0; P.vx *= 0.85; }
         else { if (U && stickyAbove(P)) { P.state = 'ceil'; P.vx = 0; } P.vy = 0; }
       } else if (U && P.vy < 0 && stickyAbove(P)) { P.state = 'ceil'; P.vx = P.vy = 0; }
       if (ix && !bx && stickySide(P, ix) && P.state === 'air' && P.vy > -2) { P.state = 'wall'; P.side = ix; P.vx = P.vy = 0; }
@@ -716,11 +714,11 @@ function updatePlayer() {
     case 'wall': {
       const s = P.side;
       P.face = s;
-      if (jumpP) { P.state = 'air'; P.vx = -s * 2.6; P.vy = -5.2; P.face = -s; sfx('jump'); break; }
+      if (jumpP) { P.state = 'air'; P.vx = -s * 2.8; P.vy = -5.6; P.face = -s; sfx('jump'); break; }
       if (ix === -s && !U && !D) { P.state = 'air'; P.vx = -s * 1.2; break; }
       let dy = (D ? 1 : 0) - (U ? 1 : 0);
       if (dy) {
-        P.anim += 0.2;
+        P.anim += 0.3;
         const b = move(P, dy * CRAWL, 'y');
         if (b && dy < 0 && stickyAbove(P)) { P.state = 'ceil'; P.face = s; break; }
         if (b && dy > 0) { P.state = 'ground'; break; }
@@ -744,7 +742,7 @@ function updatePlayer() {
     case 'ceil': {
       if (jumpP || D) { P.state = 'air'; P.vy = 0.5; break; }
       if (ix) {
-        P.anim += 0.2;
+        P.anim += 0.3;
         const ox = P.x, b = move(P, ix * CRAWL, 'x');
         if (b && stickySide(P, ix)) { P.state = 'wall'; P.side = ix; break; }
         if (!stickyAbove(P)) P.x = ox;
@@ -753,11 +751,11 @@ function updatePlayer() {
       break;
     }
     case 'swing': {
-      if (jumpP) { P.state = 'air'; P.vy = Math.min(P.vy, 0) - 2.2; sfx('jump'); break; }
-      if (U) P.len = Math.max(18, P.len - 1.6);
-      if (D) P.len = Math.min(230, P.len + 1.6);
-      if (P.reel > 0) { const r = Math.min(3, P.reel); P.len = Math.max(18, P.len - r); P.reel -= r; }
-      P.vx += ix * 0.13; P.vy += G; P.vx *= 0.997;
+      if (jumpP) { P.state = 'air'; P.vy = Math.min(P.vy, 0) - 2.6; P.vx *= 1.1; sfx('jump'); break; }
+      if (U) P.len = Math.max(18, P.len - 2.6);
+      if (D) P.len = Math.min(230, P.len + 2.6);
+      if (P.reel > 0) { const r = Math.min(6, P.reel); P.len = Math.max(18, P.len - r); P.reel -= r; }
+      P.vx += ix * 0.2; P.vy += G; P.vx *= 0.999;
       const bx = move(P, P.vx, 'x');
       if (bx) { const s = Math.sign(P.vx); if (ix === s && stickySide(P, s)) { P.state = 'wall'; P.side = s; P.vx = P.vy = 0; break; } P.vx *= -0.2; }
       const by = move(P, P.vy, 'y');
@@ -869,10 +867,10 @@ function rescue() {
 function step() {
   if (S.mode !== 'play') { pressed.clear(); aimAt = null; return; }
   S.frame++; S.time++;
+  S.P.px = S.P.x; S.P.py = S.P.y;
   if (S.frame % 90 === 0 && S.web < 10) S.web++;
   updatePlayer();
   if (S.mode !== 'play') { pressed.clear(); return; }
-  updateShot();
   updateCrates();
   updatePlates();
   updateTouches();
@@ -1089,9 +1087,9 @@ function drawWeb(g) {
     for (let i = 0; i < 4; i++) { const a = i * Math.PI / 4; g.moveTo(P.ax - Math.cos(a) * 3, P.ay - Math.sin(a) * 3); g.lineTo(P.ax + Math.cos(a) * 3, P.ay + Math.sin(a) * 3); }
     g.stroke();
   }
-  if (S.shot && S.shot.tx !== undefined) line(cx, cy, S.shot.tx, S.shot.ty);
   if (S.webFade) { g.globalAlpha = S.webFade.t / 8; line(cx, cy, S.webFade.x1, S.webFade.y1); g.globalAlpha = 1; }
 }
+let alpha = 1;
 function render() {
   const g = ctx;
   g.setTransform(1, 0, 0, 1, 0, 0);
@@ -1101,8 +1099,12 @@ function render() {
   g.drawImage(bake, 0, 0);
   drawDynamicTiles(g);
   drawEnts(g);
-  drawWeb(g);
-  if (S.mode !== 'title') drawWren(g);
+  if (S.mode !== 'title') {
+    // draw Wren between the last two physics steps so motion stays smooth on fast displays
+    const P = S.P, x = P.x, y = P.y, k = Math.min(1, alpha);
+    if (P.px !== undefined && Math.abs(P.px - x) < 24 && Math.abs(P.py - y) < 24) { P.x = P.px + (x - P.px) * k; P.y = P.py + (y - P.py) * k; }
+    drawWeb(g); drawWren(g); P.x = x; P.y = y;
+  }
   for (const s of S.sparks) { g.fillStyle = s.col; g.globalAlpha = Math.min(1, s.t / 10); g.fillRect(s.x, s.y, 2, 2); }
   g.globalAlpha = 1;
   g.setTransform(1, 0, 0, 1, 0, 0);
@@ -1175,6 +1177,7 @@ function frame(t) {
   const dt = Math.min(0.1, (t - lastT) / 1000 || 0); lastT = t; acc += dt;
   pollGamepad();
   while (acc >= 1 / 60) { step(); acc -= 1 / 60; }
+  alpha = S.mode === 'play' ? acc * 60 : 1;
   render();
   requestAnimationFrame(frame);
 }
