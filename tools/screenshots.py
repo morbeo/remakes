@@ -134,10 +134,10 @@ def diamond_mine(pg):
 
 def amazing_spiderman(pg):
     # set 1, mid-swing over the spike pit of the Catwalk Gap
-    pg.evaluate("""() => { TL.startStage(0); TL.loadRoom(0, 1, null); const P = TL.S.P;
-      P.x = 54; P.y = 257; P.state = 'air'; TL.S.mode = 'play';
+    pg.evaluate("""() => { TL.startStage(0); TL.loadRoom(0, 1, null); TL.restartRoom(true); TL.S.mode = 'play';
       const hold = (ks, n) => { ks.forEach(k => TL.press(k)); TL.sim(n); ks.forEach(k => TL.release(k)); };
-      hold(['right'], 10); hold(['up'], 120); hold(['right'], 8); hold(['web'], 1); TL.sim(20); hold(['right'], 34);
+      hold(['right'], 30); hold(['up'], 100); hold(['right'], 4); hold(['up', 'right', 'web'], 1); TL.sim(3);
+      hold(['jump'], 1); hold(['right'], 40);
       TL.setMode('play'); TL.S.mode = 'shot'; }""")
     pg.wait_for_timeout(200)
     return "#c"

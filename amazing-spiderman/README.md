@@ -8,13 +8,14 @@ The Projectionist has tied up the crew of the Lumen Lot inside their own sets. W
 
 | | |
 | --- | --- |
-| Move | `←` `→` or `A` `D` |
-| Climb, reel the web | `↑` `↓` or `W` `S`. Hold `↑` against a rough wall to climb it; hold `↑` when you hit a ceiling to cling to it |
-| Jump | `Z`, `Space` or `J`. From a wall it kicks you off; while swinging it lets go with a boost |
-| Web | `X`, `K` or `C` fires in the direction you hold (straight ahead by default) with aim assist; a click or tap on the screen fires at that spot. Fire again to let go |
+| Move | Arrows or `W` `A` `S` `D` move along whatever surface Wren is on: floor, wall or ceiling. The arrow pointing into the surface crouches, the one pointing away stands up, and pressed again while standing leaves the surface |
+| Climb | Walk into a rough wall, or press `↑` facing one. Press `↑` in a jump to grab a ceiling |
+| Jump | `↑` on a floor with no wall to climb, or `Z`, `Space` or `J` from any surface. Hold for a full jump, tap for a hop |
+| Web | Hold `X` (or `K`, `C`) and press an arrow to fire that way, or tap `X` alone to fire straight ahead (away from a wall you cling to). Arrows only aim while `X` is held. A click or tap on the screen fires at that spot. Fire again to let go. No webs while crouching |
+| Swing | A line fired from a surface hangs slack; jump or step off to swing on it. `←` `→` pump, `↑` `↓` climb up or down the line |
 | Restart room | `R` (free; use it if a crate gets stuck) |
 | Pause / mute | `P` or `Esc` / `M` |
-| Touch | On-screen pad, WEB and JUMP buttons; tap the screen to aim a web |
+| Touch | On-screen pad, WEB and JUMP buttons (hold WEB and press a direction to aim); tap the screen to fire at a spot |
 | Gamepad | D-pad or stick moves, A jumps, X/B/RT fires the web, Start pauses |
 
 ## Rules
@@ -25,7 +26,8 @@ The Projectionist has tied up the crew of the Lumen Lot inside their own sets. W
 - A web that hits a **switch** flips it; walking into one flips it too. A web that hits a robot, drone or turret ties it up for a few seconds.
 - **Gates** (striped) open while their colour's switch is on. **Beams** come in two kinds: dotted when off, solid when on; some go off with their switch, some come on with it.
 - **Crates** push when you walk into them. A purple gate stays open while something sits on its **plate**, a one-tile notch in the floor.
-- The web line is instant: it lands the moment you fire. A fresh line reels you in a little; reel more with `↑` before swinging low over spikes.
+- The web line is instant and never tugs you: it lands the moment you fire, and only swinging or climbing it moves you. Climb up the line with `↑` before swinging low over spikes.
+- Crouching makes Wren half as tall, so low gaps need it.
 - Movement keeps its momentum: runs accelerate and skid, swing speed carries into the jump and the landing, and a short tap of jump gives a short hop.
 - Freeing a crew member unlocks the next set on the title screen (saved in the browser).
 
