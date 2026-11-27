@@ -32,6 +32,16 @@ The Projectionist has tied up the crew of the Lumen Lot inside their own sets. W
 - Movement keeps its momentum: runs accelerate and skid, swing speed carries into the jump and the landing, and a short tap of jump gives a short hop.
 - Freeing a crew member unlocks the next set on the title screen (saved in the browser).
 
+## Stunt Rehearsal
+
+A practice room, open from the title screen (or `?set=practice`), for trying every move against traps that switch on and off by themselves. Nothing costs a life there, hearts come back, and a knockout sends you to the start.
+
+- Rising spikes and pulsing beams cycle in waves; each one blinks before it switches on.
+- A live floor strip powers up and down under a web anchor point.
+- A row of rough blocks fades out and comes back, dropping anyone clinging to it.
+- A ceiling turret pops up, fires for a while and hides again.
+- Portals spawn drones and a floor hatch spawns robots; each lasts a while, then vanishes in a puff.
+
 ## Layout
 
-`index.html` holds everything: the room maps (30 by 18 tiles, as strings at the top of the script with a legend), the physics (fixed 60 Hz step; ground, air, wall, ceiling and swing states), actors, drawing and the UI. `?set=2&room=3` jumps straight to a room for testing. `window.TL` exposes the state and a `sim(frames)` stepper for scripted tests and the screenshot recipe.
+`index.html` holds everything: the room maps (30 by 18 tiles, as strings at the top of the script with a legend), the physics (fixed 60 Hz step; ground, air, wall, ceiling and swing states), actors, drawing and the UI. `?set=2&room=3` jumps straight to a room for testing; `?set=practice` opens the practice room. `window.TL` exposes the state and a `sim(frames)` stepper for scripted tests and the screenshot recipe.
