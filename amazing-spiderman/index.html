@@ -93,7 +93,7 @@ kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:3px;paddi
 // fire an endless web line that flies until it hits something, swing on it or trip switches from afar, and an energy bar.
 // ---------------------------------------------------------------------------------------------
 const T = 16, W = 30, H = 18, VW = W * T, VH = H * T;
-const G = 0.34, JUMP = 6.3, RUN = 2.3, CRAWL = 2.1, WEB_RANGE = 1000;
+const G = 0.34, JUMP = 6.3, RUN = 2.3, CRAWL = 2.3, WEB_RANGE = 1000;
 const CH_COL = { a: '#e0533d', b: '#2f7fd8', c: '#2fa65a', d: '#9a55c9' };
 
 /* Map legend
@@ -467,11 +467,12 @@ function loadRoom(stage, room, from) {
   P.line = false;
   unstick(P);
   S.entry = { x: P.x, y: P.y };
+  S.snapDraw = true;
   bakeRoom();
   setWhere();
   hintEl.textContent = r.hint || '';
 }
-function newPlayer() { return { x: 0, y: 0, w: 10, h: 20, vx: 0, vy: 0, state: 'air', crouch: false, side: 1, vf: -1, face: 1, inv: 0, coyote: 0, anim: 0, len: 0, line: false, ax: 0, ay: 0, hurt: 0 }; }
+function newPlayer() { return { x: 0, y: 0, w: 10, h: 20, vx: 0, vy: 0, state: 'air', crouch: false, side: 1, vf: -1, face: 1, inv: 0, coyote: 0, anim: 0, len: 0, line: false, ax: 0, ay: 0, hurt: 0, spin: 0 }; }
 function resetMotion(P) { const b = P.y + P.h; Object.assign(P, { vx: 0, vy: 0, state: 'air', crouch: false, line: false, inv: 0, w: 10, h: 20 }); P.y = b - 20; unstick(P); }
 function restartRoom(full) {
   const P = S.P; loadRoom(S.stage, S.room, null);
@@ -651,7 +652,7 @@ function die() {
 // The hero moves along whatever surface he is on, as in the original: floor, wall or ceiling.
 // Keys along the surface walk him; the key pointing into it crouches; the key pointing away stands
 // up, or leaves the surface when he is already standing. Up with no wall to climb jumps.
-const CROUCH = 1.1;
+const CROUCH = RUN; // crouched or upright, on any surface, he moves at one speed
 function shapeOf(st, cr) { return cr ? { w: 12, h: 12 } : st === 'wall' ? { w: 20, h: 10 } : { w: 10, h: 20 }; }
 // change state and body shape, keeping the named edge or corner in place; false if there is no room
 function reshape(P, st, cr, anchor) {
@@ -685,6 +686,34 @@ function popOver(P, s) {
     return false;
   }
   return false;
+}
+// outside corners: carry on round the edge of a rough block instead of stopping or falling
+function placeIf(P, st, x, y, extra) {
+  const { w, h } = shapeOf(st, P.crouch);
+  if (hit({ w, h }, x, y)) return false;
+  Object.assign(P, { x, y, w, h, state: st, vx: 0, vy: 0 }, extra);
+  return true;
+}
+function wrapCeilEdge(P, ix) {
+  const ty = Math.floor((P.y - 1) / T), c0 = Math.floor((P.x + 1) / T), c1 = Math.floor((P.x + P.w - 1.001) / T);
+  let tx = -99;
+  for (let c = c0; c <= c1; c++) if (stickyChar(tileAt(c, ty)) && (tx === -99 || (ix > 0 ? c > tx : c < tx))) tx = c;
+  if (tx === -99 || solidChar(tileAt(tx + ix, ty))) return false;
+  const { w, h } = shapeOf('wall', P.crouch);
+  return placeIf(P, 'wall', ix > 0 ? (tx + 1) * T : tx * T - w, (ty + 1) * T - h, { side: -ix, vf: -1 }) && stickySide(P, -ix);
+}
+function wrapWallBottom(P, s) {
+  const tx = Math.floor((s > 0 ? P.x + P.w + 0.5 : P.x - 0.5) / T), ty = Math.floor((P.y + 2) / T) - 1;
+  if (!stickyChar(tileAt(tx, ty)) || solidChar(tileAt(tx, ty + 1))) return false;
+  const { w } = shapeOf('ceil', P.crouch);
+  return placeIf(P, 'ceil', s > 0 ? tx * T : (tx + 1) * T - w, (ty + 1) * T, { face: s });
+}
+function wrapFloorEdge(P) {
+  const dir = Math.sign(P.vx) || P.face;
+  const tx = Math.floor((dir > 0 ? P.x - 3 : P.x + P.w + 3) / T), ty = Math.floor((P.y + P.h + 0.5) / T);
+  if (!stickyChar(tileAt(tx, ty)) || solidChar(tileAt(tx + dir, ty))) return false;
+  const { w } = shapeOf('wall', P.crouch);
+  return placeIf(P, 'wall', dir > 0 ? (tx + 1) * T : tx * T - w, ty * T, { side: -dir, vf: 1 }) && stickySide(P, -dir);
 }
 function updatePlayer() {
   const P = S.P, L = keys.has('left'), R = keys.has('right');
@@ -735,7 +764,7 @@ function updatePlayer() {
       // walking into a rough wall for a moment, or pressing up beside one, climbs onto it
       P.push = pushed && stickySide(P, ix) ? (P.push || 0) + 1 : 0;
       let climb = 0;
-      if (P.push > 8) climb = ix;
+      if (P.push > 3) climb = ix;
       else if (U && !P.crouch) for (const s of [P.face, -P.face]) if (stickySide(P, s)) { climb = s; break; }
       if (climb) {
         const keep = { x: P.x, y: P.y, w: P.w, h: P.h, state: P.state, crouch: P.crouch };
@@ -745,6 +774,7 @@ function updatePlayer() {
       if (downP && !P.crouch) { reshape(P, 'ground', true, 'bottom'); break; }
       if ((upP || jumpP) && P.crouch) { if (!reshape(P, 'ground', false, 'bottom') || !jumpP) break; }
       if (jumpP || (upP && !P.crouch)) { if (leave(P, 'bottom')) { P.vy = -JUMP; P.jumping = true; sfx('jump'); move(P, -1, 'y'); startSwingIfLined(P); } break; }
+      if (!onFloor(P) && (P.crouch || D) && wrapFloorEdge(P)) break;
       if (!onFloor(P) && leave(P, 'bottom')) { P.coyote = 5; P.vy = 0; startSwingIfLined(P); }
       break;
     }
@@ -785,6 +815,7 @@ function updatePlayer() {
       }
       if (!stickySide(P, s)) {
         if (iy < 0 && popOver(P, s)) break;
+        if (iy > 0 && wrapWallBottom(P, s)) break;
         if (leave(P, s > 0 ? 'right' : 'left')) { P.vx = iy < 0 ? s * 1.6 : 0; P.vy = iy < 0 ? -3.4 : 0; startSwingIfLined(P); }
       }
       break;
@@ -798,14 +829,14 @@ function updatePlayer() {
         P.anim += 0.3; P.moving = true;
         const ox = P.x, b = move(P, ix * sp, 'x');
         if (b && stickySide(P, ix) && reshape(P, 'wall', P.crouch, ix > 0 ? 'topright' : 'topleft')) { P.side = ix; P.vf = 1; break; }
-        if (!stickyAbove(P)) P.x = ox; // stop at the edge rather than fall off
+        if (!stickyAbove(P)) { P.x = ox; if (wrapCeilEdge(P, ix)) break; } // round the outside corner, or stop at the edge
       }
       if (!stickyAbove(P) && leave(P, 'top')) startSwingIfLined(P);
       break;
     }
     case 'swing': {
       if (jumpP) { P.line = false; P.state = 'air'; P.vy = Math.min(P.vy, 0) - 2.6; P.vx *= 1.1; sfx('jump'); break; }
-      if (U) P.len = Math.max(18, P.len - 2.6); // climb the line
+      if (U) P.len = Math.max(6, P.len - 2.6); // climb the line
       if (D) P.len = Math.min(600, P.len + 2.6);
       P.vx += ix * 0.2; P.vy += G; P.vx *= 0.999;
       const bx = move(P, P.vx, 'x');
@@ -824,9 +855,18 @@ function updatePlayer() {
         const vr = P.vx * nx + P.vy * ny;
         if (vr > 0) { P.vx -= vr * nx; P.vy -= vr * ny; }
       }
+      // climbed to the top of the line: catch hold of the surface it is stuck to
+      if (U && Math.hypot(P.x + P.w / 2 - P.ax, P.y + P.h / 2 - P.ay) < 26) {
+        if (stickyAbove(P) && grabCeil(P)) { P.line = false; break; }
+        for (const s of [1, -1]) if (stickySide(P, s) && grabWall(P, s)) { P.line = false; break; }
+      }
       break;
     }
   }
+  // tumble: somersault through the air when moving fast sideways
+  if (P.state === 'air' && !P.line && Math.abs(P.vx) > 1.6) P.spin += Math.sign(P.vx) * 0.21;
+  else if (P.state !== 'air' && P.state !== 'swing') P.spin = 0;
+  else P.spin -= (P.spin - Math.round(P.spin / (2 * Math.PI)) * 2 * Math.PI) * 0.2;
 
   // hazards knock you back the way you came
   if (P.inv <= 0) {
@@ -926,6 +966,7 @@ function step() {
   S.P.px = S.P.x; S.P.py = S.P.y;
   updatePlayer();
   if (S.mode !== 'play') { pressed.clear(); return; }
+  tweenDraw(S.P);
   updateCrates();
   updatePlates();
   updateTouches();
@@ -1052,22 +1093,40 @@ function torso(g, hx, hy) {
   g.fillStyle = C_MASK; g.fillRect(hx - 1.2, hy - 3.1, 4.6, 1.9);
   g.fillStyle = C_LENS; g.fillRect(hx + 2.1, hy - 2.8, 1.4, 1.3);
 }
+// ease the drawn pose between surfaces so corners and landings turn instead of snapping
+function tweenDraw(P) {
+  const cx = P.x + P.w / 2, cy = P.y + P.h / 2;
+  let ang, k, ox, oy;
+  if (P.state === 'ceil') { ang = Math.PI / 2; k = -P.face; ox = cx; oy = P.y; }
+  else if (P.state === 'wall') { ang = P.side > 0 ? Math.PI : 0; k = (P.side > 0 ? -1 : 1) * (P.vf || -1); ox = P.side > 0 ? P.x + P.w : P.x; oy = cy; }
+  else if (P.state === 'ground') { ang = -Math.PI / 2; k = P.face; ox = cx; oy = P.y + P.h; }
+  else { ang = -Math.PI / 2 + (P.spin || 0) * P.face * Math.sign(P.face); k = P.face; ox = cx - Math.cos(ang) * P.h / 2; oy = cy - Math.sin(ang) * P.h / 2; }
+  const rx = ox - cx, ry = oy - cy;
+  if (P.dang === undefined || S.snapDraw) { P.dang = ang; P.drx = rx; P.dry = ry; S.snapDraw = false; }
+  else {
+    let d = ang - P.dang; d -= Math.round(d / (2 * Math.PI)) * 2 * Math.PI;
+    const air = P.state === 'air' || P.state === 'swing';
+    P.dang += d * (air && Math.abs(P.vx) > 1.6 ? 0.6 : 0.3);
+    P.drx += (rx - P.drx) * 0.35; P.dry += (ry - P.dry) * 0.35;
+  }
+  P.dk = k;
+}
 function drawWren(g) {
   const P = S.P;
   if (P.inv > 0 && (P.inv >> 2) % 2 && P.hurt <= 0) return;
   const st = P.state, a = P.anim;
-  // frame: feet on the surface, n = away from it (his "up"), f = the way he faces along it
-  let ox, oy, nx = 0, ny = -1, fx = P.face, fy = 0;
-  if (st === 'ceil') { ox = P.x + P.w / 2; oy = P.y; ny = 1; }
-  else if (st === 'wall') { ox = P.side > 0 ? P.x + P.w : P.x; oy = P.y + P.h / 2; nx = -P.side; ny = 0; fx = 0; fy = P.vf || -1; }
-  else { ox = P.x + P.w / 2; oy = P.y + P.h; }
+  // frame (eased in tweenDraw): feet at the origin, n = away from the surface (his "up"), f = the way he faces
+  const ang = P.dang === undefined ? -Math.PI / 2 : P.dang, k = P.dk || 1;
+  const nx = Math.cos(ang), ny = Math.sin(ang), fx = -ny * k, fy = nx * k;
+  const ox = P.x + P.w / 2 + (P.drx || 0), oy = P.y + P.h / 2 + (P.dry === undefined ? P.h / 2 : P.dry);
   g.save();
   g.transform(fx, fy, -nx, -ny, ox, oy);
   g.scale(1.3, 1.3);
+  const tuck = (st === 'air' && !P.line) && (Math.abs(P.vx) > 1.6 || Math.abs(Math.sin((P.spin || 0) / 2)) > 0.25);
   const moving = st === 'ground' ? Math.abs(P.vx) > 0.1 : !!P.moving;
   let feet, hands, hip = -5, sh = -10, tx = -0.3, ty = -11;
-  if (P.crouch) {
-    // squat: short body, knees out front, hands ready
+  if (P.crouch || tuck) {
+    // squat (or tucked somersault): short body, knees out front, hands ready
     const s = moving ? Math.sin(a * 1.5) * 1.2 : 0;
     g.fillStyle = C_SUIT; g.beginPath(); g.ellipse(0.2, -5, 2.8, 2.6, 0.25, 0, 7); g.fill();
     g.fillStyle = C_GOLD; g.fillRect(-2.4, -3.2, 4.6, 1.1);

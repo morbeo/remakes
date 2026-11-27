@@ -9,10 +9,10 @@ The Projectionist has tied up the crew of the Lumen Lot inside their own sets. W
 | | |
 | --- | --- |
 | Move | Arrows or `W` `A` `S` `D` move along whatever surface Wren is on: floor, wall or ceiling. The arrow pointing into the surface crouches, the one pointing away stands up, and pressed again while standing leaves the surface |
-| Climb | Walk into a rough wall, or press `↑` facing one. Press `↑` in a jump to grab a ceiling |
+| Climb | Walk into a rough wall, or press `↑` facing one. Press `↑` in a jump to grab a ceiling. Walking or crawling past the edge of a rough block carries on round the corner (off a floor edge, hold `↓` or be crouched) |
 | Jump | `↑` on a floor with no wall to climb, or `Z`, `Space` or `J` from any surface. Hold for a full jump, tap for a hop |
 | Web | Hold `X` (or `K`, `C`) and press an arrow to fire that way, or tap `X` alone to fire straight ahead (away from a wall you cling to). Arrows only aim while `X` is held. A click or tap on the screen fires at that spot. Fire again to let go. No webs while crouching |
-| Swing | A line fired from a surface hangs slack; jump or step off to swing on it. `←` `→` pump, `↑` `↓` climb up or down the line |
+| Swing | A line fired from a surface hangs slack; jump or step off to swing on it. `←` `→` pump, `↑` `↓` climb up or down the line. Climb to the top and Wren catches hold of the ceiling or wall the line is stuck to |
 | Restart room | `R` (free; use it if a crate gets stuck) |
 | Pause / mute | `P` or `Esc` / `M` |
 | Touch | On-screen pad, WEB and JUMP buttons (hold WEB and press a direction to aim); tap the screen to fire at a spot |
@@ -27,7 +27,8 @@ The Projectionist has tied up the crew of the Lumen Lot inside their own sets. W
 - **Gates** (striped) open while their colour's switch is on. **Beams** come in two kinds: dotted when off, solid when on; some go off with their switch, some come on with it.
 - **Crates** push when you walk into them. A purple gate stays open while something sits on its **plate**, a one-tile notch in the floor.
 - The web line is instant and never tugs you: it lands the moment you fire, and only swinging or climbing it moves you. Climb up the line with `↑` before swinging low over spikes.
-- Crouching makes Wren half as tall, so low gaps need it.
+- Crouching makes Wren half as tall, so low gaps need it. Upright or crouched, on floors, walls or ceilings, he moves at one speed.
+- Running jumps, wall jumps and fast swings end in a somersault.
 - Movement keeps its momentum: runs accelerate and skid, swing speed carries into the jump and the landing, and a short tap of jump gives a short hop.
 - Freeing a crew member unlocks the next set on the title screen (saved in the browser).
 
