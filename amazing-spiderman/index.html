@@ -20,7 +20,7 @@ body{font-family:var(--ui);-webkit-tap-highlight-color:transparent;touch-action:
 .meter{display:flex;align-items:center;gap:6px}
 .bar{width:90px;height:10px;border:1px solid var(--ink);border-radius:3px;background:#fff;overflow:hidden}
 .bar i{display:block;height:100%;width:100%;transition:width .12s}
-#eBar{background:#e0533d}#wBar{background:#8fb7c9}
+#eBar{background:#e0533d}
 #lives{letter-spacing:2px;color:var(--warn)}
 .icon{border:1px solid var(--ink);background:var(--panel);border-radius:4px;font:inherit;font-size:.8rem;padding:3px 8px;cursor:pointer;color:var(--ink)}
 .stage{position:relative;border:2px solid var(--ink);border-radius:6px;overflow:hidden;background:#e8eef0;aspect-ratio:480/288;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
@@ -61,7 +61,6 @@ kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:3px;paddi
     <span id="where">Lumen Lot</span>
     <div class="hud">
       <span class="meter">Energy <span class="bar"><i id="eBar"></i></span></span>
-      <span class="meter">Web <span class="bar"><i id="wBar"></i></span></span>
       <span id="lives" aria-label="lives">♥♥♥</span>
       <button class="icon" id="pauseBtn" type="button">Pause</button>
       <button class="icon" id="muteBtn" type="button">Sound on</button>
@@ -91,10 +90,10 @@ kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:3px;paddi
 // ---------------------------------------------------------------------------------------------
 // Threadline: an original wall-crawling, web-swinging room puzzler on a haunted film lot.
 // Mechanics follow the 1990 DOS wall-crawler games: flip-screen rooms, cling to any rough surface,
-// fire a web line to swing or to trip switches from afar, a limited web fluid tank and an energy bar.
+// fire an endless web line that flies until it hits something, swing on it or trip switches from afar, and an energy bar.
 // ---------------------------------------------------------------------------------------------
 const T = 16, W = 30, H = 18, VW = W * T, VH = H * T;
-const G = 0.34, JUMP = 6.3, RUN = 2.3, CRAWL = 2.1, WEB_RANGE = 200, WEB_MAX = 30, WEB_COST = 2;
+const G = 0.34, JUMP = 6.3, RUN = 2.3, CRAWL = 2.1, WEB_RANGE = 1000;
 const CH_COL = { a: '#e0533d', b: '#2f7fd8', c: '#2fa65a', d: '#9a55c9' };
 
 /* Map legend
@@ -106,7 +105,7 @@ const CH_COL = { a: '#e0533d', b: '#2f7fd8', c: '#2fa65a', d: '#9a55c9' };
    a b c  switches: touch or web them to flip
    1 2 3  beams, off while switch a/b/c is on       5 6 7  beams, on while switch a/b/c is on
    4  beam, off while a plate is pressed            _  pressure plate (sits in a one-tile notch)
-   K crate  r robot  f drone  t turret  W web refill  E energy  S start  H captive crew member */
+   K crate  r robot  f drone  t turret  E energy  S start  H captive crew member */
 const STAGES = [
   { name: 'Back Lot', bg: ['#dcecf6', '#f6f1e3'], wall: '#9a8f7f', crew: { name: 'Mags', role: 'the grip', col: '#d9773b' }, rooms: [
     { name: 'Loading Dock', hint: 'Arrows move, Z jumps. Hold ↑ against a rough wall to climb it, and over the top.', map: [
@@ -128,7 +127,7 @@ const STAGES = [
       '#.S............###............',
       '#.......#......###^^^^........',
       '##############################'] },
-    { name: 'Catwalk Gap', hint: 'X or a click fires a web. Swing with ←→, reel with ↑↓, fire again or jump to let go. Webs slide off glass.', map: [
+    { name: 'Catwalk Gap', hint: 'X or a click fires a web straight ahead; hold ↑ or ↓ to aim it. Swing with ←→, reel with ↑↓, fire again or jump to let go. Webs slide off glass.', map: [
       '##############################',
       '#XXXXXXXXXXXXXXXXXXXXXXXXXXXX#',
       '#............................#',
@@ -138,7 +137,7 @@ const STAGES = [
       '#............................#',
       '#............................#',
       '#............................#',
-      '#....W.......................#',
+      '#............................#',
       '#...###......................#',
       '#...###......................#',
       '#...###......................#',
@@ -348,7 +347,7 @@ const STAGES = [
 
 // ----- state -----
 const S = {
-  mode: 'title', stage: 0, room: 0, lives: 3, energy: 100, web: WEB_MAX, frame: 0, deaths: 0, time: 0,
+  mode: 'title', stage: 0, room: 0, lives: 3, energy: 100, frame: 0, deaths: 0, time: 0,
   grid: null, ch: null, ents: [], crates: [], bullets: [], shot: null, sparks: [],
   P: null, entry: null, touching: new Set(), msg: null, shake: 0,
 };
@@ -456,7 +455,7 @@ function loadRoom(stage, room, from) {
     else if (c === 'r') S.ents.push({ kind: 'robot', x: x + 2, y: y + 4, w: 12, h: 12, vx: 0.7, vy: 0, stun: 0, t: 0 });
     else if (c === 'f') S.ents.push({ kind: 'drone', x: x + 2, y: y + 3, w: 12, h: 10, hx: x + 2, hy: y + 3, vx: 0, vy: 0, stun: 0, t: tx * 7 });
     else if (c === 't') S.ents.push({ kind: 'turret', x: x + 2, y: y + 2, w: 12, h: 12, tx, ty, cd: 60 + tx * 3, stun: 0, ang: Math.PI / 2, ceil: solidChar(tileAt(tx, ty - 1)) });
-    else if (c === 'W' || c === 'E') S.ents.push({ kind: c === 'W' ? 'webpack' : 'energy', x: x + 3, y: y + 3, w: 10, h: 10, t: tx });
+    else if (c === 'E') S.ents.push({ kind: 'energy', x: x + 3, y: y + 3, w: 10, h: 10, t: tx });
     else if (c === 'H') S.ents.push({ kind: 'crew', x: x, y: y + 1, w: 16, h: 15, t: 0 });
   }
   if (!S.P || from === 'start') S.P = newPlayer();
@@ -476,10 +475,10 @@ function resetMotion(P) { P.vx = P.vy = 0; P.state = 'air'; P.inv = 0; P.reel = 
 function restartRoom(full) {
   const P = S.P; loadRoom(S.stage, S.room, null);
   P.x = S.entry.x; P.y = S.entry.y; resetMotion(P); P.inv = 60;
-  if (full) { S.energy = 100; S.web = Math.max(S.web, WEB_MAX / 2); }
+  if (full) S.energy = 100;
 }
 function startStage(i) {
-  S.lives = 3; S.energy = 100; S.web = WEB_MAX; S.P = null; S.time = 0; S.deaths = 0;
+  S.lives = 3; S.energy = 100; S.P = null; S.time = 0; S.deaths = 0;
   loadRoom(i, 0, 'start');
   setMode('play');
 }
@@ -587,7 +586,6 @@ function trace(x0, y0, ang, range) {
 }
 function fireWeb(ang, assist) {
   const P = S.P;
-  if (S.web < WEB_COST) { sfx('miss'); flash('Web fluid empty: it refills slowly'); return; }
   const cx = P.x + P.w / 2, cy = P.y + 4;
   if (assist) {
     // keyboard aim: look up to 35 degrees either side for something worth hitting, nearest angle first
@@ -598,7 +596,6 @@ function fireWeb(ang, assist) {
     }
     if (best !== null) ang = best;
   }
-  S.web -= WEB_COST;
   sfx('web');
   // the line is instant: it lands on whatever the ray meets first
   const r = trace(cx, cy, ang, WEB_RANGE);
@@ -666,7 +663,7 @@ function updatePlayer() {
       else {
         let dx = ix, dy = (D ? 1 : 0) - (U ? 1 : 0);
         if (P.state === 'wall' && !ix) dx = -P.side;
-        if (!dx && !dy) { dx = P.face; dy = -1; }
+        if (!dx && !dy) dx = P.face; // straight ahead by default
         fireWeb(Math.atan2(dy, dx), true);
       }
     }
@@ -753,7 +750,7 @@ function updatePlayer() {
     case 'swing': {
       if (jumpP) { P.state = 'air'; P.vy = Math.min(P.vy, 0) - 2.6; P.vx *= 1.1; sfx('jump'); break; }
       if (U) P.len = Math.max(18, P.len - 2.6);
-      if (D) P.len = Math.min(230, P.len + 2.6);
+      if (D) P.len = Math.min(600, P.len + 2.6);
       if (P.reel > 0) { const r = Math.min(6, P.reel); P.len = Math.max(18, P.len - r); P.reel -= r; }
       P.vx += ix * 0.2; P.vy += G; P.vx *= 0.999;
       const bx = move(P, P.vx, 'x');
@@ -839,10 +836,10 @@ function updateEnts() {
     } else continue;
     if (!e.stun && overlap(e, P)) hurt(20, e.x + e.w / 2);
   }
-  for (const e of S.ents) if ((e.kind === 'webpack' || e.kind === 'energy') && !e.gone && overlap(e, P)) {
+  for (const e of S.ents) if (e.kind === 'energy' && !e.gone && overlap(e, P)) {
     e.gone = true; sfx('pick');
-    if (e.kind === 'webpack') S.web = Math.min(WEB_MAX, S.web + 14); else S.energy = Math.min(100, S.energy + 35);
-    puff(e.x + 5, e.y + 5, e.kind === 'energy' ? '#e0533d' : '#8fb7c9');
+    S.energy = Math.min(100, S.energy + 35);
+    puff(e.x + 5, e.y + 5, '#e0533d');
   }
   const crew = S.ents.find(e => e.kind === 'crew');
   if (crew && overlap(crew, P) && S.mode === 'play') rescue();
@@ -868,7 +865,6 @@ function step() {
   if (S.mode !== 'play') { pressed.clear(); aimAt = null; return; }
   S.frame++; S.time++;
   S.P.px = S.P.x; S.P.py = S.P.y;
-  if (S.frame % 90 === 0 && S.web < 10) S.web++;
   updatePlayer();
   if (S.mode !== 'play') { pressed.clear(); return; }
   updateCrates();
@@ -1059,10 +1055,9 @@ function drawEnts(g) {
       g.strokeStyle = '#3d424b'; g.lineWidth = 3; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(e.ang) * 8, cy + Math.sin(e.ang) * 8); g.stroke();
       g.fillStyle = '#8c929c'; g.beginPath(); g.arc(cx, cy, 5, e.ceil ? 0 : Math.PI, e.ceil ? Math.PI : 0); g.fill();
       g.fillStyle = e.stun ? '#999' : (e.cd < 20 && f % 6 < 3 ? '#ffd23a' : '#e0533d'); g.fillRect(cx - 1, cy + (e.ceil ? 1 : -3), 2, 2);
-    } else if (e.kind === 'webpack' || e.kind === 'energy') {
+    } else if (e.kind === 'energy') {
       const bob = Math.sin(f / 15 + e.t) * 1.5;
-      if (e.kind === 'webpack') { g.fillStyle = '#e8f3f7'; g.fillRect(x + 2, y + bob, 6, 10); g.strokeStyle = '#4c7f95'; g.lineWidth = 1; g.strokeRect(x + 2.5, y + bob + 0.5, 5, 9); g.fillStyle = '#8fb7c9'; g.fillRect(x + 3, y + bob + 4, 4, 5); }
-      else { g.fillStyle = '#e0533d'; g.beginPath(); g.arc(x + 3, y + 3 + bob, 3, 0, 7); g.arc(x + 7, y + 3 + bob, 3, 0, 7); g.moveTo(x, y + 4 + bob); g.lineTo(x + 5, y + 10 + bob); g.lineTo(x + 10, y + 4 + bob); g.fill(); }
+      { g.fillStyle = '#e0533d'; g.beginPath(); g.arc(x + 3, y + 3 + bob, 3, 0, 7); g.arc(x + 7, y + 3 + bob, 3, 0, 7); g.moveTo(x, y + 4 + bob); g.lineTo(x + 5, y + 10 + bob); g.lineTo(x + 10, y + 4 + bob); g.fill(); }
     } else if (e.kind === 'crew') {
       const crew = STAGES[S.stage].crew, wig = Math.sin(f / 8) * 0.8;
       g.fillStyle = '#7a5530'; g.fillRect(x + 2, y + 6, 12, 2); g.fillRect(x + 2, y + 6, 2, 9); g.fillRect(x + 12, y + 1, 2, 14);
@@ -1072,7 +1067,7 @@ function drawEnts(g) {
       g.fillStyle = '#e9e2cf'; g.fillRect(x + 4, y + 5, 9, 1.4); g.fillRect(x + 4, y + 8, 9, 1.4);
       if (f % 90 < 50) { g.fillStyle = '#fffdf8'; g.strokeStyle = '#4a463f'; g.lineWidth = 1; g.fillRect(x - 6, y - 16, 28, 10); g.strokeRect(x - 5.5, y - 15.5, 27, 9); g.fillStyle = '#2b2a28'; g.font = 'bold 8px system-ui,sans-serif'; g.textAlign = 'center'; g.fillText('HELP!', Math.round(x + 8), Math.round(y - 8)); }
     }
-    if (e.stun && e.kind !== 'webpack') { g.strokeStyle = 'rgba(255,255,255,.95)'; g.lineWidth = 1; g.beginPath(); for (let i = 0; i < 4; i++) { g.moveTo(e.x - 1, e.y + i * e.h / 3); g.lineTo(e.x + e.w + 1, e.y + e.h - i * e.h / 3); } g.stroke(); }
+    if (e.stun) { g.strokeStyle = 'rgba(255,255,255,.95)'; g.lineWidth = 1; g.beginPath(); for (let i = 0; i < 4; i++) { g.moveTo(e.x - 1, e.y + i * e.h / 3); g.lineTo(e.x + e.w + 1, e.y + e.h - i * e.h / 3); } g.stroke(); }
   }
   g.fillStyle = '#e0533d';
   for (const b of S.bullets) { g.beginPath(); g.arc(b.x, b.y, 2, 0, 7); g.fill(); }
@@ -1115,13 +1110,12 @@ function render() {
     g.fillStyle = '#2b2a28'; g.fillText(S.msg.text, VW / 2, 21);
   }
   eBar.style.width = Math.max(0, S.energy) + '%';
-  wBar.style.width = (S.web / WEB_MAX * 100) + '%';
   livesEl.textContent = '♥'.repeat(Math.max(0, S.lives)) + '♡'.repeat(Math.max(0, 3 - S.lives));
 }
 
 // ----- UI -----
 const overlay = document.getElementById('overlay'), card = document.getElementById('card'), hintEl = document.getElementById('hint');
-const eBar = document.getElementById('eBar'), wBar = document.getElementById('wBar'), livesEl = document.getElementById('lives');
+const eBar = document.getElementById('eBar'), livesEl = document.getElementById('lives');
 const whereEl = document.getElementById('where'), pauseBtn = document.getElementById('pauseBtn'), muteBtn = document.getElementById('muteBtn');
 muteBtn.textContent = muted ? 'Sound off' : 'Sound on';
 muteBtn.onclick = () => toggleMute();

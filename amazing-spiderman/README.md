@@ -11,7 +11,7 @@ The Projectionist has tied up the crew of the Lumen Lot inside their own sets. W
 | Move | `←` `→` or `A` `D` |
 | Climb, reel the web | `↑` `↓` or `W` `S`. Hold `↑` against a rough wall to climb it; hold `↑` when you hit a ceiling to cling to it |
 | Jump | `Z`, `Space` or `J`. From a wall it kicks you off; while swinging it lets go with a boost |
-| Web | `X`, `K` or `C` fires in the direction you hold (up and forward by default) with aim assist; a click or tap on the screen fires at that spot. Fire again to let go |
+| Web | `X`, `K` or `C` fires in the direction you hold (straight ahead by default) with aim assist; a click or tap on the screen fires at that spot. Fire again to let go |
 | Restart room | `R` (free; use it if a crate gets stuck) |
 | Pause / mute | `P` or `Esc` / `M` |
 | Touch | On-screen pad, WEB and JUMP buttons; tap the screen to aim a web |
@@ -20,7 +20,7 @@ The Projectionist has tied up the crew of the Lumen Lot inside their own sets. W
 ## Rules
 
 - **Energy** (red bar) drops on spikes (25), beams (30), the live rail (34), robots and drones (20) and turret shots (15). At zero you lose a life and the room restarts from where you entered it. Three lives per set; a set restarts when they run out. Hearts refill 35 energy.
-- **Web fluid** (blue bar): each shot costs 2 of 30. Canisters refill 14, and the tank trickles back up to a third on its own so you can never get stuck.
+- **The web never runs out** and has no range limit: the line flies until it hits something.
 - **Rough brick** holds a climber and a web. **Glass** holds neither. The **live rail** shocks on touch.
 - A web that hits a **switch** flips it; walking into one flips it too. A web that hits a robot, drone or turret ties it up for a few seconds.
 - **Gates** (striped) open while their colour's switch is on. **Beams** come in two kinds: dotted when off, solid when on; some go off with their switch, some come on with it.
